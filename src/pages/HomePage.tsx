@@ -284,9 +284,9 @@ export default function HomePage({
                     sessionStorage.setItem('preselected_category_id', category.id);
                     setPage('raise');
                   }}
-                  className={`flex flex-col justify-between text-left p-5 rounded-xl border bg-white hover:border-[#F4511E] hover:shadow-xs transition-all duration-150 group h-40`}
+                  className={`flex flex-col justify-between text-left p-6 rounded-xl border bg-white hover:border-[#F4511E] hover:shadow-xs transition-all duration-150 group h-40`}
                 >
-                  <div className={`p-2.5 rounded-lg border ${categoryBg} ${categoryText} ${categoryBorder} w-fit`}>
+                  <div className={`p-2 rounded-lg border ${categoryBg} ${categoryText} ${categoryBorder} w-fit`}>
                     {getCategoryIcon(category.icon)}
                   </div>
                   <div className="space-y-1 mt-4">
@@ -337,7 +337,7 @@ export default function HomePage({
           </div>
 
           {/* Exact Recreation of Sample Complaint Layout from Reference Image */}
-          <div className="border border-slate-200 rounded-xl bg-[#FFFDFB]/40 p-5 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <div className="border border-slate-200 rounded-xl bg-[#FFFDFB]/40 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
             
             {/* Col 1: Complaint ID (3 cols) */}
             <div className="lg:col-span-2 space-y-1">
