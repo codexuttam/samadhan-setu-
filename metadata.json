@@ -1,0 +1,6 @@
+{
+  "name": "Samadhan Setu",
+  "description": "A high-fidelity civic grievance redressal web platform that allows citizens to report, track, and verify local complaints, and administrative departments to manage and resolve them with automatic SLA escalations.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
