@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import InteractiveMap from '../components/InteractiveMap';
 import { CATEGORIES, DEPARTMENTS, WARDS, Complaint, getDepartmentForCategory, computeSLADeadline, getSLADurationHours } from '../data/mockData';
 import {
@@ -13,6 +13,8 @@ import {
   Phone,
   Layers,
   Sparkles,
+  Mic,
+  Square,
 } from 'lucide-react';
 
 interface RaiseComplaintPageProps {
@@ -29,6 +31,74 @@ export default function RaiseComplaintPage({
   setTrackingInput,
 }: RaiseComplaintPageProps) {
   const [currentStep, setCurrentStep] = useState(1);
+  
+  // Voice recording states for AI Speech-to-Text
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+      audioChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        setIsTranscribing(true);
+        try {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.readAsDataURL(audioBlob);
+          reader.onloadend = async () => {
+            const base64Data = (reader.result as string).split(',')[1];
+            
+            const response = await fetch('/api/transcribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ audioData: base64Data }),
+            });
+
+            if (!response.ok) throw new Error('Transcription request failed');
+            const data = await response.json();
+            
+            if (data.text && data.text.trim()) {
+              setDescription(prev => prev ? prev + '\n' + data.text : data.text);
+              alert('🎙️ Voice note successfully transcribed!');
+            } else {
+              alert('Could not transcribe audio. Speak closely into the microphone.');
+            }
+          };
+        } catch (err) {
+          console.error(err);
+          alert('Error during audio transcription.');
+        } finally {
+          setIsTranscribing(false);
+          stream.getTracks().forEach(track => track.stop());
+        }
+      };
+
+      mediaRecorder.start();
+      setIsRecording(true);
+    } catch (err) {
+      console.error(err);
+      alert('Could not access microphone! Grant microphone permissions to Samadhan Setu in your browser.');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
   
   // Form States
   const [categoryId, setCategoryId] = useState('');
@@ -281,7 +351,34 @@ export default function RaiseComplaintPage({
 
             {/* Description */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Detailed Description *</label>
+              <div className="flex justify-between items-center">
+                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Detailed Description *</label>
+                
+                {/* Voice Dictation AI Interface */}
+                <div className="flex items-center gap-2">
+                  {isTranscribing ? (
+                    <span className="flex items-center gap-1.5 text-[10px] text-orange-500 font-extrabold animate-pulse">
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-600 animate-ping" /> Transcribing Audio...
+                    </span>
+                  ) : isRecording ? (
+                    <button
+                      type="button"
+                      onClick={stopRecording}
+                      className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded text-[10px] font-extrabold uppercase tracking-wider shadow-xs animate-pulse"
+                    >
+                      <Square className="w-2.5 h-2.5 fill-white shrink-0" /> Stop Recording
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={startRecording}
+                      className="flex items-center gap-1 bg-orange-50 hover:bg-orange-100 border border-orange-100 text-[#F4511E] px-2.5 py-1 rounded text-[10px] font-extrabold uppercase tracking-wider shadow-xs transition-all"
+                    >
+                      <Mic className="w-2.5 h-2.5 text-[#F4511E] shrink-0" /> Dictate with Voice (AI)
+                    </button>
+                  )}
+                </div>
+              </div>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
