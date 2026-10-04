@@ -25,7 +25,7 @@ async function seed() {
   const zone1 = await prisma.zone.upsert({
     where: { code: 'Z1' },
     update: {},
-    create: { code: 'Z1', name: 'North Zone', city: 'Amravati' },
+    create: { code: 'Z1', name: 'North Zone', city: 'Dwarka, Delhi' },
   });
 
   const ward14 = await prisma.ward.upsert({

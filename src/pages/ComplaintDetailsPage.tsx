@@ -200,7 +200,7 @@ export default function ComplaintDetailsPage({
                   <MapPin className="w-4 h-4 text-[#F4511E] shrink-0 mt-0.5" />
                   <div>
                     <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Address</span>
-                    <span className="font-semibold text-[#0F172A]">{complaint.address}, Amravati - {complaint.pincode}</span>
+                    <span className="font-semibold text-[#0F172A]">{complaint.address}, Dwarka, Delhi - {complaint.pincode}</span>
                   </div>
                 </div>
 

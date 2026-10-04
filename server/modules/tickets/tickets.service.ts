@@ -77,7 +77,7 @@ export async function createTicket(input: CreateTicketInput) {
         description: input.description.trim(),
         address: input.address.trim(),
         area: input.area.trim(),
-        city: input.city.trim() || 'Amravati',
+        city: input.city.trim() || 'Dwarka, Delhi',
         pincode: input.pincode.trim(),
         latitude: input.latitude,
         longitude: input.longitude,

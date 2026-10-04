@@ -3,7 +3,7 @@ import multer from 'multer';
 import { z } from 'zod';
 import { asyncHandler, parse, Errors } from '../lib/errors';
 import { requestOtp, verifyCreateOtp, verifyTrackOtp } from '../modules/otp/otp.service';
-import { createTicket } from '../modules/tickets/tickets.service';
+import { createTicket, type CreateTicketInput } from '../modules/tickets/tickets.service';
 import { validateFiles, presentAttachments } from '../modules/files/files.service';
 import { resolveAccessToken } from '../modules/tracking/accessTokens';
 import { prisma } from '../lib/prisma';
@@ -42,7 +42,7 @@ publicRouter.post(
       }),
       req.body,
     );
-    const result = await requestOtp({ ...data, ip: req.ip });
+    const result = await requestOtp({ phone: data.phone, purpose: data.purpose, publicReference: data.publicReference, ip: req.ip });
     res.json(result);
   }),
 );
@@ -76,23 +76,23 @@ publicRouter.post(
     const body = parse(
       z.object({
         categoryId: z.string().uuid(),
-        subcategory: z.string().optional(),
+        subcategory: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()) as z.ZodType<string | undefined>,
         title: z.string().min(5).max(120),
         description: z.string().min(10).max(2000),
         address: z.string().min(5).max(250),
         area: z.string().min(2).max(100),
-        wardId: z.string().uuid().optional(),
-        city: z.string().default('Amravati'),
+        wardId: z.preprocess((v) => (v === '' ? undefined : v), z.string().uuid().optional()) as z.ZodType<string | undefined>,
+        city: z.string().default('Dwarka, Delhi'),
         pincode: z.string().min(6).max(6),
-        latitude: z.coerce.number().optional(),
-        longitude: z.coerce.number().optional(),
+        latitude: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().optional()) as z.ZodType<number | undefined>,
+        longitude: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().optional()) as z.ZodType<number | undefined>,
         phone: z.string(),
         otpVerificationToken: z.string(),
       }),
       req.body,
     );
 
-    const result = await createTicket({ ...body, city: body.city || 'Amravati', evidence: files, ip: req.ip });
+    const result = await createTicket({ ...body, city: body.city || 'Dwarka, Delhi', evidence: files, ip: req.ip } as CreateTicketInput);
     res.status(201).json(result);
   }),
 );
@@ -119,6 +119,7 @@ publicRouter.get(
       ticket: {
         id: access.id, // Scoped token ID
         publicReference: ticket.publicReference,
+        department: ticket.department.name,
         category: ticket.category.name,
         subcategory: ticket.subcategory,
         title: ticket.title,
@@ -155,9 +156,9 @@ publicRouter.post(
     const body = parse(
       z.object({
         outcome: z.enum(['RESOLVED', 'NOT_RESOLVED']),
-        comment: z.string().optional(),
-        reviewDescription: z.string().optional(),
-        rating: z.coerce.number().optional(),
+        comment: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()) as z.ZodType<string | undefined>,
+        reviewDescription: z.preprocess((v) => (v === '' ? undefined : v), z.string().optional()) as z.ZodType<string | undefined>,
+        rating: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().optional()) as z.ZodType<number | undefined>,
       }),
       req.body,
     );

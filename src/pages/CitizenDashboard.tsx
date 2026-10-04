@@ -217,7 +217,7 @@ export default function CitizenDashboard({
                     <td className="py-4 px-5">
                       <div className="space-y-0.5">
                         <p className="font-medium text-[#475569] truncate max-w-[180px]">{complaint.address}</p>
-                        <p className="text-[10px] text-slate-400 font-medium">Amravati</p>
+                        <p className="text-[10px] text-slate-400 font-medium">Dwarka, Delhi</p>
                       </div>
                     </td>
 

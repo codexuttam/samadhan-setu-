@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import InteractiveMap from '../components/InteractiveMap';
+import RealtimeWorkflowShowcase from '../components/RealtimeWorkflowShowcase';
 import { CATEGORIES, Complaint } from '../data/mockData';
 import {
   Search,
@@ -221,7 +222,16 @@ export default function HomePage({
         </div>
       </section>
 
-      {/* 2. COMPLAINT CATEGORY SECTION (Matches Reference proportions) */}
+      {/* 2. REAL-TIME RESOLUTION WORKFLOW ENGINE SHOWCASE */}
+      <RealtimeWorkflowShowcase
+        onRaiseClick={() => setPage('raise')}
+        onTrackClick={() => {
+          const el = document.getElementById('tracking-section');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }}
+      />
+
+      {/* 3. COMPLAINT CATEGORY SECTION (Matches Reference proportions) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-6 sm:p-8 shadow-xs">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8 pb-6 border-b border-slate-100">
@@ -361,7 +371,7 @@ export default function HomePage({
               <div className="space-y-0.5">
                 <h4 className="font-extrabold text-xs text-[#0F1B2D]">Roads & Potholes</h4>
                 <p className="text-[10px] text-[#64748B] font-medium flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-[#F4511E]" /> Parvati Nagar, Amravati
+                  <MapPin className="w-3 h-3 text-[#F4511E]" /> Parvati Nagar, Dwarka, Delhi
                 </p>
               </div>
             </div>

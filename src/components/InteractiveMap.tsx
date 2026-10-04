@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { MapPin, Crosshair, Loader2 } from 'lucide-react';
 
 interface MapMarker {
   id: string;
@@ -28,148 +29,169 @@ export default function InteractiveMap({
   interactive = false,
   highlightWardId,
 }: InteractiveMapProps) {
-  // Floating issue markers as described on the landing page
+  // Dwarka, Delhi civic markers
   const initialMarkers: MapMarker[] = [
     {
-      id: 'SS2025012343',
+      id: 'SS2026012343',
       title: 'Pothole reported',
-      wardName: 'Ward 12 - Parvati Nagar',
+      wardName: 'Ward 12 - Dwarka Sector 12',
       wardId: 'ward_12',
       category: 'Roads & Potholes',
       color: '#F4511E', // Orange
       x: 55,
       y: 25,
-      lat: 20.9320,
-      lng: 77.7523,
+      lat: 28.5912,
+      lng: 77.0423,
     },
     {
-      id: 'SS2025012281',
+      id: 'SS2026012281',
       title: 'Street light issue',
-      wardName: 'Ward 8 - Ram Nagar',
+      wardName: 'Ward 8 - Dwarka Sector 8',
       wardId: 'ward_8',
       category: 'Street Lights',
       color: '#F59E0B', // Amber
       x: 70,
       y: 32,
-      lat: 20.9382,
-      lng: 77.7561,
+      lat: 28.5782,
+      lng: 77.0661,
     },
     {
-      id: 'SS2025012174',
+      id: 'SS2026012174',
       title: 'Garbage collection',
-      wardName: 'Ward 5 - Shivaji Nagar',
+      wardName: 'Ward 5 - Dwarka Sector 5',
       wardId: 'ward_5',
       category: 'Garbage & Sanitation',
       color: '#16A34A', // Green
       x: 58,
       y: 52,
-      lat: 20.9411,
-      lng: 77.7490,
+      lat: 28.5861,
+      lng: 77.0530,
     },
     {
-      id: 'SS2025011987',
+      id: 'SS2026011987',
       title: 'Drainage problem',
-      wardName: 'Ward 14 - Gokul Nagar',
+      wardName: 'Ward 14 - Dwarka Sector 14',
       wardId: 'ward_14',
       category: 'Water & Drainage',
       color: '#2563EB', // Blue
       x: 68,
       y: 65,
-      lat: 20.9254,
-      lng: 77.7601,
+      lat: 28.5984,
+      lng: 77.0291,
     },
   ];
 
   const [activeHoverMarker, setActiveHoverMarker] = useState<MapMarker | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
   const [clickPin, setClickPin] = useState<{ x: number; y: number; lat: number; lng: number } | null>(
     selectedCoords
       ? {
-          x: 50 + (selectedCoords.lng - 77.7500) * 1200,
-          y: 50 - (selectedCoords.lat - 20.9300) * 1200,
+          x: 50,
+          y: 50,
           lat: selectedCoords.lat,
           lng: selectedCoords.lng,
         }
-      : null
+      : {
+          x: 50,
+          y: 50,
+          lat: 28.5823,
+          lng: 77.0500,
+        }
   );
 
-  // Ward layout definitions for rendering polygons
-  const wardPolygons = [
-    {
-      id: 'ward_12',
-      name: 'Ward 12 (Parvati Nagar)',
-      points: '10,10 90,10 130,45 60,50 10,40',
-      color: '#F0F9FF', // Light sky blue
-      borderColor: '#BAE6FD',
-      centerText: { x: 50, y: 22 },
-    },
-    {
-      id: 'ward_8',
-      name: 'Ward 8 (Ram Nagar)',
-      points: '90,10 190,10 180,45 130,45',
-      color: '#FEF3C7', // Light yellow-gold
-      borderColor: '#FDE68A',
-      centerText: { x: 135, y: 22 },
-    },
-    {
-      id: 'ward_5',
-      name: 'Ward 5 (Shivaji Nagar)',
-      points: '10,40 60,50 85,90 10,90',
-      color: '#ECFDF5', // Light green
-      borderColor: '#A7F3D0',
-      centerText: { x: 40, y: 70 },
-    },
-    {
-      id: 'ward_14',
-      name: 'Ward 14 (Gokul Nagar)',
-      points: '60,50 130,45 180,45 190,90 85,90',
-      color: '#EEF2F6', // Light gray slate
-      borderColor: '#E2E8F0',
-      centerText: { x: 130, y: 70 },
-    },
-  ];
+  // Sync state if parent selectedCoords change (e.g. from GPS button in RaiseComplaintPage)
+  useEffect(() => {
+    if (selectedCoords && selectedCoords.lat && selectedCoords.lng) {
+      setClickPin({
+        x: 50,
+        y: 50,
+        lat: selectedCoords.lat,
+        lng: selectedCoords.lng,
+      });
+    }
+  }, [selectedCoords?.lat, selectedCoords?.lng]);
 
-  // Map clicks inside form flow
-  const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
-    if (!interactive || !onSelectLocation) return;
+  // Fetch real-time GPS directly from the map
+  const handleMapLiveGps = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
 
-    const svg = e.currentTarget;
-    const rect = svg.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const clickY = e.clientY - rect.top;
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setIsLocating(false);
+        const lat = Number(pos.coords.latitude.toFixed(5));
+        const lng = Number(pos.coords.longitude.toFixed(5));
+        setClickPin({ x: 50, y: 50, lat, lng });
 
-    // Convert SVG pixel dimensions to percentage coordinates
-    const pctX = (clickX / rect.width) * 100;
-    const pctY = (clickY / rect.height) * 100;
+        if (onSelectLocation) {
+          // Attempt reverse geocode
+          let resolvedAddress = `Live GPS (${lat}, ${lng}), Dwarka, Delhi`;
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
+            if (res.ok) {
+              const data = await res.json();
+              const addr = data.address || {};
+              const street = addr.road || addr.suburb || addr.neighbourhood || 'Current Location';
+              resolvedAddress = `${street}, Dwarka, Delhi`;
+            }
+          } catch {
+            // Keep fallback
+          }
 
-    // Calculate simulated lat/lng centered near Amravati (20.9300, 77.7500)
-    const lat = Math.round((20.9300 + (50 - pctY) * 0.0004) * 10000) / 10000;
-    const lng = Math.round((77.7500 + (pctX - 50) * 0.0004) * 10000) / 10000;
-
-    // Determine which ward polygon the click fell closest to
-    let detectedWardId = 'ward_12';
-    if (pctX > 50 && pctY < 50) detectedWardId = 'ward_8';
-    else if (pctX <= 50 && pctY >= 50) detectedWardId = 'ward_5';
-    else if (pctX > 50 && pctY >= 50) detectedWardId = 'ward_14';
-
-    const wardObj = wardPolygons.find((w) => w.id === detectedWardId);
-    const simulatedAddress = `Plot ${Math.floor(Math.random() * 80) + 1}, Block C, Near Main Circle, ${
-      wardObj ? wardObj.name.split(' (')[1].replace(')', '') : 'Amravati'
-    }`;
-
-    setClickPin({ x: pctX, y: pctY, lat, lng });
-    onSelectLocation({ lat, lng, wardId: detectedWardId, address: simulatedAddress });
+          onSelectLocation({
+            lat,
+            lng,
+            wardId: selectedWardId || 'ward_12',
+            address: resolvedAddress,
+          });
+        }
+      },
+      (err) => {
+        setIsLocating(false);
+        alert(`Location access error: ${err.message}. Please enable location permissions.`);
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    );
   };
 
   return (
     <div className="relative w-full h-full min-h-[300px] bg-slate-50 border border-[#E5E7EB] rounded-xl overflow-hidden select-none">
-      {/* Absolute Header overlay */}
-      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-xs text-xs font-semibold text-[#0F1B2D] z-10">
-        {interactive ? '📍 Click anywhere on the map to pin location' : '🗺️ Interactive Ward Map'}
+      {/* Header Overlay Controls */}
+      <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10 gap-2">
+        <div className="bg-white/95 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-xs text-xs font-semibold text-[#0F1B2D] pointer-events-auto flex items-center gap-1.5">
+          <MapPin className="w-3.5 h-3.5 text-[#F4511E]" />
+          <span>{interactive ? 'Live GPS Civic Map · Dwarka, Delhi' : '🗺️ Interactive Ward Map'}</span>
+        </div>
+
+        {interactive && (
+          <button
+            type="button"
+            onClick={handleMapLiveGps}
+            disabled={isLocating}
+            className="bg-[#0F1B2D] hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg shadow-xs text-xs font-bold pointer-events-auto flex items-center gap-1.5 transition-all"
+            title="Fetch live location using device GPS"
+          >
+            {isLocating ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#F4511E]" />
+                <span className="text-[11px]">Locating...</span>
+              </>
+            ) : (
+              <>
+                <Crosshair className="w-3.5 h-3.5 text-[#F4511E]" />
+                <span className="text-[11px]">Fetch My GPS</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
 
-      {/* Active Live Map via Iframe */}
+      {/* Active Live Google Maps via Iframe (Centered on live lat/lng) */}
       <iframe
-        src={`https://maps.google.com/maps?q=${clickPin ? `${clickPin.lat},${clickPin.lng}` : 'Amravati,Maharashtra'}&t=&z=${clickPin ? '16' : '13'}&ie=UTF8&iwloc=&output=embed`}
+        src={`https://maps.google.com/maps?q=${clickPin ? `${clickPin.lat},${clickPin.lng}` : 'Dwarka, Delhi'}&t=&z=${clickPin ? '16' : '14'}&ie=UTF8&iwloc=&output=embed`}
         width="100%"
         height="100%"
         style={{ border: 0, minHeight: '300px' }}
@@ -185,10 +207,13 @@ export default function InteractiveMap({
           <div className="flex justify-between items-center text-[10px] text-[#64748B] font-mono">
             <span>LAT: {clickPin.lat.toFixed(4)}</span>
             <span>LNG: {clickPin.lng.toFixed(4)}</span>
-            <span className="font-sans font-semibold text-[#16A34A] bg-emerald-50 px-1 rounded">PINNED</span>
+            <span className="font-sans font-semibold text-[#16A34A] bg-emerald-50 px-1.5 py-0.5 rounded flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] animate-pulse"></span>
+              LIVE GPS SYNCED
+            </span>
           </div>
           <p className="text-xs font-semibold text-[#0F172A] truncate">
-            📍 Location Pinned
+            📍 Dwarka, Delhi Coordinates Active
           </p>
         </div>
       )}
