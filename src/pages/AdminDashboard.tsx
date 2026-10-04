@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import ChartCard from '../components/ChartCard';
 import {
   Complaint,
@@ -180,7 +181,7 @@ export default function AdminDashboard({
       updated.updatedAt = new Date().toISOString();
       onUpdateComplaint(updated);
       logsAdded.forEach((log) => onAddUpdateLog(log));
-      alert(`⚙️ Administrative overrides successfully committed for complaint ${complaint.id}!`);
+      toast(`⚙️ Administrative overrides successfully committed for complaint ${complaint.id}!`);
     }
 
     // Reset overlay

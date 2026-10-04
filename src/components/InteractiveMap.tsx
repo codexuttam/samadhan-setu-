@@ -167,196 +167,17 @@ export default function InteractiveMap({
         {interactive ? '📍 Click anywhere on the map to pin location' : '🗺️ Interactive Ward Map'}
       </div>
 
-      {/* SVG Canvas representing roads, wards, water, zones */}
-      <svg
-        className="w-full h-full min-h-[300px] cursor-crosshair"
-        viewBox="0 0 200 100"
-        preserveAspectRatio="xMidYMid slice"
-        onClick={handleMapClick}
-      >
-        {/* Render Ward Polygons */}
-        {wardPolygons.map((ward) => {
-          const isHighlighted = highlightWardId === ward.id || selectedWardId === ward.id;
-          return (
-            <polygon
-              key={ward.id}
-              points={ward.points}
-              fill={ward.color}
-              stroke={isHighlighted ? '#F4511E' : ward.borderColor}
-              strokeWidth={isHighlighted ? '1.5' : '0.5'}
-              className="transition-colors duration-200"
-              opacity={highlightWardId && !isHighlighted ? 0.4 : 0.95}
-            />
-          );
-        })}
-
-        {/* Diagonal Water Body / River */}
-        <path
-          d="M 120,0 Q 115,25 108,45 T 100,65 T 75,100"
-          fill="none"
-          stroke="#93C5FD"
-          strokeWidth="8"
-          opacity="0.85"
-        />
-        <path
-          d="M 120,0 Q 115,25 108,45 T 100,65 T 75,100"
-          fill="none"
-          stroke="#60A5FA"
-          strokeWidth="3"
-          opacity="0.5"
-        />
-
-        {/* Bridge Over Water Body */}
-        <line x1="94" y1="58" x2="114" y2="58" stroke="#1E293B" strokeWidth="4" />
-        <line x1="94" y1="56" x2="114" y2="56" stroke="#FFFFFF" strokeWidth="1" />
-
-        {/* Roads & Highways */}
-        {/* Highway Bypass (Horizontal-ish) */}
-        <path
-          d="M 0,40 C 50,45 150,38 200,43"
-          fill="none"
-          stroke="#E2E8F0"
-          strokeWidth="4"
-          strokeLinecap="round"
-        />
-        <path
-          d="M 0,40 C 50,45 150,38 200,43"
-          fill="none"
-          stroke="#94A3B8"
-          strokeWidth="1"
-          strokeDasharray="2,3"
-        />
-
-        {/* Ward 12 Main Avenue */}
-        <path
-          d="M 40,0 L 50,42 L 55,100"
-          fill="none"
-          stroke="#E2E8F0"
-          strokeWidth="3.5"
-        />
-        <path
-          d="M 40,0 L 50,42 L 55,100"
-          fill="none"
-          stroke="#94A3B8"
-          strokeWidth="0.8"
-          strokeDasharray="2,2"
-        />
-
-        {/* Ram Mandir Street */}
-        <path
-          d="M 140,0 L 130,42 L 155,100"
-          fill="none"
-          stroke="#E2E8F0"
-          strokeWidth="3"
-        />
-
-        {/* Labeling Wards */}
-        {wardPolygons.map((ward) => (
-          <text
-            key={`text-${ward.id}`}
-            x={ward.centerText.x}
-            y={ward.centerText.y}
-            fill="#64748B"
-            fontSize="4"
-            fontWeight="bold"
-            textAnchor="middle"
-            className="pointer-events-none tracking-wider opacity-60 uppercase"
-          >
-            {ward.name.split(' (')[0]}
-          </text>
-        ))}
-
-        {/* Major landmark markers on SVG */}
-        <circle cx="28" cy="25" r="1.5" fill="#94A3B8" />
-        <text x="28" y="22" fill="#64748B" fontSize="2.5" textAnchor="middle">Shivaji Square</text>
-
-        <circle cx="155" cy="22" r="1.5" fill="#94A3B8" />
-        <text x="155" y="19" fill="#64748B" fontSize="2.5" textAnchor="middle">Ram Temple</text>
-
-        <circle cx="165" cy="72" r="1.5" fill="#94A3B8" />
-        <text x="165" y="69" fill="#64748B" fontSize="2.5" textAnchor="middle">Gokul Market</text>
-
-        {/* Floating Interactive Issue Markers (only shown in landing mode, not when pinning coordinates) */}
-        {!interactive &&
-          initialMarkers.map((marker) => (
-            <g
-              key={marker.id}
-              className="cursor-pointer group"
-              onClick={(e) => {
-                e.stopPropagation();
-                // If clicked, we can show information
-                setActiveHoverMarker(marker);
-              }}
-              onMouseEnter={() => setActiveHoverMarker(marker)}
-              onMouseLeave={() => setActiveHoverMarker(null)}
-            >
-              {/* Outer pulsing ring */}
-              <circle
-                cx={marker.x}
-                cy={marker.y}
-                r="3.5"
-                fill={marker.color}
-                opacity="0.25"
-                className="animate-ping"
-              />
-              {/* Inner core marker */}
-              <circle
-                cx={marker.x}
-                cy={marker.y}
-                r="2"
-                fill={marker.color}
-                stroke="#FFFFFF"
-                strokeWidth="0.5"
-                className="transition-transform group-hover:scale-125"
-              />
-            </g>
-          ))}
-
-        {/* Interactive Placement Pin (when interactive is true and coordinate is selected) */}
-        {interactive && clickPin && (
-          <g>
-            {/* Pulsing effect */}
-            <circle cx={clickPin.x} cy={clickPin.y} r="5" fill="#F4511E" opacity="0.2" className="animate-ping" />
-            {/* Custom map pin path */}
-            <path
-              d={`M ${clickPin.x} ${clickPin.y} C ${clickPin.x - 2} ${clickPin.y - 4}, ${clickPin.x - 3} ${
-                clickPin.y - 7
-              }, ${clickPin.x} ${clickPin.y - 8} C ${clickPin.x + 3} ${clickPin.y - 7}, ${clickPin.x + 2} ${
-                clickPin.y - 4
-              }, ${clickPin.x} ${clickPin.y}`}
-              fill="#F4511E"
-              stroke="#FFFFFF"
-              strokeWidth="0.5"
-            />
-            <circle cx={clickPin.x} cy={clickPin.y - 5.5} r="1" fill="#FFFFFF" />
-          </g>
-        )}
-      </svg>
-
-      {/* Floating Tooltip details for hover markers */}
-      {activeHoverMarker && (
-        <div
-          className="absolute bg-white border border-[#E5E7EB] rounded-lg shadow-md p-3 z-20 pointer-events-none max-w-xs transition-opacity duration-150"
-          style={{
-            left: `${activeHoverMarker.x > 70 ? activeHoverMarker.x - 25 : activeHoverMarker.x}%`,
-            top: `${activeHoverMarker.y > 60 ? activeHoverMarker.y - 25 : activeHoverMarker.y + 5}%`,
-          }}
-        >
-          <div className="flex items-center gap-1.5 mb-1">
-            <span
-              className="w-2.5 h-2.5 rounded-full"
-              style={{ backgroundColor: activeHoverMarker.color }}
-            />
-            <h4 className="font-bold text-[#0F172A] text-xs leading-tight">{activeHoverMarker.title}</h4>
-          </div>
-          <p className="text-[10px] text-[#64748B] mb-1">
-            {activeHoverMarker.category} · {activeHoverMarker.id}
-          </p>
-          <p className="text-[10px] font-medium text-[#0F1B2D]">
-            📍 {activeHoverMarker.wardName}
-          </p>
-        </div>
-      )}
+      {/* Active Live Map via Iframe */}
+      <iframe
+        src={`https://maps.google.com/maps?q=${clickPin ? `${clickPin.lat},${clickPin.lng}` : 'Amravati,Maharashtra'}&t=&z=${clickPin ? '16' : '13'}&ie=UTF8&iwloc=&output=embed`}
+        width="100%"
+        height="100%"
+        style={{ border: 0, minHeight: '300px' }}
+        allowFullScreen
+        loading="lazy"
+        referrerPolicy="no-referrer-when-downgrade"
+        title="Civic Map"
+      ></iframe>
 
       {/* Interactive Selected Coordinates display */}
       {interactive && clickPin && (
@@ -367,7 +188,7 @@ export default function InteractiveMap({
             <span className="font-sans font-semibold text-[#16A34A] bg-emerald-50 px-1 rounded">PINNED</span>
           </div>
           <p className="text-xs font-semibold text-[#0F172A] truncate">
-            📍 Simulated Address: <span className="font-normal text-[#475569]">Block {Math.floor(clickPin.lat * 1000) % 20 + 1}, Amravati</span>
+            📍 Location Pinned
           </p>
         </div>
       )}

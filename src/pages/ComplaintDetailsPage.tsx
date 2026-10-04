@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { Complaint, ComplaintUpdate, Feedback, DEPARTMENTS, OFFICERS } from '../data/mockData';
 import {
   ArrowLeft,
@@ -77,7 +78,7 @@ export default function ComplaintDetailsPage({
 
     onAddUpdateLog(newLog);
     setCommentInput('');
-    alert('💬 Note appended successfully to tracking logs!');
+    toast('💬 Note appended successfully to tracking logs!');
   };
 
   // Reopen Complaint
@@ -100,7 +101,7 @@ export default function ComplaintDetailsPage({
 
     onUpdateComplaint(updated);
     onAddUpdateLog(newLog);
-    alert('⚠️ Complaint reopened. Status set to "In Progress". Assigned officer notified.');
+    toast('⚠️ Complaint reopened. Status set to "In Progress". Assigned officer notified.');
   };
 
   // Citizen approves & closes
@@ -135,7 +136,7 @@ export default function ComplaintDetailsPage({
     onUpdateComplaint(updated);
     onAddUpdateLog(newLog);
     setFeedbackSubmitted(true);
-    alert('✓ Satisfaction logged. Thank you for your feedback! This complaint is now officially CLOSED.');
+    toast('✓ Satisfaction logged. Thank you for your feedback! This complaint is now officially CLOSED.');
   };
 
   return (

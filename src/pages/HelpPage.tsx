@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { HelpCircle, ChevronDown, Mail, Phone, Calendar, ArrowRight } from 'lucide-react';
 
 interface FaqItem {
@@ -38,7 +39,7 @@ export default function HelpPage() {
   const handleSupportSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!contactName || !contactEmail || !contactMsg) return;
-    alert(`✉️ Message received! Our helpdesk support team will get back to you at ${contactEmail} shortly.`);
+    toast(`✉️ Message received! Our helpdesk support team will get back to you at ${contactEmail} shortly.`);
     setContactName('');
     setContactEmail('');
     setContactMsg('');

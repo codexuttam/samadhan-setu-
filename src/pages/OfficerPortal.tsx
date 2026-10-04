@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { Complaint, Officer, OFFICERS, ComplaintUpdate } from '../data/mockData';
 import {
   CheckCircle2,
@@ -67,13 +68,13 @@ export default function OfficerPortal({
 
     onUpdateComplaint(updated);
     onAddUpdateLog(newLog);
-    alert(`💼 Job ${complaint.id} accepted! Status changed to "In Progress".`);
+    toast(`💼 Job ${complaint.id} accepted! Status changed to "In Progress".`);
   };
 
   const handleResolveJobSubmit = (e: React.FormEvent, complaint: Complaint) => {
     e.preventDefault();
     if (!resolutionNote.trim()) {
-      alert('Please provide a resolution note detailing the repairs done!');
+      toast('Please provide a resolution note detailing the repairs done!');
       return;
     }
 
@@ -103,7 +104,7 @@ export default function OfficerPortal({
     setSelectedJobId(null);
     setResolutionNote('');
     setResolutionProofPhotoSimulated(false);
-    alert(`✓ Job ${complaint.id} marked as RESOLVED. Citizen has been notified to verify.`);
+    toast(`✓ Job ${complaint.id} marked as RESOLVED. Citizen has been notified to verify.`);
   };
 
   const handleTrackDirect = (id: string) => {
@@ -290,7 +291,7 @@ export default function OfficerPortal({
                       type="button"
                       onClick={() => {
                         setResolutionProofPhotoSimulated(true);
-                        alert('📸 Photo proof simulated! A high-resolution post-repair photo is attached.');
+                        toast('📸 Photo proof simulated! A high-resolution post-repair photo is attached.');
                       }}
                       className="border-2 border-dashed border-slate-200 hover:border-[#F4511E] bg-slate-50 rounded-xl p-6 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-[#64748B]"
                     >

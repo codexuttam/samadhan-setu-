@@ -134,45 +134,7 @@ export default function Navbar({
               )}
             </div>
 
-            {/* Portal Switcher Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setShowRoleDropdown(!showRoleDropdown);
-                  setShowLangDropdown(false);
-                }}
-                className="flex items-center gap-2 bg-[#0F1B2D] hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
-              >
-                <User className="w-3.5 h-3.5 text-[#FF6A2A]" />
-                <span>{currentRole === 'citizen' ? 'Sign In / Portal' : 'Viewing: ' + currentRole.replace('_', ' ')}</span>
-                <ChevronDown className="w-3 h-3 text-[#FF6A2A]" />
-              </button>
 
-              {showRoleDropdown && (
-                <div className="absolute right-0 mt-2 w-64 bg-white border border-[#E5E7EB] rounded-lg shadow-xl py-1.5 z-50">
-                  <div className="px-4 py-1.5 border-b border-slate-100 mb-1">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Simulate Stakeholder Login</p>
-                  </div>
-                  {(Object.keys(roleLabels) as Array<'citizen' | 'officer' | 'dept_admin' | 'super_admin'>).map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => handleRoleSelect(r)}
-                      className={`w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors text-xs flex flex-col ${
-                        currentRole === r ? 'bg-orange-50 text-[#F4511E] font-semibold' : 'text-[#334155]'
-                      }`}
-                    >
-                      <span>{roleLabels[r]}</span>
-                      <span className="text-[9px] text-[#64748B] font-normal font-mono uppercase">
-                        {r === 'citizen' && 'Report & Track Complaints'}
-                        {r === 'officer' && 'Resolve work assignments with proof'}
-                        {r === 'dept_admin' && 'Manage Department Officers & SLA'}
-                        {r === 'super_admin' && 'Analyze metrics & override escalations'}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Mobile hamburger menu trigger */}
@@ -221,31 +183,7 @@ export default function Navbar({
 
           <hr className="border-slate-100" />
 
-          {/* Quick Portal Selection in Mobile */}
-          <div className="space-y-2">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest px-3">Stakeholder Portals</p>
-            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-50 rounded-xl">
-              {(Object.keys(roleLabels) as Array<'citizen' | 'officer' | 'dept_admin' | 'super_admin'>).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => {
-                    handleRoleSelect(r);
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`py-2 px-2 rounded-lg text-left text-[11px] font-bold ${
-                    currentRole === r
-                      ? 'bg-[#0F1B2D] text-white'
-                      : 'text-slate-700 bg-white border border-slate-100'
-                  }`}
-                >
-                  {r === 'citizen' && 'Citizen'}
-                  {r === 'officer' && 'Officer'}
-                  {r === 'dept_admin' && 'Dept Admin'}
-                  {r === 'super_admin' && 'Super Admin'}
-                </button>
-              ))}
-            </div>
-          </div>
+
         </div>
       )}
     </header>

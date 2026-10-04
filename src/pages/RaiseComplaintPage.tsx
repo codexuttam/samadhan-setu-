@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import toast from 'react-hot-toast';
 import InteractiveMap from '../components/InteractiveMap';
 import { CATEGORIES, DEPARTMENTS, WARDS, Complaint, getDepartmentForCategory, computeSLADeadline, getSLADurationHours } from '../data/mockData';
 import {
@@ -71,14 +72,14 @@ export default function RaiseComplaintPage({
             
             if (data.text && data.text.trim()) {
               setDescription(prev => prev ? prev + '\n' + data.text : data.text);
-              alert('🎙️ Voice note successfully transcribed!');
+              toast('🎙️ Voice note successfully transcribed!');
             } else {
-              alert('Could not transcribe audio. Speak closely into the microphone.');
+              toast('Could not transcribe audio. Speak closely into the microphone.');
             }
           };
         } catch (err) {
           console.error(err);
-          alert('Error during audio transcription.');
+          toast('Error during audio transcription.');
         } finally {
           setIsTranscribing(false);
           stream.getTracks().forEach(track => track.stop());
@@ -89,7 +90,7 @@ export default function RaiseComplaintPage({
       setIsRecording(true);
     } catch (err) {
       console.error(err);
-      alert('Could not access microphone! Grant microphone permissions to Samadhan Setu in your browser.');
+      toast('Could not access microphone! Grant microphone permissions to Samadhan Setu in your browser.');
     }
   };
 
@@ -184,7 +185,7 @@ export default function RaiseComplaintPage({
     if (!citizenPhone.trim()) return;
     setOtpSent(true);
     setOtpError('');
-    alert('🔐 Demo OTP Sent! Use verification code: "2026" to complete submission.');
+    toast('🔐 Demo OTP Sent! Use verification code: "2026" to complete submission.');
   };
 
   const handleVerifyOtpSimulated = () => {
@@ -422,7 +423,7 @@ export default function RaiseComplaintPage({
             <button
               onClick={() => {
                 if (title.trim() && description.trim()) setCurrentStep(3);
-                else alert('Please fill in all required fields!');
+                else toast('Please fill in all required fields!');
               }}
               className="flex items-center gap-1.5 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
             >
@@ -525,7 +526,7 @@ export default function RaiseComplaintPage({
             <button
               onClick={() => {
                 if (wardId && address.trim() && pincode.trim()) setCurrentStep(4);
-                else alert('Please specify the ward, address and pincode to proceed!');
+                else toast('Please specify the ward, address and pincode to proceed!');
               }}
               className="flex items-center gap-1.5 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
             >
@@ -706,7 +707,7 @@ export default function RaiseComplaintPage({
             <button
               onClick={() => {
                 if (otpVerified) setCurrentStep(6);
-                else alert('Please verify your mobile number with the OTP code first! Enter "2026" inside the OTP block.');
+                else toast('Please verify your mobile number with the OTP code first! Enter "2026" inside the OTP block.');
               }}
               className="flex items-center gap-1.5 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
             >
@@ -822,7 +823,7 @@ export default function RaiseComplaintPage({
             </button>
             <button
               onClick={() => {
-                alert(`⬇️ Downloading PDF Receipt for ${successComplaintId} to your system...`);
+                toast(`⬇️ Downloading PDF Receipt for ${successComplaintId} to your system...`);
               }}
               className="flex-1 border-2 border-slate-200 hover:bg-slate-50 text-slate-700 py-3 rounded-lg font-bold uppercase tracking-wider transition-colors text-[10px]"
             >

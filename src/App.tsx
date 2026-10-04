@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import GeminiChatbot from './components/GeminiChatbot';
@@ -141,6 +142,7 @@ export default function App() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F8FAFC]">
+      <Toaster position="bottom-center" toastOptions={{ className: 'text-sm font-semibold' }} />
       
       {/* GLOBAL NAVBAR CONTRACT */}
       <Navbar
@@ -233,7 +235,7 @@ export default function App() {
             onClick={() => {
               setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
               setShowNotificationCenter(false);
-              alert('✓ All alerts marked read!');
+              toast('✓ All alerts marked read!');
             }}
             className="w-full bg-[#0F1B2D] text-white py-2 rounded-lg text-[10px] uppercase font-bold tracking-wider hover:bg-slate-800 transition-colors"
           >

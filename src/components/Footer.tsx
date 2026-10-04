@@ -27,7 +27,7 @@ export default function Footer({ setPage }: FooterProps) {
               Samadhan Setu is a community-driven civic infrastructure platform. We empower citizens to report, track, and verify local issues, collaborating closely with municipal departments for cleaner, safer, and better-managed neighborhoods.
             </p>
             <div className="flex space-x-4">
-              <a href="https://linkedin.com" target="_blank" rel="noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#FF6A2A] transition-all" aria-label="LinkedIn">
+              <a href="https://www.linkedin.com/in/samadhan-setu-751021441/" target="_blank" rel="noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#FF6A2A] transition-all" aria-label="LinkedIn">
                 <Linkedin className="w-4 h-4" />
               </a>
               <a href="https://twitter.com" target="_blank" rel="noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#FF6A2A] transition-all" aria-label="Twitter">
@@ -63,18 +63,18 @@ export default function Footer({ setPage }: FooterProps) {
           <div className="md:col-span-4 space-y-5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#FF6A2A]">Emergency Support</h3>
             <div className="space-y-4 text-sm text-gray-300">
-              <a href="mailto:support@samadhansetu.in" className="flex items-center gap-3 group">
+              <a href="mailto:supportsamadhansetu@gmail.com" className="flex items-center gap-3 group">
                 <span className="p-2 rounded-lg bg-white/5 group-hover:bg-white/10 text-[#FF6A2A] transition-colors">
                   <Mail className="w-4 h-4" />
                 </span>
-                <span className="group-hover:text-white transition-colors">support@samadhansetu.in</span>
+                <span className="group-hover:text-white transition-colors">supportsamadhansetu@gmail.com</span>
               </a>
               
-              <a href="tel:+917988144248" className="flex items-center gap-3 group">
+              <a href="tel:+918318768905" className="flex items-center gap-3 group">
                 <span className="p-2 rounded-lg bg-white/5 group-hover:bg-white/10 text-[#FF6A2A] transition-colors">
                   <Phone className="w-4 h-4" />
                 </span>
-                <span className="group-hover:text-white transition-colors">+91 79881 44248</span>
+                <span className="group-hover:text-white transition-colors">+91 83187 68905</span>
               </a>
 
               <div className="flex items-start gap-3">

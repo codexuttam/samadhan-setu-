@@ -26,7 +26,7 @@ app.post('/api/chat', async (req, res) => {
   try {
     const { messages } = req.body;
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-2.5-flash',
       contents: messages,
       config: {
         systemInstruction: "You are the official Samadhan Setu Citizen Support AI Assistant. Your role is to help citizens of Amravati, Maharashtra navigate the platform, understand how to report complaints, find civic department contacts, and guide them in writing robust reports. Be extremely polite, professional, concise, and clear. Keep response size concise.",
@@ -55,7 +55,7 @@ app.post('/api/transcribe', async (req, res) => {
     };
 
     const response = await ai.models.generateContent({
-      model: "gemini-3.5-transcribe",
+      model: "gemini-2.5-flash",
       contents: [audioPart, { text: "Transcribe this audio precisely into English or Marathi or Hindi text as spoken. Do not add any preamble, conversational greeting, or explanations, just return the exact transcribed text of what the citizen said." }],
     });
 
@@ -71,7 +71,7 @@ app.post('/api/maps-grounding', async (req, res) => {
   try {
     const { prompt } = req.body;
     const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: 'gemini-2.5-flash',
       contents: prompt,
       config: {
         tools: [{ googleMaps: {} }],

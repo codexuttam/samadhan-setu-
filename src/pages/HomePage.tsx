@@ -195,15 +195,22 @@ export default function HomePage({
                 <InteractiveMap />
               </div>
               
-              <div className="md:col-span-4 bg-white border border-[#E5E7EB] p-6 rounded-xl flex flex-col justify-between shadow-xs">
-                <div className="space-y-4">
-                  <h3 className="text-base font-extrabold text-[#0F1B2D] leading-snug">
+              <div className="md:col-span-4 bg-gradient-to-br from-[#0F1B2D] to-slate-900 border border-slate-800 p-6 rounded-xl flex flex-col justify-between shadow-xl relative overflow-hidden group">
+                {/* Decorative background element */}
+                <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#F4511E] rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity duration-500" />
+                
+                <div className="space-y-4 relative z-10">
+                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-[#FF6A2A]">
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-extrabold text-white leading-tight">
                     {content.infoCardTitle}
                   </h3>
-                  <div className="w-8 h-1 bg-[#F4511E]" />
                 </div>
-                <div className="pt-6">
-                  <p className="text-xs text-[#64748B] whitespace-pre-line font-semibold leading-relaxed">
+                
+                <div className="pt-6 relative z-10">
+                  <div className="w-10 h-1 bg-[#F4511E] mb-4 rounded-full" />
+                  <p className="text-sm text-slate-300 whitespace-pre-line font-medium leading-relaxed">
                     {content.infoCardBody}
                   </p>
                 </div>

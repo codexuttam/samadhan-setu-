@@ -70,7 +70,7 @@ export default function GeminiChatbot() {
       console.error(err);
       setMessages((prev) => [
         ...prev,
-        { role: 'model', parts: [{ text: '⚠️ Connection error. Please verify process.env.GEMINI_API_KEY in the Secrets panel.' }] },
+        { role: 'model', parts: [{ text: '⚠️ Connection error. Please try again later.' }] },
       ]);
     } finally {
       setIsLoading(false);
