@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import GeminiChatbot from './components/GeminiChatbot';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -315,9 +314,6 @@ export default function App() {
           />
         )}
       </main>
-
-      {/* FLOATING GEMINI CHATBOT HUB */}
-      <GeminiChatbot />
 
       {/* GLOBAL FOOTER CONTRACT */}
       <Footer setPage={navigateTo} />

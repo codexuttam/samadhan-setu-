@@ -1,106 +1,99 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
-import { GoogleGenAI } from '@google/genai';
-import dotenv from 'dotenv';
+import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
+import { createServer as createViteServer } from 'vite';
 
-dotenv.config();
+import { config } from './server/config';
+import { errorHandler } from './server/lib/errors';
+import { logger } from './server/lib/logger';
+import { prisma } from './server/lib/prisma';
+import { initQueue } from './server/modules/queue/queue';
+import { registerNotificationWorkers } from './server/modules/notifications/notifications.service';
+import { registerFileWorkers, localStorage } from './server/modules/files/files.service';
+import { registerEscalationWorkers } from './server/modules/escalation/escalation.service';
+
+import { publicRouter } from './server/routes/public.routes';
+import { authorityRouter } from './server/routes/authority.routes';
+import { adminRouter } from './server/routes/admin.routes';
+import { devOutbox } from './server/modules/whatsapp/provider';
 
 const app = express();
-// Allow parsing base64 audio payloads up to 10MB
+app.set('trust proxy', config.TRUST_PROXY);
+
+// Security Headers & Middlewares
+app.use(
+  helmet({
+    contentSecurityPolicy: false, // Managed by Vite dev server
+  }),
+);
+app.use(cookieParser());
 app.use(express.json({ limit: '10mb' }));
 
-// Initialize Google GenAI client utility
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
-  }
+// Global Rate Limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many requests from this IP. Please try again later.' } },
 });
+app.use('/api', limiter);
 
-// AI endpoints
-// 1. General multi-turn support Chatbot
-app.post('/api/chat', async (req, res) => {
+// API Routes
+app.use('/api/public', publicRouter);
+app.use('/api/authority', authorityRouter);
+app.use('/api/admin', adminRouter);
+
+// Secure File Server (Signed local file links)
+app.get('/api/files/:token', async (req, res, next) => {
   try {
-    const { messages } = req.body;
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: messages,
-      config: {
-        systemInstruction: "You are the official Samadhan Setu Citizen Support AI Assistant. Your role is to help citizens of Amravati, Maharashtra navigate the platform, understand how to report complaints, find civic department contacts, and guide them in writing robust reports. Be extremely polite, professional, concise, and clear. Keep response size concise.",
-      }
-    });
-    res.json({ text: response.text });
-  } catch (error: any) {
-    console.error('Chat error:', error);
-    res.status(500).json({ error: error.message || 'Error communicating with Gemini' });
+    const verified = localStorage.verify(req.params.token);
+    if (!verified || !verified.k) return res.status(403).send('Invalid or expired file link');
+    const buf = await localStorage.get(verified.k);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(buf);
+  } catch (err) {
+    next(err);
   }
 });
 
-// 2. Audio transcription for voice-to-text complaint description filling
-app.post('/api/transcribe', async (req, res) => {
-  try {
-    const { audioData } = req.body; // base64 encoded audio string from microphone
-    if (!audioData) {
-      return res.status(400).json({ error: 'No audio data provided' });
-    }
-
-    const audioPart = {
-      inlineData: {
-        mimeType: "audio/webm",
-        data: audioData,
-      },
-    };
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [audioPart, { text: "Transcribe this audio precisely into English or Marathi or Hindi text as spoken. Do not add any preamble, conversational greeting, or explanations, just return the exact transcribed text of what the citizen said." }],
-    });
-
-    res.json({ text: response.text || '' });
-  } catch (error: any) {
-    console.error('Transcription error:', error);
-    res.status(500).json({ error: error.message || 'Error transcribing audio payload' });
-  }
-});
-
-// 3. Google Maps Grounding assistant
-app.post('/api/maps-grounding', async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-      config: {
-        tools: [{ googleMaps: {} }],
-        systemInstruction: "You are the Samadhan Setu Location & Civic Grounding assistant. Use the Google Maps tool to look up real places, landmarks, streets, and government offices in Amravati, Maharashtra, India. Provide accurate details grounded in Google Maps data.",
-      }
-    });
-    res.json({ text: response.text });
-  } catch (error: any) {
-    console.error('Maps Grounding error:', error);
-    res.status(500).json({ error: error.message || 'Error resolving grounding query' });
-  }
-});
-
-// Vite Middleware mounting for unified fullstack environment on Port 3000
-const isProd = process.env.NODE_ENV === 'production';
-if (!isProd) {
-  const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: 'spa',
-  });
-  app.use(vite.middlewares);
-} else {
-  app.use(express.static(path.resolve('dist')));
-  app.get('*', (req, res) => {
-    res.sendFile(path.resolve('dist/index.html'));
+// Dev Outbox Endpoint (Development Mode Only)
+if (!config.isProd) {
+  app.get('/api/dev/outbox', (_req, res) => {
+    res.json(devOutbox);
   });
 }
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+// Global Express Error Handler
+app.use(errorHandler);
+
+// Vite / Production Static File Server
+async function startServer() {
+  await initQueue();
+  await registerNotificationWorkers();
+  await registerFileWorkers();
+  await registerEscalationWorkers();
+
+  if (!config.isProd) {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: 'spa',
+    });
+    app.use(vite.middlewares);
+  } else {
+    app.use(express.static(path.resolve('dist')));
+    app.get('*', (_req, res) => {
+      res.sendFile(path.resolve('dist/index.html'));
+    });
+  }
+
+  const PORT = config.PORT;
+  app.listen(PORT, () => {
+    logger.info(`Samadhan Setu Grievance Engine listening on port ${PORT}`);
+  });
+}
+
+startServer().catch((err) => {
+  logger.error('Failed to start server', { err });
+  process.exit(1);
 });

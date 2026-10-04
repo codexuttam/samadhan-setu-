@@ -1,0 +1,649 @@
+// Samadhan Setu — civic grievance platform
+// The Ticket is the central entity. There is intentionally NO citizen/user table:
+// citizen contact data is stored per-ticket in TicketContact (encrypted + keyed hash).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────────────────────
+
+enum TicketStatus {
+  SUBMITTED
+  ASSIGNED
+  ACCEPTED
+  INSPECTION
+  IN_PROGRESS
+  WORK_COMPLETED
+  AWAITING_CITIZEN_VERIFICATION
+  RESOLVED
+  REOPENED
+  ESCALATED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ActorType {
+  CITIZEN
+  AUTHORITY
+  SYSTEM
+}
+
+enum AuthorityScope {
+  WARD
+  ZONE
+  DEPARTMENT
+  DISTRICT
+  SYSTEM
+}
+
+enum AuthorityUserStatus {
+  PENDING_ACTIVATION
+  ACTIVE
+  SUSPENDED
+}
+
+enum OtpPurpose {
+  CREATE_TICKET
+  TRACK_TICKET
+}
+
+enum AccessTokenScope {
+  TRACK
+  VERIFY
+}
+
+enum AttachmentKind {
+  CITIZEN_EVIDENCE
+  REVIEW_EVIDENCE
+  COMPLETION_PROOF
+  WORK_EVIDENCE
+}
+
+enum ScanStatus {
+  PENDING
+  CLEAN
+  INFECTED
+  FAILED
+  SKIPPED
+}
+
+enum EscalationReason {
+  SLA_BREACHED
+  CITIZEN_REOPENED
+  MANUAL
+}
+
+enum NotificationEvent {
+  TICKET_CREATED
+  TICKET_ASSIGNED
+  STATUS_UPDATED
+  OFFICER_ASSIGNED
+  WORK_STARTED
+  WORK_COMPLETED
+  VERIFICATION_REQUIRED
+  COMPLAINT_REOPENED
+  COMPLAINT_ESCALATED
+  COMPLAINT_CLOSED
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENDING
+  SENT
+  FAILED
+  DEAD
+}
+
+enum DeliveryStatus {
+  ACCEPTED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum VerificationOutcome {
+  RESOLVED
+  NOT_RESOLVED
+}
+
+// ─────────────────────────────────────────────────────────────
+// Organisation
+// ─────────────────────────────────────────────────────────────
+
+model Department {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  categories      TicketCategory[]
+  tickets         Ticket[]
+  users           AuthorityUser[]
+  assignments     TicketAssignment[]
+  escalationRules EscalationRule[]
+}
+
+model Zone {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  name      String
+  city      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  wards       Ward[]
+  tickets     Ticket[]
+  users       AuthorityUser[]
+  assignments TicketAssignment[]
+}
+
+model Ward {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  name      String
+  number    Int
+  zoneId    String   @db.Uuid
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  zone        Zone               @relation(fields: [zoneId], references: [id])
+  tickets     Ticket[]
+  users       AuthorityUser[]
+  assignments TicketAssignment[]
+
+  @@index([zoneId])
+}
+
+model TicketCategory {
+  id                      String         @id @default(uuid()) @db.Uuid
+  code                    String         @unique
+  name                    String
+  description             String?
+  departmentId            String         @db.Uuid
+  defaultPriority         TicketPriority @default(MEDIUM)
+  requiresCompletionProof Boolean        @default(true)
+  sortOrder               Int            @default(0)
+  active                  Boolean        @default(true)
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  department Department @relation(fields: [departmentId], references: [id])
+  tickets    Ticket[]
+}
+
+// ─────────────────────────────────────────────────────────────
+// Authority (separate from citizens entirely)
+// ─────────────────────────────────────────────────────────────
+
+/// Configurable hierarchy. levelOrder 1 = first responder; higher = more senior.
+model AuthorityLevel {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  name        String
+  levelOrder  Int      @unique
+  description String?
+  createdAt   DateTime @default(now())
+
+  roles AuthorityRole[]
+}
+
+model AuthorityRole {
+  id        String         @id @default(uuid()) @db.Uuid
+  code      String         @unique
+  name      String
+  levelId   String         @db.Uuid
+  scope     AuthorityScope
+  createdAt DateTime       @default(now())
+
+  level       AuthorityLevel            @relation(fields: [levelId], references: [id])
+  permissions AuthorityRolePermission[]
+  users       AuthorityUser[]
+}
+
+model AuthorityPermission {
+  id          String @id @default(uuid()) @db.Uuid
+  code        String @unique
+  description String
+
+  roles AuthorityRolePermission[]
+}
+
+model AuthorityRolePermission {
+  roleId       String @db.Uuid
+  permissionId String @db.Uuid
+
+  role       AuthorityRole       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission AuthorityPermission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model AuthorityUser {
+  id               String              @id @default(uuid()) @db.Uuid
+  name             String
+  email            String              @unique
+  passwordHash     String?
+  status           AuthorityUserStatus @default(PENDING_ACTIVATION)
+  roleId           String              @db.Uuid
+  departmentId     String?             @db.Uuid
+  zoneId           String?             @db.Uuid
+  wardId           String?             @db.Uuid
+  failedLoginCount Int                 @default(0)
+  lockedUntil      DateTime?
+  lastLoginAt      DateTime?
+  totpSecretEnc    String?
+  totpEnabled      Boolean             @default(false)
+  createdById      String?             @db.Uuid
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  role       AuthorityRole @relation(fields: [roleId], references: [id])
+  department Department?   @relation(fields: [departmentId], references: [id])
+  zone       Zone?         @relation(fields: [zoneId], references: [id])
+  ward       Ward?         @relation(fields: [wardId], references: [id])
+
+  sessions          AuthoritySession[]
+  activationTokens  AccountActivationToken[]
+  assignedTickets   Ticket[]                 @relation("AssignedOfficer")
+  completedTickets  Ticket[]                 @relation("CompletedBy")
+  assignmentsTo     TicketAssignment[]       @relation("AssignmentAssignee")
+  assignmentsBy     TicketAssignment[]       @relation("AssignmentAssigner")
+  internalNotes     TicketInternalNote[]
+  escalationsFrom   Escalation[]             @relation("EscalationFrom")
+  escalationsTo     Escalation[]             @relation("EscalationTo")
+
+  @@index([roleId])
+  @@index([departmentId, zoneId, wardId])
+}
+
+model AuthoritySession {
+  id            String    @id @default(uuid()) @db.Uuid
+  tokenHash     String    @unique
+  csrfTokenHash String
+  userId        String    @db.Uuid
+  createdAt     DateTime  @default(now())
+  lastSeenAt    DateTime  @default(now())
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  ipAddress     String?
+  userAgent     String?
+
+  user AuthorityUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model AccountActivationToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  tokenHash String    @unique
+  userId    String    @db.Uuid
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user AuthorityUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Citizen OTP + secure access links (no accounts)
+// ─────────────────────────────────────────────────────────────
+
+model OtpChallenge {
+  id          String     @id @default(uuid()) @db.Uuid
+  purpose     OtpPurpose
+  phoneHash   String
+  /// HMAC of the code. Raw OTPs are never stored.
+  codeHash    String
+  attempts    Int        @default(0)
+  maxAttempts Int        @default(5)
+  /// For TRACK_TICKET: the ticket the phone was matched against (null when no match — decoy challenge).
+  ticketId    String?    @db.Uuid
+  delivered   Boolean    @default(false)
+  ipHash      String?
+  expiresAt   DateTime
+  verifiedAt  DateTime?
+  consumedAt  DateTime?
+  createdAt   DateTime   @default(now())
+
+  @@index([phoneHash, createdAt])
+  @@index([ipHash, createdAt])
+}
+
+/// Server-side record behind every signed citizen link (revocable, scoped to one ticket).
+model TicketAccessToken {
+  id        String           @id @default(uuid()) @db.Uuid
+  ticketId  String           @db.Uuid
+  scope     AccessTokenScope
+  expiresAt DateTime
+  revokedAt DateTime?
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, scope])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Ticket (central entity)
+// ─────────────────────────────────────────────────────────────
+
+model TicketSequence {
+  year      Int @id
+  lastValue Int @default(0)
+}
+
+model Ticket {
+  id                String         @id @default(uuid()) @db.Uuid
+  publicReference   String         @unique
+  categoryId        String         @db.Uuid
+  subcategory       String?
+  title             String
+  description       String
+  address           String
+  area              String
+  city              String
+  pincode           String
+  latitude          Float?
+  longitude         Float?
+  wardId            String?        @db.Uuid
+  zoneId            String?        @db.Uuid
+  departmentId      String         @db.Uuid
+  priority          TicketPriority
+  status            TicketStatus   @default(SUBMITTED)
+  slaDeadline       DateTime?
+  assignedOfficerId String?        @db.Uuid
+  /// levelOrder of the AuthorityLevel currently responsible
+  currentLevelOrder Int            @default(1)
+  escalationLevel   Int            @default(0)
+  reopenCount       Int            @default(0)
+  resolutionNote    String?
+  completedAt       DateTime?
+  completedById     String?        @db.Uuid
+  resolvedAt        DateTime?
+  closedAt          DateTime?
+  /// optimistic concurrency guard
+  version           Int            @default(0)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  category        TicketCategory @relation(fields: [categoryId], references: [id])
+  department      Department     @relation(fields: [departmentId], references: [id])
+  ward            Ward?          @relation(fields: [wardId], references: [id])
+  zone            Zone?          @relation(fields: [zoneId], references: [id])
+  assignedOfficer AuthorityUser? @relation("AssignedOfficer", fields: [assignedOfficerId], references: [id])
+  completedBy     AuthorityUser? @relation("CompletedBy", fields: [completedById], references: [id])
+
+  contact       TicketContact?
+  attachments   TicketAttachment[]
+  statusHistory TicketStatusHistory[]
+  internalNotes TicketInternalNote[]
+  assignments   TicketAssignment[]
+  escalations   Escalation[]
+  notifications Notification[]
+  verifications CitizenVerification[]
+  feedback      Feedback?
+  accessTokens  TicketAccessToken[]
+
+  @@index([status])
+  @@index([departmentId])
+  @@index([zoneId])
+  @@index([wardId])
+  @@index([assignedOfficerId])
+  @@index([slaDeadline])
+  @@index([createdAt])
+  @@index([status, slaDeadline])
+}
+
+model TicketContact {
+  id             String    @id @default(uuid()) @db.Uuid
+  ticketId       String    @unique @db.Uuid
+  /// AES-256-GCM encrypted E.164 number (needed to deliver WhatsApp updates)
+  phoneEncrypted String?
+  /// keyed HMAC for matching during tracking OTP — never reversible
+  phoneHash      String
+  phoneLast4     String
+  channel        String    @default("WHATSAPP")
+  /// set by retention policy; after purge phoneEncrypted is nulled
+  purgedAt       DateTime?
+  createdAt      DateTime  @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([phoneHash])
+}
+
+model TicketAttachment {
+  id             String         @id @default(uuid()) @db.Uuid
+  ticketId       String         @db.Uuid
+  kind           AttachmentKind
+  storageKey     String         @unique
+  originalName   String
+  mimeType       String
+  sizeBytes      Int
+  sha256         String
+  scanStatus     ScanStatus     @default(PENDING)
+  uploadedByType ActorType
+  uploadedById   String?        @db.Uuid
+  createdAt      DateTime       @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+/// Append-only (enforced by DB trigger, see prisma/sql/immutability.sql)
+model TicketStatusHistory {
+  id         String        @id @default(uuid()) @db.Uuid
+  ticketId   String        @db.Uuid
+  fromStatus TicketStatus?
+  toStatus   TicketStatus
+  actorType  ActorType
+  actorId    String?       @db.Uuid
+  actorLabel String?
+  /// citizen-facing message for the timeline
+  publicNote String?
+  createdAt  DateTime      @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+}
+
+model TicketInternalNote {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @db.Uuid
+  authorId  String   @db.Uuid
+  body      String
+  createdAt DateTime @default(now())
+
+  ticket Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author AuthorityUser @relation(fields: [authorId], references: [id])
+
+  @@index([ticketId])
+}
+
+model TicketAssignment {
+  id           String    @id @default(uuid()) @db.Uuid
+  ticketId     String    @db.Uuid
+  assigneeId   String?   @db.Uuid
+  departmentId String    @db.Uuid
+  zoneId       String?   @db.Uuid
+  wardId       String?   @db.Uuid
+  levelOrder   Int
+  assignedById String?   @db.Uuid
+  reason       String
+  createdAt    DateTime  @default(now())
+  endedAt      DateTime?
+
+  ticket     Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  assignee   AuthorityUser? @relation("AssignmentAssignee", fields: [assigneeId], references: [id])
+  assignedBy AuthorityUser? @relation("AssignmentAssigner", fields: [assignedById], references: [id])
+  department Department     @relation(fields: [departmentId], references: [id])
+  zone       Zone?          @relation(fields: [zoneId], references: [id])
+  ward       Ward?          @relation(fields: [wardId], references: [id])
+
+  @@index([ticketId])
+  @@index([assigneeId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Escalation
+// ─────────────────────────────────────────────────────────────
+
+/// SLA per level. departmentId/priority null = applies to all.
+model EscalationRule {
+  id             String          @id @default(uuid()) @db.Uuid
+  departmentId   String?         @db.Uuid
+  priority       TicketPriority?
+  fromLevelOrder Int
+  toLevelOrder   Int
+  slaHours       Int
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@unique([departmentId, priority, fromLevelOrder])
+}
+
+/// Append-only. idempotencyKey makes repeated SLA checks safe.
+model Escalation {
+  id              String           @id @default(uuid()) @db.Uuid
+  ticketId        String           @db.Uuid
+  sequence        Int
+  reason          EscalationReason
+  fromLevelOrder  Int
+  toLevelOrder    Int
+  fromAuthorityId String?          @db.Uuid
+  toAuthorityId   String?          @db.Uuid
+  breachedDeadline DateTime?
+  triggeredById   String?          @db.Uuid
+  note            String?
+  idempotencyKey  String           @unique
+  createdAt       DateTime         @default(now())
+
+  ticket        Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  fromAuthority AuthorityUser? @relation("EscalationFrom", fields: [fromAuthorityId], references: [id])
+  toAuthority   AuthorityUser? @relation("EscalationTo", fields: [toAuthorityId], references: [id])
+
+  @@unique([ticketId, sequence])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Notifications (transactional outbox) + WhatsApp delivery log
+// ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id             String             @id @default(uuid()) @db.Uuid
+  ticketId       String             @db.Uuid
+  event          NotificationEvent
+  channel        String             @default("WHATSAPP")
+  status         NotificationStatus @default(QUEUED)
+  attempts       Int                @default(0)
+  lastError      String?
+  nextAttemptAt  DateTime           @default(now())
+  idempotencyKey String             @unique
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  ticket   Ticket            @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  messages WhatsAppMessage[]
+
+  @@index([status, nextAttemptAt])
+}
+
+/// Message content is intentionally NOT stored.
+model WhatsAppMessage {
+  id                String         @id @default(uuid()) @db.Uuid
+  notificationId    String?        @db.Uuid
+  ticketId          String?        @db.Uuid
+  providerMessageId String?        @unique
+  templateName      String
+  recipientHash     String
+  sentAt            DateTime       @default(now())
+  deliveryStatus    DeliveryStatus @default(ACCEPTED)
+  updatedAt         DateTime       @updatedAt
+
+  notification Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Citizen verification + feedback
+// ─────────────────────────────────────────────────────────────
+
+model CitizenVerification {
+  id        String              @id @default(uuid()) @db.Uuid
+  ticketId  String              @db.Uuid
+  outcome   VerificationOutcome
+  comment   String?
+  createdAt DateTime            @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+}
+
+model Feedback {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @unique @db.Uuid
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────────────────────
+// Audit + configuration
+// ─────────────────────────────────────────────────────────────
+
+/// Immutable (DB trigger blocks UPDATE/DELETE).
+model AuditLog {
+  id        String    @id @default(uuid()) @db.Uuid
+  actorType ActorType
+  actorId   String?   @db.Uuid
+  actorRole String?
+  action    String
+  ticketId  String?   @db.Uuid
+  entity    String?
+  entityId  String?
+  metadata  Json?
+  ipAddress String?
+  createdAt DateTime  @default(now())
+
+  @@index([ticketId])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}
+
+model SystemSetting {
+  key         String   @id
+  value       Json
+  updatedById String?  @db.Uuid
+  updatedAt   DateTime @updatedAt
+}

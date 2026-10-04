@@ -1,6 +1,6 @@
 import React from 'react';
 import Logo from './Logo';
-import { Mail, Phone, Clock, Linkedin, Twitter, Instagram, Youtube } from 'lucide-react';
+import { Mail, Phone, Clock, Linkedin, Facebook, Instagram, Youtube } from 'lucide-react';
 
 interface FooterProps {
   setPage: (page: string) => void;
@@ -27,13 +27,13 @@ export default function Footer({ setPage }: FooterProps) {
               Samadhan Setu is a community-driven civic infrastructure platform. We empower citizens to report, track, and verify local issues, collaborating closely with municipal departments for cleaner, safer, and better-managed neighborhoods.
             </p>
             <div className="flex space-x-4">
-              <a href="https://www.linkedin.com/in/samadhan-setu-751021441/" target="_blank" rel="noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#FF6A2A] transition-all" aria-label="LinkedIn">
+              <a href="https://www.linkedin.com/in/samadhan-setu-service/" target="_blank" rel="noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#FF6A2A] transition-all" aria-label="LinkedIn">
                 <Linkedin className="w-4 h-4" />
               </a>
-              <a href="https://twitter.com" target="_blank" rel="noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#FF6A2A] transition-all" aria-label="Twitter">
-                <Twitter className="w-4 h-4" />
+              <a href="https://www.facebook.com/profile.php?id=61595067632267" target="_blank" rel="noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#FF6A2A] transition-all" aria-label="Facebook">
+                <Facebook className="w-4 h-4" />
               </a>
-              <a href="https://instagram.com" target="_blank" rel="noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#FF6A2A] transition-all" aria-label="Instagram">
+              <a href="https://www.instagram.com/supportsamadhansetu/?hl=en" target="_blank" rel="noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#FF6A2A] transition-all" aria-label="Instagram">
                 <Instagram className="w-4 h-4" />
               </a>
               <a href="https://youtube.com" target="_blank" rel="noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#FF6A2A] transition-all" aria-label="YouTube">
