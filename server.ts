@@ -88,7 +88,7 @@ async function startServer() {
   }
 
   const PORT = config.PORT;
-  app.listen(PORT, () => {
+  app.listen(PORT, '0.0.0.0', () => {
     logger.info(`Samadhan Setu Grievance Engine listening on port ${PORT}`);
   });
 }
