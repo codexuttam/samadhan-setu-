@@ -104,7 +104,11 @@ export interface Complaint {
   address: string;
   city: string;
   pincode: string;
-  status: 'Submitted' | 'Assigned' | 'In Progress' | 'Resolved' | 'Closed';
+  status: 'Submitted' | 'Assigned' | 'In Progress' | 'Escalated' | 'Resolved' | 'Closed';
+  escalationLevel?: number;
+  escalationReason?: 'SLA_BREACHED' | 'CITIZEN_REOPENED' | 'MANUAL';
+  currentLevelOrder?: number;
+  reopenCount?: number;
   createdAt: string;
   updatedAt: string;
   slaDeadline: string;

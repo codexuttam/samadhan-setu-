@@ -177,6 +177,8 @@ export default function ComplaintDetailsPage({
                 className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase border ${
                   complaint.status === 'Submitted'
                     ? 'bg-amber-50 text-amber-700 border-amber-100'
+                    : complaint.status === 'Escalated'
+                    ? 'bg-red-50 text-red-700 border-red-200 animate-pulse'
                     : complaint.status === 'In Progress'
                     ? 'bg-blue-50 text-blue-700 border-blue-100 animate-pulse'
                     : complaint.status === 'Resolved'
@@ -187,6 +189,20 @@ export default function ComplaintDetailsPage({
                 {complaint.status === 'Submitted' ? 'Pending Routing' : complaint.status}
               </span>
             </div>
+
+            {(complaint.status === 'Escalated' || (complaint as any).escalationLevel > 0) && (
+              <div className="p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3 text-red-900">
+                <ShieldAlert className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="font-extrabold text-xs text-red-950 uppercase tracking-wider">
+                    Complaint Escalated to Level {Math.min((complaint as any).escalationLevel || 2, 4)} Senior Authority
+                  </h4>
+                  <p className="text-[11px] text-red-800 leading-snug">
+                    This grievance breached its SLA deadline or was reopened by the citizen. It has been escalated to higher departmental authority for expedited action.
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div className="space-y-4">
               <div className="space-y-1">

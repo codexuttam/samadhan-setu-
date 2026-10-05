@@ -47,13 +47,14 @@ export default function AdminDashboard({
   setTrackingInput,
 }: AdminDashboardProps) {
   // Navigation subtabs inside admin
-  const [activeTab, setActiveTab] = useState<'overview' | 'complaints' | 'officers' | 'wards'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'complaints' | 'escalated'>('overview');
 
   // Filters for complaints list
   const [filterCategory, setFilterCategory] = useState('');
   const [filterWard, setFilterWard] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [filterPriority, setFilterPriority] = useState('');
+  const [filterEscalationReason, setFilterEscalationReason] = useState('');
 
   // Selected complaint for administrative action overlay
   const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
@@ -233,7 +234,16 @@ export default function AdminDashboard({
               activeTab === 'complaints' ? 'bg-white text-[#0F1B2D] shadow-xs' : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            Complaints List
+            Complaints Directory
+          </button>
+          <button
+            onClick={() => setActiveTab('escalated')}
+            className={`px-3 py-1.5 font-bold rounded-md transition-all flex items-center gap-1.5 ${
+              activeTab === 'escalated' ? 'bg-[#F4511E] text-white shadow-xs' : 'text-red-600 hover:bg-red-50'
+            }`}
+          >
+            <AlertOctagon className="w-3.5 h-3.5" />
+            Escalated Complaints ({complaints.filter((c) => c.status === 'Escalated' || (c as any).escalationLevel > 0 || (c as any).reopenCount > 0).length})
           </button>
         </div>
       </div>
@@ -492,6 +502,157 @@ export default function AdminDashboard({
             </div>
           </div>
 
+        </div>
+      )}
+
+      {/* ESCALATED COMPLAINTS MANAGEMENT SECTION */}
+      {activeTab === 'escalated' && (
+        <div className="space-y-6">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex gap-3 items-center">
+              <div className="p-3 bg-red-600 text-white rounded-xl shadow-xs">
+                <AlertOctagon className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-base font-extrabold text-red-950">Escalated Grievance Management Hub</h2>
+                <p className="text-xs text-red-800 font-medium">
+                  Review grievances escalated due to SLA breaches, citizen re-openings, or supervisory manual triggers.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 text-xs font-bold">
+              <span className="bg-white px-3 py-1.5 rounded-lg border border-red-200 text-red-700">
+                Level 1-4 Hierarchy Active
+              </span>
+            </div>
+          </div>
+
+          <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden shadow-xs">
+            <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
+              <h3 className="font-extrabold text-[#0F1B2D] uppercase tracking-wider text-xs flex items-center gap-2">
+                <Filter className="w-4 h-4 text-[#F4511E]" /> Escalated Complaints Directory
+              </h3>
+              <div className="flex flex-wrap gap-2 text-xs">
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value)}
+                  className="px-3 py-1.5 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs"
+                >
+                  <option value="">All Departments</option>
+                  {CATEGORIES.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+                <select
+                  value={filterEscalationReason}
+                  onChange={(e) => setFilterEscalationReason(e.target.value)}
+                  className="px-3 py-1.5 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs font-semibold text-slate-700"
+                >
+                  <option value="">All Escalation Triggers</option>
+                  <option value="SLA_BREACHED">SLA Breach</option>
+                  <option value="CITIZEN_REOPENED">Citizen Reopened</option>
+                  <option value="MANUAL">Manual Escalation</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[900px]">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-[9px] uppercase font-bold text-slate-500 tracking-wider">
+                    <th className="py-3 px-4">Ticket ID</th>
+                    <th className="py-3 px-4">Title / Department</th>
+                    <th className="py-3 px-4">Current Authority</th>
+                    <th className="py-3 px-4">Escalation Level</th>
+                    <th className="py-3 px-4">Reason</th>
+                    <th className="py-3 px-4">SLA Status</th>
+                    <th className="py-3 px-4">Escalated At</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                  {complaints
+                    .filter((c) => c.status === 'Escalated' || (c as any).escalationLevel > 0 || (c as any).reopenCount > 0)
+                    .filter((c) => !filterCategory || c.categoryId === filterCategory)
+                    .map((c) => {
+                      const escLevel = (c as any).escalationLevel || ((c as any).reopenCount ? (c as any).reopenCount + 1 : 1);
+                      const escReason = (c as any).escalationReason || ((c as any).reopenCount > 0 ? 'CITIZEN_REOPENED' : 'SLA_BREACHED');
+                      const currentOfficer = OFFICERS.find((o) => o.id === c.assignedOfficerId)?.name || 'Ward Officer / Admin';
+                      const isBreached = new Date('2026-10-06T00:45:00Z').getTime() > new Date(c.slaDeadline).getTime();
+
+                      return (
+                        <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-4 px-4 font-mono font-bold text-[#0F1B2D]">
+                            {c.id}
+                          </td>
+                          <td className="py-4 px-4 max-w-xs">
+                            <p className="font-semibold text-[#0F172A] truncate">{c.title}</p>
+                            <p className="text-[10px] text-slate-400 font-medium">
+                              {DEPARTMENTS.find((d) => d.id === c.departmentId)?.name || 'Public Works'}
+                            </p>
+                          </td>
+                          <td className="py-4 px-4 font-medium text-slate-700">
+                            {currentOfficer}
+                          </td>
+                          <td className="py-4 px-4">
+                            <span className="px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-100 rounded-md font-bold text-[10px] uppercase">
+                              Level {Math.min(escLevel, 4)} {escLevel >= 4 ? '(Max Admin)' : ''}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4 font-semibold">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] uppercase font-extrabold ${
+                                escReason === 'SLA_BREACHED'
+                                  ? 'bg-red-100 text-red-700'
+                                  : escReason === 'CITIZEN_REOPENED'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-blue-100 text-blue-800'
+                              }`}
+                            >
+                              {escReason.replace('_', ' ')}
+                            </span>
+                          </td>
+                          <td className="py-4 px-4">
+                            {isBreached ? (
+                              <span className="flex items-center gap-1 font-bold text-red-600">
+                                🔴 BREACHED
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 font-bold text-amber-600">
+                                🟡 WARNING
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-4 px-4 text-slate-500 font-mono text-[11px]">
+                            {new Date(c.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                          </td>
+                          <td className="py-4 px-4 text-right space-x-2 whitespace-nowrap">
+                            <button
+                              onClick={() => handleDirectDetails(c.id)}
+                              className="p-1.5 border border-slate-200 hover:bg-slate-50 rounded text-[#0F172A]"
+                              title="View Full Details"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedAdminId(c.id);
+                                setAssignDeptId(c.departmentId);
+                                setAssignOfficerId(c.assignedOfficerId || '');
+                                setOverridePriority(c.priority);
+                              }}
+                              className="px-2.5 py-1 bg-[#F4511E] hover:bg-[#FF6A2A] text-white rounded text-[10px] font-bold uppercase tracking-wider"
+                            >
+                              Escalate / Reassign
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       )}
 

@@ -7,6 +7,7 @@ import { requirePermission, ticketScopeWhere, canWorkOn, inScope, PERMISSIONS } 
 import { prisma } from '../lib/prisma';
 import { manualTransitions } from '../modules/tickets/stateMachine';
 import { transitionTicket } from '../modules/tickets/tickets.service';
+import { manualEscalateTicket } from '../modules/escalation/escalation.service';
 import { validateFiles, presentAttachments } from '../modules/files/files.service';
 import { maskPhone } from '../lib/logger';
 
@@ -68,36 +69,69 @@ authorityRouter.get(
     const u = req.authUser!;
     const scopeWhere = ticketScopeWhere(u);
 
-    const [assignedToMe, pending, inProgress, slaApproaching, slaBreached, completed] = await Promise.all([
+    const [assignedToMe, pending, inProgress, slaApproaching, slaBreached, totalEscalated, resolved, closed, totalComplaints] = await Promise.all([
       prisma.ticket.count({ where: { assignedOfficerId: u.id, status: { notIn: ['RESOLVED', 'CLOSED'] } } }),
       prisma.ticket.count({ where: { ...scopeWhere, status: 'SUBMITTED' } }),
       prisma.ticket.count({ where: { ...scopeWhere, status: 'IN_PROGRESS' } }),
       prisma.ticket.count({
         where: {
           ...scopeWhere,
-          status: { in: ['SUBMITTED', 'ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS'] },
-          slaDeadline: { lte: new Date(Date.now() + 6 * 3600_000), gte: new Date() },
+          status: { in: ['SUBMITTED', 'ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS', 'REOPENED', 'ESCALATED'] },
+          slaDeadline: { lte: new Date(Date.now() + 12 * 3600_000), gte: new Date() },
         },
       }),
       prisma.ticket.count({
         where: {
           ...scopeWhere,
-          status: { in: ['SUBMITTED', 'ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS'] },
+          status: { in: ['SUBMITTED', 'ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS', 'REOPENED'] },
           slaDeadline: { lte: new Date() },
         },
       }),
-      prisma.ticket.count({ where: { ...scopeWhere, status: { in: ['RESOLVED', 'CLOSED'] } } }),
+      prisma.ticket.count({
+        where: {
+          ...scopeWhere,
+          OR: [{ status: 'ESCALATED' }, { escalationLevel: { gt: 0 } }],
+        },
+      }),
+      prisma.ticket.count({ where: { ...scopeWhere, status: 'RESOLVED' } }),
+      prisma.ticket.count({ where: { ...scopeWhere, status: 'CLOSED' } }),
+      prisma.ticket.count({ where: scopeWhere }),
     ]);
 
     const recentEscalated = await prisma.escalation.findMany({
       where: { ticket: scopeWhere },
       orderBy: { createdAt: 'desc' },
-      take: 5,
-      include: { ticket: { select: { publicReference: true, title: true, priority: true, status: true } } },
+      take: 10,
+      include: {
+        ticket: {
+          select: {
+            id: true,
+            publicReference: true,
+            title: true,
+            priority: true,
+            status: true,
+            slaDeadline: true,
+            department: { select: { name: true } },
+            assignedOfficer: { select: { name: true } },
+          },
+        },
+        fromAuthority: { select: { name: true } },
+        toAuthority: { select: { name: true } },
+      },
     });
 
     res.json({
-      metrics: { assignedToMe, pending, inProgress, slaApproaching, slaBreached, completed },
+      metrics: {
+        totalComplaints,
+        assignedToMe,
+        pending,
+        inProgress,
+        slaApproaching,
+        slaBreached,
+        escalated: totalEscalated,
+        resolved,
+        closed,
+      },
       recentEscalated,
     });
   }),
@@ -256,5 +290,110 @@ authorityRouter.post(
     });
 
     res.json({ success: true, status: updated.status });
+  }),
+);
+
+// Escalations List View
+authorityRouter.get(
+  '/escalations',
+  requirePermission('ticket.view'),
+  asyncHandler(async (req, res) => {
+    const u = req.authUser!;
+    const scopeWhere = ticketScopeWhere(u);
+    const { departmentId, reason, level, priority, search, page = '1', limit = '20' } = req.query;
+    const pageNum = Math.max(1, parseInt(page as string, 10));
+    const limitNum = Math.min(50, Math.max(1, parseInt(limit as string, 10)));
+
+    const where: any = {
+      ticket: {
+        ...scopeWhere,
+        ...(departmentId ? { departmentId: departmentId as string } : {}),
+        ...(priority ? { priority: priority as any } : {}),
+        ...(search
+          ? {
+              OR: [
+                { publicReference: { contains: (search as string).trim(), mode: 'insensitive' } },
+                { title: { contains: (search as string).trim(), mode: 'insensitive' } },
+              ],
+            }
+          : {}),
+      },
+      ...(reason ? { reason: reason as any } : {}),
+      ...(level ? { toLevelOrder: parseInt(level as string, 10) } : {}),
+    };
+
+    const [total, escalations] = await Promise.all([
+      prisma.escalation.count({ where }),
+      prisma.escalation.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (pageNum - 1) * limitNum,
+        take: limitNum,
+        include: {
+          ticket: {
+            select: {
+              id: true,
+              publicReference: true,
+              title: true,
+              status: true,
+              priority: true,
+              slaDeadline: true,
+              createdAt: true,
+              department: { select: { id: true, name: true, code: true } },
+              assignedOfficer: { select: { id: true, name: true, email: true } },
+            },
+          },
+          fromAuthority: { select: { id: true, name: true } },
+          toAuthority: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
+
+    res.json({
+      total,
+      page: pageNum,
+      totalPages: Math.ceil(total / limitNum),
+      escalations: escalations.map((e) => ({
+        id: e.id,
+        ticketId: e.ticketId,
+        publicReference: e.ticket.publicReference,
+        title: e.ticket.title,
+        department: e.ticket.department.name,
+        currentAuthority: e.ticket.assignedOfficer?.name || 'Unassigned / System Admin',
+        fromLevel: e.fromLevelOrder,
+        toLevel: e.toLevelOrder,
+        reason: e.reason,
+        note: e.note,
+        status: e.ticket.status,
+        priority: e.ticket.priority,
+        slaDeadline: e.ticket.slaDeadline,
+        escalatedAt: e.createdAt,
+      })),
+    });
+  }),
+);
+
+// Manual Escalation API
+authorityRouter.post(
+  '/complaints/:id/escalate',
+  requirePermission('ticket.escalate'),
+  asyncHandler(async (req, res) => {
+    const { reason, targetOfficerId } = parse(
+      z.object({
+        reason: z.string().min(5).max(500),
+        targetOfficerId: z.string().uuid().optional(),
+      }),
+      req.body,
+    );
+
+    const ticket = await manualEscalateTicket({
+      ticketId: req.params.id,
+      actor: req.authUser!,
+      reason,
+      targetOfficerId,
+      ip: req.ip,
+    });
+
+    res.json({ success: true, ticketId: ticket.id, status: ticket.status });
   }),
 );

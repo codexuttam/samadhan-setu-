@@ -25,6 +25,8 @@ export type AuditAction =
   | 'ORG_UPDATED'
   | 'RULES_UPDATED'
   | 'SETTINGS_UPDATED'
+  | 'SLA_WARNING_TRIGGERED'
+  | 'MANUAL_ESCALATION'
   | 'CONTACT_PURGED';
 
 export interface AuditActor {

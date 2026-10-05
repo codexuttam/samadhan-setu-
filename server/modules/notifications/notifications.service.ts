@@ -77,6 +77,20 @@ async function buildMessage(n: { event: NotificationEvent; ticketId: string }, t
       return { to, template: 'ss_ticket_reopened', bodyParams: [ref], urlButtonParam: await trackLink(t.id) };
     case 'COMPLAINT_ESCALATED':
       return { to, template: 'ss_ticket_escalated', bodyParams: [ref], urlButtonParam: await trackLink(t.id) };
+    case 'SLA_WARNING':
+      return {
+        to,
+        template: 'ss_sla_warning',
+        bodyParams: [ref, short(t.title, 60), t.slaDeadline ? fmtDate(t.slaDeadline) : 'Soon'],
+        urlButtonParam: await trackLink(t.id),
+      };
+    case 'SLA_BREACHED':
+      return {
+        to,
+        template: 'ss_sla_breached',
+        bodyParams: [ref, short(t.title, 60)],
+        urlButtonParam: await trackLink(t.id),
+      };
     case 'COMPLAINT_CLOSED':
       return { to, template: 'ss_ticket_closed', bodyParams: [ref] };
     case 'WORK_STARTED':

@@ -47,6 +47,7 @@ export default function OfficerPortal({
   const totalJobs = assignedJobs.length;
   const pendingAcceptance = assignedJobs.filter((c) => c.status === 'Assigned').length;
   const inProgressJobs = assignedJobs.filter((c) => c.status === 'In Progress').length;
+  const nearSlaJobs = assignedJobs.filter((c) => c.status === 'Escalated' || (c as any).escalationLevel > 0).length;
   const resolvedJobs = assignedJobs.filter((c) => c.status === 'Resolved' || c.status === 'Closed').length;
 
   const handleAcceptJob = (complaint: Complaint) => {
@@ -133,7 +134,7 @@ export default function OfficerPortal({
         </div>
 
         {/* Short stats summary strip */}
-        <div className="flex gap-4 text-xs">
+        <div className="flex gap-4 text-xs flex-wrap">
           <div className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-center">
             <p className="text-[10px] font-bold text-slate-400 uppercase">My Workload</p>
             <p className="text-lg font-extrabold font-mono text-[#0F1B2D] mt-0.5">{totalJobs}</p>
@@ -141,6 +142,10 @@ export default function OfficerPortal({
           <div className="bg-amber-50 border border-amber-100 rounded-lg px-4 py-2 text-center">
             <p className="text-[10px] font-bold text-amber-500 uppercase">New</p>
             <p className="text-lg font-extrabold font-mono text-amber-600 mt-0.5">{pendingAcceptance}</p>
+          </div>
+          <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-2 text-center">
+            <p className="text-[10px] font-bold text-red-500 uppercase">Near SLA / Escalated</p>
+            <p className="text-lg font-extrabold font-mono text-red-600 mt-0.5">{nearSlaJobs}</p>
           </div>
           <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-2 text-center">
             <p className="text-[10px] font-bold text-emerald-500 uppercase">Resolved</p>

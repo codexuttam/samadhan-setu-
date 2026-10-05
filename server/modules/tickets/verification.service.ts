@@ -82,9 +82,8 @@ export async function processCitizenVerification(input: {
         await recordAttachments(tx, t.id, storedReviewFiles, 'REVIEW_EVIDENCE', { type: 'CITIZEN' });
       }
 
-      // Reopen complaint and increment level / assign to next authority level if available
-      const nextLevelOrder = t.currentLevelOrder + 1;
-      const nextOfficer = await tx.authorityUser.findFirst({
+      const nextLevelOrder = Math.min(t.currentLevelOrder + 1, 4);
+      let nextOfficer = await tx.authorityUser.findFirst({
         where: {
           departmentId: t.departmentId,
           role: { level: { levelOrder: nextLevelOrder } },
@@ -92,13 +91,28 @@ export async function processCitizenVerification(input: {
         },
       });
 
+      if (!nextOfficer) {
+        nextOfficer = await tx.authorityUser.findFirst({
+          where: { role: { code: 'SUPER_ADMIN' }, status: 'ACTIVE' },
+        });
+      }
+
+      const rule = await tx.escalationRule.findFirst({
+        where: { active: true, fromLevelOrder: nextLevelOrder, departmentId: t.departmentId },
+      });
+      const nextSlaHours = rule?.slaHours ?? 24;
+      const newDeadline = new Date(Date.now() + nextSlaHours * 3600_000);
+
       const updated = await tx.ticket.update({
         where: { id: t.id, version: t.version },
         data: {
           status: 'REOPENED',
           reopenCount: { increment: 1 },
+          escalationLevel: { increment: 1 },
           currentLevelOrder: nextOfficer ? nextLevelOrder : t.currentLevelOrder,
           assignedOfficerId: nextOfficer ? nextOfficer.id : t.assignedOfficerId,
+          slaDeadline: newDeadline,
+          slaWarningSent: false,
           version: { increment: 1 },
         },
       });
