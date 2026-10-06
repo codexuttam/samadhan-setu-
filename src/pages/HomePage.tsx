@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import InteractiveMap from '../components/InteractiveMap';
+import DynamicCarousel from '../components/DynamicCarousel';
 import RealtimeWorkflowShowcase from '../components/RealtimeWorkflowShowcase';
 import { CATEGORIES, Complaint } from '../data/mockData';
 import {
@@ -190,32 +190,9 @@ export default function HomePage({
               </div>
             </div>
 
-            {/* Hero Right Visual */}
-            <div className="lg:col-span-7 grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch">
-              <div className="md:col-span-8 h-[340px] rounded-xl overflow-hidden border border-[#E5E7EB] bg-slate-100">
-                <InteractiveMap />
-              </div>
-              
-              <div className="md:col-span-4 bg-gradient-to-br from-[#0F1B2D] to-slate-900 border border-slate-800 p-6 rounded-xl flex flex-col justify-between shadow-xl relative overflow-hidden group">
-                {/* Decorative background element */}
-                <div className="absolute -top-12 -right-12 w-32 h-32 bg-[#F4511E] rounded-full blur-3xl opacity-20 group-hover:opacity-40 transition-opacity duration-500" />
-                
-                <div className="space-y-4 relative z-10">
-                  <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center text-[#FF6A2A]">
-                    <Shield className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-lg font-extrabold text-white leading-tight">
-                    {content.infoCardTitle}
-                  </h3>
-                </div>
-                
-                <div className="pt-6 relative z-10">
-                  <div className="w-10 h-1 bg-[#F4511E] mb-4 rounded-full" />
-                  <p className="text-sm text-slate-300 whitespace-pre-line font-medium leading-relaxed">
-                    {content.infoCardBody}
-                  </p>
-                </div>
-              </div>
+            {/* Hero Right Visual: Full-Width Dynamic Process Showcase */}
+            <div className="lg:col-span-7 h-[390px] rounded-2xl overflow-hidden border border-[#E5E7EB] bg-white shadow-xl shadow-slate-200/50">
+              <DynamicCarousel />
             </div>
 
           </div>
@@ -445,7 +422,36 @@ export default function HomePage({
         </div>
       </section>
 
-      {/* 4. STATISTICS STRIP */}
+      {/* 4. CIVIC IMPACT PLEDGE BANNER */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="relative bg-gradient-to-r from-[#0F1B2D] via-slate-900 to-[#182635] border border-slate-800 rounded-2xl p-6 sm:p-8 shadow-xl overflow-hidden">
+          <div className="absolute -top-16 -right-16 w-64 h-64 bg-[#F4511E] rounded-full blur-3xl opacity-20 pointer-events-none" />
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-white/10 border border-white/10 rounded-xl flex items-center justify-center text-[#FF6A2A] shrink-0 shadow-inner">
+                <Shield className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg sm:text-xl font-extrabold text-white leading-tight">
+                  {content.infoCardTitle}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-300 font-medium leading-relaxed max-w-2xl">
+                  {content.infoCardBody.replace(/\n/g, '  •  ')}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setPage('raise')}
+              className="inline-flex items-center gap-2 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors shrink-0 shadow-sm"
+            >
+              <span>{content.btnRaise}</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* 5. STATISTICS STRIP */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 divide-y md:divide-y-0 md:divide-x divide-slate-100">
