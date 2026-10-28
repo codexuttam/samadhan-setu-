@@ -17,7 +17,9 @@ import { registerEscalationWorkers } from './server/modules/escalation/escalatio
 import { publicRouter } from './server/routes/public.routes';
 import { authorityRouter } from './server/routes/authority.routes';
 import { adminRouter } from './server/routes/admin.routes';
+import { whatsappRouter } from './server/routes/whatsapp.routes';
 import { devOutbox } from './server/modules/whatsapp/provider';
+import { processWebhookEvents } from './server/modules/whatsapp/webhook.service';
 
 const app = express();
 app.set('trust proxy', config.TRUST_PROXY);
@@ -29,7 +31,14 @@ app.use(
   }),
 );
 app.use(cookieParser());
-app.use(express.json({ limit: '10mb' }));
+app.use(
+  express.json({
+    limit: '10mb',
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf;
+    },
+  }),
+);
 
 // Global Rate Limiting
 const limiter = rateLimit({
@@ -43,6 +52,7 @@ app.use('/api', limiter);
 app.use('/api/public', publicRouter);
 app.use('/api/authority', authorityRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/whatsapp', whatsappRouter);
 
 // Secure File Server (Signed local file links)
 app.get('/api/files/:token', async (req, res, next) => {
@@ -61,6 +71,39 @@ app.get('/api/files/:token', async (req, res, next) => {
 if (!config.isProd) {
   app.get('/api/dev/outbox', (_req, res) => {
     res.json(devOutbox);
+  });
+
+  app.post('/api/dev/whatsapp/simulate-status', async (req, res) => {
+    const { providerMessageId, status } = req.body;
+    if (!providerMessageId || !status) {
+      return res.status(400).json({ error: 'providerMessageId and status are required' });
+    }
+    const result = await processWebhookEvents({
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: 'dev_account',
+          changes: [
+            {
+              value: {
+                messaging_product: 'whatsapp',
+                metadata: { display_phone_number: '1234567890', phone_number_id: 'dev_phone' },
+                statuses: [
+                  {
+                    id: providerMessageId,
+                    status: status.toLowerCase(),
+                    timestamp: `${Math.floor(Date.now() / 1000)}`,
+                    recipient_id: '919999999999',
+                  },
+                ],
+              },
+              field: 'messages',
+            },
+          ],
+        },
+      ],
+    });
+    res.json({ success: true, result });
   });
 }
 
