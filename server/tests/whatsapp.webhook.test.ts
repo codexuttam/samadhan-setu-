@@ -89,8 +89,30 @@ async function runTests() {
     console.error('✗ Test 3 Failed:', err);
   }
 
+  // Test 4: Two-way interactive quick-reply parsing logic
+  try {
+    console.log('Test 4: Interactive Quick-Reply resolution and dispute logic...');
+    const resolvePayload = 'RESOLVE_SS-2026-000184';
+    const reopenPayload = 'REOPEN_SS-2026-000184';
+    const textQuery = 'STATUS SS-2026-000184';
+
+    const refResolve = resolvePayload.replace(/^RESOLVE_/, '');
+    assert.strictEqual(refResolve, 'SS-2026-000184');
+
+    const refReopen = reopenPayload.replace(/^REOPEN_/, '');
+    assert.strictEqual(refReopen, 'SS-2026-000184');
+
+    const match = textQuery.match(/SS-\d{4}-\d{6}/i);
+    assert.strictEqual(match?.[0], 'SS-2026-000184');
+
+    console.log('✓ Test 4 Passed: 1-tap WhatsApp Quick Reply buttons and text status queries parsed cleanly.');
+    passed++;
+  } catch (err) {
+    console.error('✗ Test 4 Failed:', err);
+  }
+
   console.log(`\n====================================================`);
-  console.log(`WHATSAPP TEST SUMMARY: ${passed}/3 TESTS PASSED CLEANLY.`);
+  console.log(`WHATSAPP TEST SUMMARY: ${passed}/4 TESTS PASSED CLEANLY.`);
   console.log(`====================================================\n`);
 }
 

@@ -1,8 +1,9 @@
 import type { DeliveryStatus } from '@prisma/client';
-import { prisma } from '../../lib/prisma';
+import { prisma, withTx } from '../../lib/prisma';
 import { logger } from '../../lib/logger';
 import { config } from '../../config';
 import { whatsapp } from './provider';
+import { createNotification } from '../notifications/notifications.service';
 
 export interface MetaWebhookStatus {
   id: string; // wamid
@@ -139,11 +140,149 @@ export async function processWebhookEvents(payload: MetaWebhookPayload) {
             text: msg.text?.body,
             buttonPayload: msg.button?.payload || msg.interactive?.button_reply?.id,
           });
-          // Handled in Step 4 for interactive verification/tracking replies
+
+          try {
+            await handleInboundInteractiveAction(msg);
+          } catch (err) {
+            logger.error('Failed to process inbound WhatsApp interactive message', {
+              from: msg.from,
+              error: (err as Error).message,
+            });
+          }
         }
       }
     }
   }
 
   return { processedStatuses, processedMessages };
+}
+
+/**
+ * Handles two-way citizen interactions received via WhatsApp:
+ * 1. 1-tap verification response: "Yes, Resolved" -> Marks ticket RESOLVED
+ * 2. 1-tap dispute response: "Not Resolved" -> Reopens ticket & triggers escalation
+ * 3. Text query (e.g. "SS-2026-000184") -> Instant status card reply
+ */
+export async function handleInboundInteractiveAction(msg: MetaWebhookMessage) {
+  const payload = (msg.button?.payload || msg.interactive?.button_reply?.id || msg.text?.body || '').trim();
+  const fromPhone = msg.from;
+  if (!payload || !fromPhone) return;
+
+  const targetPhone = fromPhone.startsWith('+') ? fromPhone : `+${fromPhone}`;
+
+  // 1. Quick Reply: Citizen confirms issue is RESOLVED
+  if (payload.startsWith('RESOLVE_') || payload.startsWith('VERIFY_RESOLVED_') || payload.toUpperCase() === 'RESOLVED') {
+    const ref = payload.replace(/^(RESOLVE_|VERIFY_RESOLVED_)/, '').trim();
+    const ticket = await prisma.ticket.findFirst({
+      where: ref.startsWith('SS-') ? { publicReference: ref } : undefined,
+    });
+
+    if (ticket && ticket.status === 'AWAITING_CITIZEN_VERIFICATION') {
+      await withTx(async (tx) => {
+        await tx.ticket.update({
+          where: { id: ticket.id, version: ticket.version },
+          data: {
+            status: 'RESOLVED',
+            resolvedAt: new Date(),
+            version: { increment: 1 },
+          },
+        });
+
+        await tx.citizenVerification.create({
+          data: {
+            ticketId: ticket.id,
+            outcome: 'RESOLVED',
+            comment: 'Verified directly via WhatsApp 1-tap button',
+          },
+        });
+
+        await tx.ticketStatusHistory.create({
+          data: {
+            ticketId: ticket.id,
+            fromStatus: 'AWAITING_CITIZEN_VERIFICATION',
+            toStatus: 'RESOLVED',
+            actorType: 'CITIZEN',
+            publicNote: 'Citizen verified work resolved via WhatsApp Quick Reply.',
+          },
+        });
+
+        await createNotification(tx, ticket.id, 'STATUS_UPDATED', `wa_res_${ticket.version}`);
+      });
+
+      await whatsapp.sendTemplate({
+        to: targetPhone,
+        template: 'ss_status_update',
+        bodyParams: [ticket.publicReference, 'Resolved (Verified via WhatsApp)'],
+      });
+      return;
+    }
+  }
+
+  // 2. Quick Reply: Citizen rejects resolution (REOPEN & ESCALATE)
+  if (payload.startsWith('REOPEN_') || payload.startsWith('VERIFY_REOPEN_') || payload.toUpperCase() === 'REOPEN') {
+    const ref = payload.replace(/^(REOPEN_|VERIFY_REOPEN_)/, '').trim();
+    const ticket = await prisma.ticket.findFirst({
+      where: ref.startsWith('SS-') ? { publicReference: ref } : undefined,
+    });
+
+    if (ticket && ticket.status === 'AWAITING_CITIZEN_VERIFICATION') {
+      await withTx(async (tx) => {
+        await tx.ticket.update({
+          where: { id: ticket.id, version: ticket.version },
+          data: {
+            status: 'REOPENED',
+            reopenCount: { increment: 1 },
+            escalationLevel: { increment: 1 },
+            version: { increment: 1 },
+          },
+        });
+
+        await tx.citizenVerification.create({
+          data: {
+            ticketId: ticket.id,
+            outcome: 'NOT_RESOLVED',
+            comment: 'Marked incomplete directly via WhatsApp Quick Reply',
+          },
+        });
+
+        await tx.ticketStatusHistory.create({
+          data: {
+            ticketId: ticket.id,
+            fromStatus: 'AWAITING_CITIZEN_VERIFICATION',
+            toStatus: 'REOPENED',
+            actorType: 'CITIZEN',
+            publicNote: 'Citizen marked work incomplete via WhatsApp; ticket reopened and escalated.',
+          },
+        });
+
+        await createNotification(tx, ticket.id, 'COMPLAINT_REOPENED', `wa_reopen_${ticket.version}`);
+      });
+
+      await whatsapp.sendTemplate({
+        to: targetPhone,
+        template: 'ss_ticket_reopened',
+        bodyParams: [ticket.publicReference],
+      });
+      return;
+    }
+  }
+
+  // 3. Text query: Tracking reference lookup (e.g. "SS-2026-000184")
+  const match = payload.match(/SS-\d{4}-\d{6}/i);
+  if (match) {
+    const ref = match[0].toUpperCase();
+    const ticket = await prisma.ticket.findFirst({
+      where: { publicReference: ref },
+      include: { department: true },
+    });
+
+    if (ticket) {
+      await whatsapp.sendTemplate({
+        to: targetPhone,
+        template: 'ss_status_update',
+        bodyParams: [ticket.publicReference, `${ticket.status} (${ticket.department.name})`],
+        urlButtonParam: `track`,
+      });
+    }
+  }
 }
