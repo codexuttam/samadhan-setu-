@@ -13,6 +13,7 @@ import { initQueue } from './server/modules/queue/queue';
 import { registerNotificationWorkers } from './server/modules/notifications/notifications.service';
 import { registerFileWorkers, localStorage } from './server/modules/files/files.service';
 import { registerEscalationWorkers } from './server/modules/escalation/escalation.service';
+import { registerBroadcastWorkers } from './server/modules/broadcast/broadcast.service';
 
 import { publicRouter } from './server/routes/public.routes';
 import { authorityRouter } from './server/routes/authority.routes';
@@ -116,6 +117,7 @@ async function startServer() {
   await registerNotificationWorkers();
   await registerFileWorkers();
   await registerEscalationWorkers();
+  await registerBroadcastWorkers();
 
   if (!config.isProd) {
     const vite = await createViteServer({

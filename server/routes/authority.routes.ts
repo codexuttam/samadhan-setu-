@@ -9,6 +9,7 @@ import { manualTransitions } from '../modules/tickets/stateMachine';
 import { transitionTicket } from '../modules/tickets/tickets.service';
 import { manualEscalateTicket } from '../modules/escalation/escalation.service';
 import { validateFiles, presentAttachments } from '../modules/files/files.service';
+import { previewBroadcastRecipients, createWardBroadcast } from '../modules/broadcast/broadcast.service';
 import { maskPhone } from '../lib/logger';
 
 const upload = multer({ limits: { fileSize: 50 * 1024 * 1024, files: 5 } });
@@ -395,5 +396,46 @@ authorityRouter.post(
     });
 
     res.json({ success: true, ticketId: ticket.id, status: ticket.status });
+  }),
+);
+
+// Civic WhatsApp Broadcast APIs
+authorityRouter.get(
+  '/broadcasts/preview',
+  asyncHandler(async (req, res) => {
+    const { wardId, zoneId, departmentId, categoryId, includeResolved } = req.query as any;
+    const preview = await previewBroadcastRecipients(
+      {
+        wardId: wardId || undefined,
+        zoneId: zoneId || undefined,
+        departmentId: departmentId || undefined,
+        categoryId: categoryId || undefined,
+        includeResolved: includeResolved === 'true',
+      },
+      req.authUser!,
+    );
+    res.json(preview);
+  }),
+);
+
+authorityRouter.post(
+  '/broadcasts',
+  requirePermission('ticket.update_status'),
+  asyncHandler(async (req, res) => {
+    const body = parse(
+      z.object({
+        title: z.string().min(5).max(100),
+        message: z.string().min(10).max(500),
+        wardId: z.string().uuid().optional(),
+        zoneId: z.string().uuid().optional(),
+        departmentId: z.string().uuid().optional(),
+        categoryId: z.string().uuid().optional(),
+        includeResolved: z.boolean().optional(),
+      }),
+      req.body,
+    );
+
+    const result = await createWardBroadcast(body, req.authUser!, req.ip);
+    res.status(201).json(result);
   }),
 );
