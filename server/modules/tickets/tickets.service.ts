@@ -6,7 +6,7 @@ import { getSettings } from '../../lib/settings';
 import { audit } from '../audit/audit.service';
 import { consumeCreateVerification, requirePhone } from '../otp/otp.service';
 import { findTransition, manualTransitions, slaApplies } from './stateMachine';
-import { createNotification, dispatch } from '../notifications/notifications.service';
+import { broadcastTicketNotification, createNotification, dispatch } from '../notifications/notifications.service';
 import { recordAttachments, storeFiles, type ValidatedFile } from '../files/files.service';
 import { canWorkOn, inScope, type AuthUser } from '../authority/rbac';
 
@@ -239,7 +239,9 @@ export async function transitionTicket(input: TransitionInput) {
     else if (updated.status === 'REOPENED') notifEvent = 'COMPLAINT_REOPENED';
     else if (updated.status === 'CLOSED') notifEvent = 'COMPLAINT_CLOSED';
 
-    const notifId = await createNotification(tx, t.id, notifEvent, `${t.version}`);
+    const notifIds = await broadcastTicketNotification(tx, t.id, notifEvent, `${t.version}`, {
+      notifyOfficer: !!input.newAssigneeId || updated.status === 'ASSIGNED',
+    });
 
     await audit(
       {
@@ -252,9 +254,9 @@ export async function transitionTicket(input: TransitionInput) {
       tx,
     );
 
-    return { ticket: updated, notifId };
+    return { ticket: updated, notifIds };
   });
 
-  dispatch([notifId]);
+  dispatch(notifIds);
   return ticket;
 }

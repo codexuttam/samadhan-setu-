@@ -1,7 +1,7 @@
 import { prisma, withTx } from '../../lib/prisma';
 import { logger } from '../../lib/logger';
 import { AppError, Errors } from '../../lib/errors';
-import { createNotification, dispatch } from '../notifications/notifications.service';
+import { broadcastTicketNotification, createNotification, dispatch } from '../notifications/notifications.service';
 import { audit } from '../audit/audit.service';
 import { queue } from '../queue/queue';
 import type { AuthUser } from '../authority/rbac';
@@ -26,7 +26,7 @@ export async function checkSlaWarnings() {
 
     for (const t of upcomingTickets) {
       try {
-        const notifId = await withTx(async (tx) => {
+        const notifIds = await withTx(async (tx) => {
           await tx.ticket.update({
             where: { id: t.id },
             data: { slaWarningSent: true },
@@ -42,7 +42,7 @@ export async function checkSlaWarnings() {
             },
           });
 
-          const notifId = await createNotification(tx, t.id, 'SLA_WARNING', `warn_${t.version}`);
+          const notifIds = await broadcastTicketNotification(tx, t.id, 'SLA_WARNING', `warn_${t.version}`, { notifyOfficer: true });
 
           await audit(
             {
@@ -54,10 +54,10 @@ export async function checkSlaWarnings() {
             tx,
           );
 
-          return notifId;
+          return notifIds;
         });
 
-        if (notifId) dispatch([notifId]);
+        if (notifIds?.length) dispatch(notifIds);
       } catch (err) {
         logger.error('Failed processing SLA warning for ticket', { ticketId: t.id, err: err as Error });
       }
@@ -172,7 +172,7 @@ export async function checkSlaEscalations() {
             },
           });
 
-          const notifId = await createNotification(tx, t.id, 'COMPLAINT_ESCALATED', `esc_${updated.version}`);
+          const notifIds = await broadcastTicketNotification(tx, t.id, 'COMPLAINT_ESCALATED', `esc_${updated.version}`, { notifyOfficer: true });
 
           await audit(
             {
@@ -184,10 +184,10 @@ export async function checkSlaEscalations() {
             tx,
           );
 
-          return { notifId };
+          return { notifIds };
         });
 
-        if (notifId) dispatch([notifId]);
+        if (notifIds?.length) dispatch(notifIds);
       } catch (err) {
         logger.error('Failed to escalate ticket SLA', { ticketId: t.id, err: err as Error });
       }
@@ -291,7 +291,7 @@ export async function manualEscalateTicket(params: {
       },
     });
 
-    const notifId = await createNotification(tx, t.id, 'COMPLAINT_ESCALATED', `manual_${updated.version}`);
+    const notifIds = await broadcastTicketNotification(tx, t.id, 'COMPLAINT_ESCALATED', `manual_${updated.version}`, { notifyOfficer: true });
 
     await audit(
       {
@@ -304,10 +304,10 @@ export async function manualEscalateTicket(params: {
       tx,
     );
 
-    return { ticket: updated, notifId };
+    return { ticket: updated, notifIds };
   });
 
-  if (notifId) dispatch([notifId]);
+  if (notifIds?.length) dispatch(notifIds);
   return ticket;
 }
 
