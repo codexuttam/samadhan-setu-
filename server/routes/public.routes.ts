@@ -7,6 +7,7 @@ import { createTicket, type CreateTicketInput } from '../modules/tickets/tickets
 import { validateFiles, presentAttachments } from '../modules/files/files.service';
 import { resolveAccessToken } from '../modules/tracking/accessTokens';
 import { prisma } from '../lib/prisma';
+import { logger } from '../lib/logger';
 import { processCitizenVerification } from '../modules/tickets/verification.service';
 
 const upload = multer({ limits: { fileSize: 50 * 1024 * 1024, files: 5 } });
@@ -31,6 +32,8 @@ publicRouter.get(
 );
 
 // Nearby Active Issues & Duplicate Check (within ~500m radius)
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 publicRouter.get(
   '/nearby',
   asyncHandler(async (req, res) => {
@@ -42,49 +45,61 @@ publicRouter.get(
       return res.json({ nearby: [] });
     }
 
-    // Query active non-terminal tickets with coordinates
-    const activeTickets = await prisma.ticket.findMany({
-      where: {
-        status: { in: ['SUBMITTED', 'ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS', 'REOPENED', 'ESCALATED'] },
-        latitude: { not: null },
-        longitude: { not: null },
-        ...(categoryId ? { categoryId } : {}),
-      },
-      select: {
-        id: true,
-        publicReference: true,
-        title: true,
-        status: true,
-        priority: true,
-        latitude: true,
-        longitude: true,
-        area: true,
-        category: { select: { name: true } },
-        createdAt: true,
-      },
-      take: 20,
-    });
+    try {
+      // Build safe category filter: use UUID if valid UUID, otherwise match by category code
+      const categoryFilter = categoryId
+        ? UUID_REGEX.test(categoryId)
+          ? { categoryId }
+          : { category: { code: categoryId } }
+        : {};
 
-    // Haversine distance filter in meters (~500m)
-    const nearby = activeTickets
-      .map((t) => {
-        const dLat = ((t.latitude! - lat) * Math.PI) / 180;
-        const dLng = ((t.longitude! - lng) * Math.PI) / 180;
-        const a =
-          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-          Math.cos((lat * Math.PI) / 180) *
-            Math.cos((t.latitude! * Math.PI) / 180) *
-            Math.sin(dLng / 2) *
-            Math.sin(dLng / 2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-        const distanceMeters = Math.round(6371000 * c);
-        return { ...t, distanceMeters };
-      })
-      .filter((t) => t.distanceMeters <= 500)
-      .sort((a, b) => a.distanceMeters - b.distanceMeters)
-      .slice(0, 5);
+      // Query active non-terminal tickets with coordinates
+      const activeTickets = await prisma.ticket.findMany({
+        where: {
+          status: { in: ['SUBMITTED', 'ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS', 'REOPENED', 'ESCALATED'] },
+          latitude: { not: null },
+          longitude: { not: null },
+          ...categoryFilter,
+        },
+        select: {
+          id: true,
+          publicReference: true,
+          title: true,
+          status: true,
+          priority: true,
+          latitude: true,
+          longitude: true,
+          area: true,
+          category: { select: { name: true } },
+          createdAt: true,
+        },
+        take: 20,
+      });
 
-    res.json({ nearby });
+      // Haversine distance filter in meters (~500m)
+      const nearby = activeTickets
+        .map((t) => {
+          const dLat = ((t.latitude! - lat) * Math.PI) / 180;
+          const dLng = ((t.longitude! - lng) * Math.PI) / 180;
+          const a =
+            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+            Math.cos((lat * Math.PI) / 180) *
+              Math.cos((t.latitude! * Math.PI) / 180) *
+              Math.sin(dLng / 2) *
+              Math.sin(dLng / 2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          const distanceMeters = Math.round(6371000 * c);
+          return { ...t, distanceMeters };
+        })
+        .filter((t) => t.distanceMeters <= 500)
+        .sort((a, b) => a.distanceMeters - b.distanceMeters)
+        .slice(0, 5);
+
+      res.json({ nearby });
+    } catch (err) {
+      logger.warn('Failed to query nearby tickets from database', { err: (err as Error).message });
+      res.json({ nearby: [] });
+    }
   }),
 );
 
