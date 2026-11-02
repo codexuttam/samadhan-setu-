@@ -14,7 +14,7 @@ import { registerNotificationWorkers } from './server/modules/notifications/noti
 import { registerFileWorkers, localStorage } from './server/modules/files/files.service';
 import { registerEscalationWorkers } from './server/modules/escalation/escalation.service';
 import { registerBroadcastWorkers } from './server/modules/broadcast/broadcast.service';
-import { transcribeAudio, triageComplaint } from './server/modules/ai/ai.service';
+import { transcribeAudio, triageComplaint, verifyResolutionEvidence } from './server/modules/ai/ai.service';
 
 import { publicRouter } from './server/routes/public.routes';
 import { authorityRouter } from './server/routes/authority.routes';
@@ -77,6 +77,20 @@ app.post('/api/ai/triage', async (req, res, next) => {
       return res.status(400).json({ error: 'text is required' });
     }
     const result = await triageComplaint(text);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/ai/verify-resolution', async (req, res, next) => {
+  try {
+    const { issueDescription, beforeImageUrl, afterImageUrl } = req.body;
+    const result = await verifyResolutionEvidence({
+      issueDescription: issueDescription || 'Civic infrastructure repair',
+      beforeImageUrl,
+      afterImageUrl,
+    });
     res.json(result);
   } catch (err) {
     next(err);
