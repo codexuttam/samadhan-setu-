@@ -30,6 +30,64 @@ publicRouter.get(
   }),
 );
 
+// Nearby Active Issues & Duplicate Check (within ~500m radius)
+publicRouter.get(
+  '/nearby',
+  asyncHandler(async (req, res) => {
+    const lat = req.query.lat ? parseFloat(req.query.lat as string) : undefined;
+    const lng = req.query.lng ? parseFloat(req.query.lng as string) : undefined;
+    const categoryId = req.query.categoryId as string | undefined;
+
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      return res.json({ nearby: [] });
+    }
+
+    // Query active non-terminal tickets with coordinates
+    const activeTickets = await prisma.ticket.findMany({
+      where: {
+        status: { in: ['SUBMITTED', 'ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS', 'REOPENED', 'ESCALATED'] },
+        latitude: { not: null },
+        longitude: { not: null },
+        ...(categoryId ? { categoryId } : {}),
+      },
+      select: {
+        id: true,
+        publicReference: true,
+        title: true,
+        status: true,
+        priority: true,
+        latitude: true,
+        longitude: true,
+        area: true,
+        category: { select: { name: true } },
+        createdAt: true,
+      },
+      take: 20,
+    });
+
+    // Haversine distance filter in meters (~500m)
+    const nearby = activeTickets
+      .map((t) => {
+        const dLat = ((t.latitude! - lat) * Math.PI) / 180;
+        const dLng = ((t.longitude! - lng) * Math.PI) / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos((lat * Math.PI) / 180) *
+            Math.cos((t.latitude! * Math.PI) / 180) *
+            Math.sin(dLng / 2) *
+            Math.sin(dLng / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const distanceMeters = Math.round(6371000 * c);
+        return { ...t, distanceMeters };
+      })
+      .filter((t) => t.distanceMeters <= 500)
+      .sort((a, b) => a.distanceMeters - b.distanceMeters)
+      .slice(0, 5);
+
+    res.json({ nearby });
+  }),
+);
+
 // OTP Request
 publicRouter.post(
   '/otp/request',

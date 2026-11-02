@@ -149,7 +149,7 @@ export interface TransitionInput {
 export async function transitionTicket(input: TransitionInput) {
   const storedProof = input.evidence?.length ? await storeFiles(input.evidence) : [];
 
-  const { ticket, notifId } = await withTx(async (tx) => {
+  const { ticket, notifIds } = await withTx(async (tx) => {
     const t = await tx.ticket.findUniqueOrThrow({
       where: { id: input.ticketId },
       include: { category: true, assignedOfficer: true },

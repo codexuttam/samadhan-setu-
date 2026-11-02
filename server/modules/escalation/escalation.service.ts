@@ -8,6 +8,7 @@ import type { AuthUser } from '../authority/rbac';
 
 const ESCALATION_JOB = 'escalation-sla-check';
 const WARNING_JOB = 'escalation-sla-warning-check';
+const AUTO_RESOLVE_JOB = 'escalation-auto-resolve-check';
 export const MAX_ESCALATION_LEVEL = 4;
 
 /**
@@ -118,10 +119,10 @@ export async function checkSlaEscalations() {
       const idempotencyKey = `sla_breach:${t.id}:${fromLevelOrder}->${toLevelOrder}:${t.escalationLevel + 1}`;
 
       try {
-        const { notifId } = await withTx(async (tx) => {
+        const { notifIds } = await withTx(async (tx) => {
           // Prevent duplicate escalation records if already processed
           const existingEsc = await tx.escalation.findUnique({ where: { idempotencyKey } });
-          if (existingEsc) return { notifId: null };
+          if (existingEsc) return { notifIds: [] };
 
           // Next SLA rule calculation
           const rule = await tx.escalationRule.findFirst({
@@ -209,7 +210,7 @@ export async function manualEscalateTicket(params: {
 }) {
   const { ticketId, actor, reason, targetOfficerId, ip } = params;
 
-  const { ticket, notifId } = await withTx(async (tx) => {
+  const { ticket, notifIds } = await withTx(async (tx) => {
     const t = await tx.ticket.findUniqueOrThrow({
       where: { id: ticketId },
       include: { department: true },
@@ -311,9 +312,86 @@ export async function manualEscalateTicket(params: {
   return ticket;
 }
 
+/**
+ * Auto-resolves tickets that have remained in AWAITING_CITIZEN_VERIFICATION
+ * for more than 72 hours without dispute from the citizen.
+ */
+export async function checkAutoResolutions() {
+  try {
+    const thresholdDate = new Date(Date.now() - 72 * 3600_000);
+    const staleTickets = await prisma.ticket.findMany({
+      where: {
+        status: 'AWAITING_CITIZEN_VERIFICATION',
+        updatedAt: { lte: thresholdDate },
+      },
+      take: 50,
+    });
+
+    for (const t of staleTickets) {
+      try {
+        const notifIds = await withTx(async (tx) => {
+          const updated = await tx.ticket.update({
+            where: { id: t.id, version: t.version },
+            data: {
+              status: 'RESOLVED',
+              resolvedAt: new Date(),
+              version: { increment: 1 },
+            },
+          });
+
+          await tx.ticketStatusHistory.create({
+            data: {
+              ticketId: t.id,
+              fromStatus: 'AWAITING_CITIZEN_VERIFICATION',
+              toStatus: 'RESOLVED',
+              actorType: 'SYSTEM',
+              publicNote: 'Complaint auto-resolved: No citizen dispute was logged within 72 hours.',
+            },
+          });
+
+          await tx.citizenVerification.create({
+            data: {
+              ticketId: t.id,
+              outcome: 'RESOLVED',
+              comment: 'System auto-verified: 72h dispute window elapsed without citizen objection.',
+            },
+          });
+
+          const notifIds = await broadcastTicketNotification(
+            tx,
+            t.id,
+            'STATUS_UPDATED',
+            `autores_${updated.version}`,
+          );
+
+          await audit(
+            {
+              actor: { type: 'SYSTEM' },
+              action: 'STATUS_CHANGED',
+              ticketId: t.id,
+              metadata: { from: 'AWAITING_CITIZEN_VERIFICATION', to: 'RESOLVED', reason: '72H_NO_DISPUTE' },
+            },
+            tx,
+          );
+
+          return notifIds;
+        });
+
+        if (notifIds?.length) dispatch(notifIds);
+      } catch (err) {
+        logger.error('Failed processing auto-resolution for ticket', { ticketId: t.id, err: err as Error });
+      }
+    }
+  } catch (err) {
+    logger.error('Auto-resolution worker iteration error', { err: err as Error });
+  }
+}
+
 export async function registerEscalationWorkers() {
   await queue.register(ESCALATION_JOB, checkSlaEscalations);
   await queue.register(WARNING_JOB, checkSlaWarnings);
+  await queue.register(AUTO_RESOLVE_JOB, checkAutoResolutions);
   await queue.repeat(ESCALATION_JOB, 60_000); // Check SLA breach every 60 seconds
   await queue.repeat(WARNING_JOB, 60_000); // Check SLA warnings every 60 seconds
+  await queue.repeat(AUTO_RESOLVE_JOB, 300_000); // Check 72h auto-resolution every 5 minutes
 }

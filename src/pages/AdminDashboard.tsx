@@ -30,6 +30,7 @@ import {
   Radio,
   Smartphone,
   MessageSquare,
+  MapPin,
 } from 'lucide-react';
 
 interface AdminDashboardProps {
@@ -246,7 +247,7 @@ export default function AdminDashboard({
   });
 
   const estimatedBroadcastRecipients = new Set(
-    broadcastMatchingComplaints.map((c) => c.contactPhone || c.id)
+    broadcastMatchingComplaints.map((c) => c.citizenPhone || c.id)
   ).size;
 
   const handleSendBroadcast = async (e: React.FormEvent) => {

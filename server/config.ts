@@ -47,6 +47,9 @@ const schema = z.object({
   CLAMAV_HOST: z.string().optional(),
   CLAMAV_PORT: z.coerce.number().default(3310),
 
+  // Google Gemini AI
+  GEMINI_API_KEY: z.string().optional(),
+
   ESCALATION_INTERVAL_SECONDS: z.coerce.number().default(300),
 });
 

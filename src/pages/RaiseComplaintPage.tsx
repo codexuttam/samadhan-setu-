@@ -18,6 +18,7 @@ import {
   Square,
   Crosshair,
   Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface RaiseComplaintPageProps {
@@ -74,7 +75,23 @@ export default function RaiseComplaintPage({
             
             if (data.text && data.text.trim()) {
               setDescription(prev => prev ? prev + '\n' + data.text : data.text);
-              toast('🎙️ Voice note successfully transcribed!');
+              if (!title && data.summary) {
+                setTitle(data.summary);
+              }
+              if (data.categorySuggestion) {
+                const match = CATEGORIES.find(c => 
+                  c.name.toLowerCase().includes(data.categorySuggestion.toLowerCase()) ||
+                  data.categorySuggestion.toLowerCase().includes(c.name.toLowerCase())
+                );
+                if (match) {
+                  setCategoryId(match.id);
+                  toast.success(`✨ Category auto-detected: ${match.name}`);
+                }
+              }
+              if (data.priority && ['low', 'medium', 'high', 'critical'].includes(data.priority)) {
+                setPriority(data.priority);
+              }
+              toast.success('🎙️ Voice grievance analyzed by Gemini AI!');
             } else {
               toast('Could not transcribe audio. Speak closely into the microphone.');
             }
@@ -118,6 +135,28 @@ export default function RaiseComplaintPage({
   const [lng, setLng] = useState(77.0500);
   const [isLocating, setIsLocating] = useState(false);
   const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
+
+  // Nearby active issues detection to prevent redundant complaints
+  const [nearbyIssues, setNearbyIssues] = useState<Array<{
+    id: string;
+    publicReference?: string;
+    title: string;
+    distanceMeters: number;
+    status: string;
+  }>>([]);
+
+  useEffect(() => {
+    if (lat && lng) {
+      fetch(`/api/public/nearby?lat=${lat}&lng=${lng}${categoryId ? `&categoryId=${categoryId}` : ''}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.nearby && Array.isArray(data.nearby)) {
+            setNearbyIssues(data.nearby);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [lat, lng, categoryId]);
 
   const [evidenceFiles, setEvidenceFiles] = useState<Array<{ name: string; size: string; type: string }>>([]);
   
@@ -541,6 +580,35 @@ export default function RaiseComplaintPage({
               </p>
             </div>
           </div>
+
+          {/* Nearby Active Issues Notice */}
+          {nearbyIssues.length > 0 && (
+            <div className="bg-amber-50/90 border border-amber-200 rounded-xl p-4 text-amber-900 shadow-xs">
+              <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-amber-800 mb-1.5">
+                <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Nearby Active Civic Issues Detected ({nearbyIssues.length})</span>
+              </div>
+              <p className="text-[11px] text-amber-700 mb-3">
+                Other citizens have already reported similar civic issues within 500m of your coordinates. You can review them to check if your issue is already being addressed:
+              </p>
+              <div className="space-y-2">
+                {nearbyIssues.map((issue) => (
+                  <div
+                    key={issue.id}
+                    className="flex items-center justify-between bg-white border border-amber-200/80 rounded-lg px-3 py-2 text-xs"
+                  >
+                    <div className="truncate mr-2">
+                      <span className="font-bold text-slate-800">{issue.title}</span>
+                      <span className="text-[10px] text-slate-500 ml-2">({issue.distanceMeters}m away)</span>
+                    </div>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 shrink-0">
+                      {issue.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left: Fields */}

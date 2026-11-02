@@ -299,12 +299,48 @@ export default function ComplaintDetailsPage({
               </div>
 
               {/* Proof details */}
-              {complaint.resolutionProof && (
-                <div className="bg-white/90 p-3 rounded-lg border border-emerald-100 space-y-1">
-                  <span className="text-[9px] text-[#64748B] uppercase tracking-wider font-bold">Proof note from officer:</span>
-                  <p className="text-slate-700 italic font-medium">"{complaint.resolutionProof.note}"</p>
+              {/* Before & After Visual Resolution Proof */}
+              <div className="bg-slate-900 rounded-xl p-4 text-white space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    Visual Evidence Comparison
+                  </span>
+                  <span className="text-[9px] bg-white/10 px-2 py-0.5 rounded text-slate-300">Geotag Verified</span>
                 </div>
-              )}
+                
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-800 border border-slate-700">
+                      <img 
+                        src={complaint.evidenceUrls?.[0] || 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=400&auto=format&fit=crop&q=60'} 
+                        alt="Before Report" 
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute bottom-1 left-1 bg-black/70 text-[8px] font-bold px-1.5 py-0.5 rounded text-amber-300">
+                        BEFORE (Citizen)
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="relative aspect-video rounded-lg overflow-hidden bg-slate-800 border border-emerald-500/50">
+                      <img 
+                        src={complaint.resolutionProof?.photoUrl || 'https://images.unsplash.com/photo-1590496793929-36417d3117de?w=400&auto=format&fit=crop&q=60'} 
+                        alt="After Work" 
+                        className="w-full h-full object-cover"
+                      />
+                      <span className="absolute bottom-1 left-1 bg-emerald-950/90 text-[8px] font-bold px-1.5 py-0.5 rounded text-emerald-300">
+                        AFTER (Officer)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {complaint.resolutionProof?.note && (
+                  <p className="text-[11px] text-slate-300 italic border-l-2 border-emerald-500 pl-2">
+                    "{complaint.resolutionProof.note}"
+                  </p>
+                )}
+              </div>
 
               {/* Action tabs */}
               <div className="flex gap-3 pt-1">

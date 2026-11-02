@@ -14,6 +14,7 @@ import { registerNotificationWorkers } from './server/modules/notifications/noti
 import { registerFileWorkers, localStorage } from './server/modules/files/files.service';
 import { registerEscalationWorkers } from './server/modules/escalation/escalation.service';
 import { registerBroadcastWorkers } from './server/modules/broadcast/broadcast.service';
+import { transcribeAudio, triageComplaint } from './server/modules/ai/ai.service';
 
 import { publicRouter } from './server/routes/public.routes';
 import { authorityRouter } from './server/routes/authority.routes';
@@ -54,6 +55,33 @@ app.use('/api/public', publicRouter);
 app.use('/api/authority', authorityRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/whatsapp', whatsappRouter);
+
+// AI Voice-to-Text Transcription & Triage API
+app.post('/api/transcribe', async (req, res, next) => {
+  try {
+    const { audioData, mimeType } = req.body;
+    if (!audioData) {
+      return res.status(400).json({ error: 'audioData base64 string is required' });
+    }
+    const result = await transcribeAudio(audioData, mimeType);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post('/api/ai/triage', async (req, res, next) => {
+  try {
+    const { text } = req.body;
+    if (!text) {
+      return res.status(400).json({ error: 'text is required' });
+    }
+    const result = await triageComplaint(text);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Secure File Server (Signed local file links)
 app.get('/api/files/:token', async (req, res, next) => {
