@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MapPin, Crosshair, Loader2 } from 'lucide-react';
+import { MapPin, Crosshair, Loader2, Flame, Layers } from 'lucide-react';
 
 interface MapMarker {
   id: string;
@@ -83,6 +83,7 @@ export default function InteractiveMap({
 
   const [activeHoverMarker, setActiveHoverMarker] = useState<MapMarker | null>(null);
   const [isLocating, setIsLocating] = useState(false);
+  const [viewMode, setViewMode] = useState<'standard' | 'heatmap'>('standard');
   const [clickPin, setClickPin] = useState<{ x: number; y: number; lat: number; lng: number } | null>(
     selectedCoords
       ? {
@@ -160,33 +161,59 @@ export default function InteractiveMap({
   return (
     <div className="relative w-full h-full min-h-[300px] bg-slate-50 border border-[#E5E7EB] rounded-xl overflow-hidden select-none">
       {/* Header Overlay Controls */}
-      <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10 gap-2">
+      <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10 gap-2 flex-wrap">
         <div className="bg-white/95 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-xs text-xs font-semibold text-[#0F1B2D] pointer-events-auto flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5 text-[#F4511E]" />
           <span>{interactive ? 'Live GPS Civic Map · Dwarka, Delhi' : '🗺️ Interactive Ward Map'}</span>
         </div>
 
-        {interactive && (
-          <button
-            type="button"
-            onClick={handleMapLiveGps}
-            disabled={isLocating}
-            className="bg-[#0F1B2D] hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg shadow-xs text-xs font-bold pointer-events-auto flex items-center gap-1.5 transition-all"
-            title="Fetch live location using device GPS"
-          >
-            {isLocating ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#F4511E]" />
-                <span className="text-[11px]">Locating...</span>
-              </>
-            ) : (
-              <>
-                <Crosshair className="w-3.5 h-3.5 text-[#F4511E]" />
-                <span className="text-[11px]">Fetch My GPS</span>
-              </>
-            )}
-          </button>
-        )}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Mode Switcher: Standard vs Heatmap */}
+          <div className="bg-white/95 backdrop-blur-xs p-0.5 rounded-lg border border-[#E5E7EB] shadow-xs flex text-[10px] font-bold">
+            <button
+              type="button"
+              onClick={() => setViewMode('standard')}
+              className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${
+                viewMode === 'standard' ? 'bg-[#0F1B2D] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Layers className="w-3 h-3" />
+              <span>Standard</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('heatmap')}
+              className={`px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${
+                viewMode === 'heatmap' ? 'bg-red-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Flame className="w-3 h-3 text-amber-300" />
+              <span>Civic Heatmap</span>
+            </button>
+          </div>
+
+          {interactive && (
+            <button
+              type="button"
+              onClick={handleMapLiveGps}
+              disabled={isLocating}
+              className="bg-[#0F1B2D] hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg shadow-xs text-xs font-bold pointer-events-auto flex items-center gap-1.5 transition-all"
+              title="Fetch live location using device GPS"
+            >
+              {isLocating ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-[#F4511E]" />
+                  <span className="text-[11px]">Locating...</span>
+                </>
+              ) : (
+                <>
+                  <Crosshair className="w-3.5 h-3.5 text-[#F4511E]" />
+                  <span className="text-[11px]">Fetch My GPS</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Active Live Google Maps via Iframe (Centered on live lat/lng) */}
@@ -200,6 +227,35 @@ export default function InteractiveMap({
         referrerPolicy="no-referrer-when-downgrade"
         title="Civic Map"
       ></iframe>
+
+      {/* Heatmap Overlay Simulation */}
+      {viewMode === 'heatmap' && (
+        <div className="absolute inset-0 pointer-events-none z-[5] bg-red-950/10 backdrop-blur-[0.5px] flex items-center justify-center overflow-hidden">
+          {/* Simulated heat radial gradients across wards */}
+          <div className="absolute top-[30%] left-[45%] w-48 h-48 rounded-full bg-gradient-to-r from-red-600/40 via-amber-500/30 to-transparent blur-2xl animate-pulse" />
+          <div className="absolute top-[50%] left-[60%] w-40 h-40 rounded-full bg-gradient-to-r from-orange-600/40 via-yellow-500/25 to-transparent blur-xl" />
+          <div className="absolute top-[65%] left-[35%] w-36 h-36 rounded-full bg-gradient-to-r from-red-500/35 via-rose-500/20 to-transparent blur-2xl" />
+
+          {/* Heatmap Legend Floating Bar */}
+          <div className="absolute top-16 right-3 bg-slate-900/90 text-white backdrop-blur-md px-3 py-2 rounded-xl border border-slate-700/80 shadow-lg text-[10px] space-y-1.5 pointer-events-auto">
+            <span className="font-extrabold uppercase tracking-wider text-amber-400 block text-[9px]">
+              🔥 Civic Complaint Density
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
+              <span>High Density Zone (&gt;15 issues)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
+              <span>Moderate Cluster (5-15)</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+              <span>Normal (&lt;5 issues)</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Interactive Selected Coordinates display */}
       {interactive && clickPin && (

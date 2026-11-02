@@ -96,6 +96,36 @@ app.get('/api/files/:token', async (req, res, next) => {
   }
 });
 
+// Real-Time Server-Sent Events (SSE) Live Feed
+const sseClients = new Set<express.Response>();
+
+app.get('/api/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  (res as any).flushHeaders?.();
+
+  res.write(
+    `data: ${JSON.stringify({ type: 'CONNECTED', message: 'Live Civic Event Stream Active', timestamp: new Date().toISOString() })}\n\n`,
+  );
+  sseClients.add(res);
+
+  req.on('close', () => {
+    sseClients.delete(res);
+  });
+});
+
+export function broadcastSse(event: { type: string; payload?: any }) {
+  const data = `data: ${JSON.stringify({ ...event, timestamp: new Date().toISOString() })}\n\n`;
+  for (const client of sseClients) {
+    try {
+      client.write(data);
+    } catch {
+      sseClients.delete(client);
+    }
+  }
+}
+
 // Dev Outbox Endpoint (Development Mode Only)
 if (!config.isProd) {
   app.get('/api/dev/outbox', (_req, res) => {
