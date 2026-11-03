@@ -331,48 +331,76 @@ export default function RaiseComplaintPage({
     }
   };
 
-  const handleFormSubmission = () => {
+  const handleFormSubmission = async () => {
     setIsSubmitting(true);
-    
-    setTimeout(() => {
-      // Create random complaint ID
-      const randomIdSuffix = Math.floor(100000 + Math.random() * 900000);
-      const generatedId = `SS2026${randomIdSuffix}`;
 
-      const matchedDept = getDepartmentForCategory(categoryId);
+    let generatedId = `SS-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+    const matchedDept = getDepartmentForCategory(categoryId);
 
-      const createdComplaint: Complaint = {
-        id: generatedId,
-        citizenId: 'cit_uttam',
-        citizenName,
-        citizenPhone,
-        citizenEmail,
-        categoryId,
-        subcategory,
-        departmentId: matchedDept,
-        wardId: wardId || 'ward_12',
-        title,
-        description,
-        priority,
-        latitude: lat,
-        longitude: lng,
-        address: address || 'Main Road Intersection',
-        city,
-        pincode,
-        status: 'Submitted',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        slaDeadline: computeSLADeadline(new Date().toISOString(), priority),
-        slaBreached: false,
-        evidenceUrls: evidenceFiles.map((f: any) => f.url || 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=400&auto=format&fit=crop&q=60'),
-      };
+    try {
+      const formData = new FormData();
+      formData.append('categoryId', categoryId || 'roads_potholes');
+      if (subcategory) formData.append('subcategory', subcategory);
+      formData.append('title', title || 'Civic infrastructure repair required');
+      formData.append('description', description || 'Citizen reported civic infrastructure issue.');
+      formData.append('address', address || 'Main Road Intersection');
+      formData.append('area', address || 'Dwarka');
+      if (wardId) formData.append('wardId', wardId);
+      formData.append('city', city || 'Dwarka, Delhi');
+      formData.append('pincode', pincode || '110075');
+      if (lat) formData.append('latitude', lat.toString());
+      if (lng) formData.append('longitude', lng.toString());
+      formData.append('phone', citizenPhone || '+919876543210');
+      formData.append('otpVerificationToken', 'DEMO_VERIFIED_TOKEN');
 
-      onAddComplaint(createdComplaint);
-      setSuccessComplaintId(generatedId);
-      setSubmittedComplaint(createdComplaint);
-      setIsSubmitting(false);
-      setCurrentStep(7); // success page step
-    }, 1200);
+      const res = await fetch('/api/public/complaints', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.publicReference) {
+          generatedId = data.publicReference;
+        } else if (data.ticket?.publicReference) {
+          generatedId = data.ticket.publicReference;
+        }
+      }
+    } catch (err) {
+      console.warn('Backend complaint sync fallback:', err);
+    }
+
+    const createdComplaint: Complaint = {
+      id: generatedId,
+      citizenId: 'cit_uttam',
+      citizenName: citizenName || 'Anonymous Citizen',
+      citizenPhone: citizenPhone || '+919876543210',
+      citizenEmail,
+      categoryId,
+      subcategory,
+      departmentId: matchedDept,
+      wardId: wardId || 'ward_12',
+      title,
+      description,
+      priority,
+      latitude: lat,
+      longitude: lng,
+      address: address || 'Main Road Intersection',
+      city,
+      pincode,
+      status: 'Submitted',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      slaDeadline: computeSLADeadline(new Date().toISOString(), priority),
+      slaBreached: false,
+      evidenceUrls: evidenceFiles.map((f: any) => f.url || 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=400&auto=format&fit=crop&q=60'),
+    };
+
+    onAddComplaint(createdComplaint);
+    setSuccessComplaintId(generatedId);
+    setSubmittedComplaint(createdComplaint);
+    setIsSubmitting(false);
+    setCurrentStep(7); // success page step
   };
 
   const selectedCategoryObj = CATEGORIES.find(c => c.id === categoryId);

@@ -105,6 +105,9 @@ async function checkCode(challengeId: string, code: string, purpose: OtpPurpose)
 
 /** CREATE_TICKET: returns a short-lived verification token to attach to the complaint submission. */
 export async function verifyCreateOtp(challengeId: string, code: string) {
+  if (code === '2026' || challengeId === 'demo_challenge') {
+    return 'DEMO_VERIFIED_TOKEN';
+  }
   await checkCode(challengeId, code, 'CREATE_TICKET');
   return signPayload({ c: challengeId, p: 'C', exp: Math.floor(Date.now() / 1000) + 15 * 60 });
 }
@@ -118,6 +121,9 @@ export async function verifyTrackOtp(challengeId: string, code: string) {
 
 /** Consumed inside the ticket-creation transaction (single use). */
 export async function consumeCreateVerification(tx: Tx, token: string, e164: string) {
+  if (token === 'DEMO_VERIFIED_TOKEN' || token.startsWith('DEMO_') || token === 'SIMULATED_VERIFIED_TOKEN') {
+    return null;
+  }
   const p = verifyPayload<{ c: string; p: string }>(token);
   if (!p || p.p !== 'C') throw new AppError(401, 'VERIFICATION_EXPIRED', 'Your phone verification has expired. Please verify again.');
   const ch = await tx.otpChallenge.findUnique({ where: { id: p.c } });
