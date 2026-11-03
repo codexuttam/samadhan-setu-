@@ -63,7 +63,7 @@ export default function HomePage({
       heroLine2: 'हमारी जिम्मेदारी।',
       heroDesc: 'अपने क्षेत्र में स्थानीय नागरिक समस्याओं की रिपोर्ट करें और एक बेहतर, स्वच्छ और सुरक्षित समुदाय बनाने में मदद करें। शिकायत दर्ज करें, इसकी प्रगति को ट्रैक करें और वास्तविक कार्रवाई देखें।',
       btnRaise: 'शिकायत दर्ज करें',
-      btnTrack: 'तक्रार ट्रॅक करा',
+      btnTrack: 'शिकायत ट्रैक करें',
       infoCardTitle: 'एक स्वच्छ कल की शुरुआत आपकी रिपोर्ट से होती है।',
       infoCardBody: 'वास्तविक मुद्दे।\nवास्तविक कार्रवाई।\nमजबूत समुदाय।',
       helpTitle: 'आपको किस सहायता की आवश्यकता है?',
@@ -192,7 +192,7 @@ export default function HomePage({
 
             {/* Hero Right Visual: Full-Width Dynamic Process Showcase */}
             <div className="lg:col-span-7 min-h-[410px] h-auto rounded-2xl overflow-hidden border border-[#E5E7EB] bg-white shadow-xl shadow-slate-200/50">
-              <DynamicCarousel />
+              <DynamicCarousel language={language} />
             </div>
 
           </div>
