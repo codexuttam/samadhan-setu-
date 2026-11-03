@@ -35,22 +35,20 @@ export default function App() {
   // Navigation & Role Configuration States
   const [page, setPage] = useState<string>('home');
   const [role, setRole] = useState<'citizen' | 'officer' | 'dept_admin' | 'super_admin'>('citizen');
-  const [language, setLanguage] = useState<'en' | 'hi' | 'mr'>(() => {
+  const [language, setLanguage] = useState<'en' | 'hi'>(() => {
     const saved = localStorage.getItem('preferred_language');
-    return saved === 'hi' || saved === 'mr' || saved === 'en' ? saved : 'en';
+    return saved === 'hi' || saved === 'en' ? saved : 'en';
   });
   const [showLanguageModal, setShowLanguageModal] = useState<boolean>(
     () => !localStorage.getItem('has_selected_language_preference')
   );
 
-  const handleSelectLanguage = (lang: 'en' | 'hi' | 'mr') => {
+  const handleSelectLanguage = (lang: 'en' | 'hi') => {
     setLanguage(lang);
     localStorage.setItem('preferred_language', lang);
     localStorage.setItem('has_selected_language_preference', 'true');
     if (lang === 'hi') {
       toast.success('✓ भाषा सेट: हिंदी (Hindi)');
-    } else if (lang === 'mr') {
-      toast.success('✓ भाषा निवडली: मराठी (Marathi)');
     } else {
       toast.success('✓ Language set: English');
     }

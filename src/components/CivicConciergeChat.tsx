@@ -39,7 +39,7 @@ interface CivicConciergeChatProps {
   isOpen?: boolean;
   onToggle?: (open: boolean) => void;
   onPrefillGrievance?: (prefill: ConciergePrefill) => void;
-  currentLanguage?: 'en' | 'hi' | 'mr';
+  currentLanguage?: 'en' | 'hi';
 }
 
 export default function CivicConciergeChat({

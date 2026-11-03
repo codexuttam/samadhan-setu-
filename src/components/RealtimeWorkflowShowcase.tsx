@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   MapPin,
   Sparkles,
-  Bot,
-  Truck,
+  Building2,
+  Wrench,
   CheckCircle2,
   Clock,
   ShieldCheck,
@@ -16,15 +16,19 @@ import {
   Smartphone,
   Radio,
   FileCheck2,
-  Zap,
+  ThumbsUp,
+  Star,
+  Users,
 } from 'lucide-react';
 
 interface RealtimeWorkflowShowcaseProps {
+  language?: 'en' | 'hi';
   onRaiseClick: () => void;
   onTrackClick: () => void;
 }
 
 export default function RealtimeWorkflowShowcase({
+  language = 'en',
   onRaiseClick,
   onTrackClick,
 }: RealtimeWorkflowShowcaseProps) {
@@ -33,84 +37,216 @@ export default function RealtimeWorkflowShowcase({
   const [progress, setProgress] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  const steps = [
-    {
-      id: 1,
-      title: 'Real-Time Geo-Intake',
-      badge: 'Step 1 · Citizen Action',
-      tagline: 'Instant Satellite GPS & Media Evidence',
-      icon: MapPin,
-      color: '#F4511E', // Civic Orange
-      bgGradient: 'from-orange-500/10 via-amber-500/5 to-transparent',
-      borderColor: 'border-[#F4511E]',
-      description:
-        'Citizens lodge grievances in under 45 seconds using browser-based GPS locking, audio voice notes, and geotagged camera photos without visiting an office.',
-      telemetry: [
-        '📡 Satellite GPS Locked: Dwarka Sector 10 (28.5823° N, 77.0500° E)',
-        '📸 Photo Evidence: Pothole depth ~8.5cm timestamped & encrypted',
-        '🎙️ AI Speech-to-Text: Auto-transcribed Marathi/Hindi/English audio',
-        '🔒 Cryptographic phone token issued for privacy preservation',
+  // Complete bilingual dictionary
+  const t = {
+    en: {
+      tag: 'Real-Time Civic Resolution Engine',
+      title: 'From Grievance to Verified Solution in 4 Simple Stages',
+      subtitle:
+        'Every civic issue follows an automated, transparent lifecycle tracked down to the second. Experience how your voice triggers immediate on-ground governance.',
+      pause: 'Pause',
+      autoPlay: 'Autoplay',
+      btnRaise: 'File Complaint Now',
+      btnTrack: 'Track Live Status',
+      coverageLabel: 'Active Coverage',
+      coverageVal: '100% Ward Coverage',
+      steps: [
+        {
+          id: 1,
+          navTitle: 'Citizen Report',
+          navSubtitle: 'Photo, Voice & Auto-GPS',
+          title: 'Easy Citizen Reporting',
+          tagline: 'Instant Satellite Location & Photographic Proof',
+          badge: 'Step 1 • Citizen Action',
+          description:
+            'Citizens lodge grievances in under 45 seconds using browser-based GPS locking, audio voice notes in Hindi/English, or WhatsApp photos without visiting any government office.',
+          metricLabel: 'Average Filing Speed',
+          metricVal: '42 seconds',
+          cardHeader: 'Grievance Registered',
+          cardSub: 'Complaint Profile #SS-2026-004921',
+          loc: 'Dwarka Sector 10, New Delhi',
+          features: [
+            '📸 Photographic proof captured with real-time timestamp',
+            '📍 GPS location locked automatically (No typing required)',
+            '🎙️ Voice note analyzed in Hindi/English by AI',
+            '🔒 Citizen mobile number securely verified',
+          ],
+          statusTag: '✓ Registered Successfully',
+        },
+        {
+          id: 2,
+          navTitle: 'Direct Routing',
+          navSubtitle: 'No Bureaucratic Delay',
+          title: 'Direct Municipal Ward Routing',
+          tagline: 'Directly Dispatched to Local Ward Engineer',
+          badge: 'Step 2 • Automated Routing',
+          description:
+            'Intelligent algorithms classify the grievance, check for duplicates in the area, compute a strict SLA resolution clock, and route the ticket directly to the ward junior engineer.',
+          metricLabel: 'Dispatch Time',
+          metricVal: '< 2 minutes',
+          cardHeader: 'Assigned to Ward Authority',
+          cardSub: 'Municipal Corporation (MCD) Division',
+          loc: 'Ward 12, Municipal Zone',
+          features: [
+            '🏛️ Auto-routed directly to Ward Engineer: Rajesh Patil',
+            '⏱️ 48-Hour High-Priority Resolution Target activated',
+            '🏢 No middleman or desk-to-desk file transfers',
+            '📱 Automatic SMS & WhatsApp dispatch sent to field supervisor',
+          ],
+          statusTag: '✓ Ward Team Dispatched',
+        },
+        {
+          id: 3,
+          navTitle: 'On-Site Repair',
+          navSubtitle: 'Direct Action by Crew',
+          title: 'Fast Action & On-Site Repair',
+          tagline: 'Engineering Crew Resolves the Issue on Location',
+          badge: 'Step 3 • On-Site Repair',
+          description:
+            'Municipal field teams and road repair crews arrive on site, complete repairs according to civic safety standards, and upload photographic evidence matching the GPS pin.',
+          metricLabel: 'On-Time Resolution',
+          metricVal: '96.4% on target',
+          cardHeader: 'Field Repair Completed',
+          cardSub: 'Road Maintenance & Asphalt Restoration',
+          loc: 'Sector 10 Main Crossing, Delhi',
+          features: [
+            '👷 Field squad on-site with road repair equipment',
+            '📍 Geotagged check-in verified within 10 meters of complaint',
+            '📸 Quality-inspected before & after photo evidence submitted',
+            '🛡️ Civil safety and bitumen density verified',
+          ],
+          statusTag: '✓ Repaired on Ground',
+        },
+        {
+          id: 4,
+          navTitle: 'Citizen Sign-Off',
+          navSubtitle: 'Power in Citizen Hands',
+          title: 'Citizen Verification & Closure',
+          tagline: 'Nothing Closes Without Your 100% Satisfaction',
+          badge: 'Step 4 • Citizen Approval',
+          description:
+            'A complaint cannot be quietly closed by officials. The citizen receives an SMS/WhatsApp notification with completion photos and must verify the resolution before the ticket is archived.',
+          metricLabel: 'Citizen Satisfaction',
+          metricVal: '4.9 / 5.0 Rating',
+          cardHeader: 'Citizen Satisfaction Confirmed',
+          cardSub: 'Official Redressal Verified',
+          loc: 'Permanent Public Record',
+          features: [
+            '📲 SMS & WhatsApp notification delivered to citizen',
+            '👍 Citizen signs off on resolution quality',
+            '⭐ 5/5 Star rating recorded in public municipal scorecard',
+            '↺ Option to 1-click reopen if repair is not satisfactory',
+          ],
+          statusTag: '✓ 100% Satisfied & Resolved',
+        },
       ],
-      mockMetric: { label: 'Avg Submission Speed', value: '42 seconds' },
     },
-    {
-      id: 2,
-      title: 'AI Smart Triaging',
-      badge: 'Step 2 · Automated SLA Routing',
-      tagline: 'Zero Bureaucratic Bottlenecks',
-      icon: Bot,
-      color: '#2563EB', // Blue
-      bgGradient: 'from-blue-500/10 via-indigo-500/5 to-transparent',
-      borderColor: 'border-[#2563EB]',
-      description:
-        'Machine learning algorithms parse the grievance description, verify duplicate incidents within a 50m radius, calculate SLA deadlines, and direct-route to the ward department.',
-      telemetry: [
-        '⚡ NLP Category match: "Roads & Infrastructure" (99.4% confidence)',
-        '🎯 Duplication check: 0 active tickets in 50m radius',
-        '⏱️ Auto-SLA Computed: 48-Hour High-Priority Resolution Clock started',
-        '🏢 Auto-routed directly to Ward 12 Junior Engineer (Rajesh Patil)',
+    hi: {
+      tag: 'नागरिक शिकायत समाधान प्रणाली • रीयल-टाइम',
+      title: 'शिकायत दर्ज करने से पक्के समाधान तक • 4 सरल चरण',
+      subtitle:
+        'हर नागरिक समस्या का समाधान पूरी पारदर्शिता और तय समय सीमा में होता है। जानिए आपकी एक शिकायत पर नगर निगम और सरकार कैसे तुरंत कार्रवाई करती है।',
+      pause: 'रोकें',
+      autoPlay: 'ऑटो-प्ले',
+      btnRaise: 'शिकायत दर्ज करें',
+      btnTrack: 'लाइव स्थिति देखें',
+      coverageLabel: 'सक्रिय कवरेज',
+      coverageVal: '100% सभी वार्ड शामिल',
+      steps: [
+        {
+          id: 1,
+          navTitle: 'नागरिक रिपोर्ट',
+          navSubtitle: 'फ़ोटो, आवाज़ व सीधा पता',
+          title: 'आसान नागरिक रिपोर्टिंग',
+          tagline: 'मोबाइल से फ़ोटो या बोलकर शिकायत दर्ज करें',
+          badge: 'चरण 1 • नागरिक की पहल',
+          description:
+            'बिना किसी सरकारी दफ्तर के चक्कर काटे, नागरिक मात्र 45 सेकंड में अपने मोबाइल से फ़ोटो खींचकर या हिंदी/अंग्रेज़ी में बोलकर शिकायत दर्ज कर सकते हैं।',
+          metricLabel: 'औसत दर्ज करने का समय',
+          metricVal: '42 सेकंड',
+          cardHeader: 'शिकायत दर्ज हुई',
+          cardSub: 'शिकायत नंबर #SS-2026-004921',
+          loc: 'द्वारका सेक्टर 10, नई दिल्ली',
+          features: [
+            '📸 समस्या की फ़ोटो समय और तारीख के साथ सुरक्षित',
+            '📍 GPS पता अपने आप दर्ज (कोई टाइपिंग की जरूरत नहीं)',
+            '🎙️ आवाज़ में बोली गई बात का तुरंत विश्लेषण',
+            '🔒 नागरिक का मोबाइल नंबर पूरी तरह सुरक्षित व गोपनीय',
+          ],
+          statusTag: '✓ शिकायत सफलतापूर्वक दर्ज',
+        },
+        {
+          id: 2,
+          navTitle: 'सीधा विभाग को',
+          navSubtitle: 'बिना किसी देरी के',
+          title: 'वार्ड अधिकारी को सीधी सूचना',
+          tagline: 'सीधे आपके क्षेत्र के जूनियर इंजीनियर को सुपुर्द',
+          badge: 'चरण 2 • स्वचालित आवंटन',
+          description:
+            'शिकायत दर्ज होते ही सीधे नगर निगम (MCD), जल बोर्ड या PWD के संबंधित वार्ड अधिकारी को काम सौंप दिया जाता है। 48 घंटे में समाधान की घड़ी चालू!',
+          metricLabel: 'अधिकारी को सूचना समय',
+          metricVal: '< 2 मिनट',
+          cardHeader: 'वार्ड अधिकारी नियुक्त',
+          cardSub: 'नगर निगम सड़क व रखरखाव विभाग',
+          loc: 'वार्ड 12, नगर निगम क्षेत्र',
+          features: [
+            '🏛️ सीधे वार्ड इंजीनियर राजेश पाटिल को काम सौंपा गया',
+            '⏱️ 48 घंटे में समाधान का पक्का लक्ष्य सक्रिय',
+            '🏢 किसी बिचौलिए या दफ्तर की टेबल पर फाइल अटकने का झंझट नहीं',
+            '📱 फील्ड सुपरवाइजर को WhatsApp और SMS अलर्ट भेजा गया',
+          ],
+          statusTag: '✓ सरकारी टीम को आदेश जारी',
+        },
+        {
+          id: 3,
+          navTitle: 'मौके पर मरम्मत',
+          navSubtitle: 'सरकारी टीम द्वारा कार्य',
+          title: 'मौके पर पहुंचकर तुरंत मरम्मत',
+          tagline: 'इंजीनियर और सफाई टीम द्वारा प्रत्यक्ष समाधान',
+          badge: 'चरण 3 • मौके पर कार्रवाई',
+          description:
+            'नगर निगम की मरम्मत टीम तय जगह पर पहुंचती है, समस्या का पक्का समाधान करती है और काम पूरा होने की नई फ़ोटो पोर्टल पर अपलोड करती है।',
+          metricLabel: 'समय पर समाधान दर',
+          metricVal: '96.4% तय समय में',
+          cardHeader: 'मरम्मत कार्य पूरा हुआ',
+          cardSub: 'सड़क डामरीकरण व गड्ढा मरम्मत कार्य',
+          loc: 'सेक्टर 10 मुख्य चौराहा, दिल्ली',
+          features: [
+            '👷 फील्ड मरम्मत दल आवश्यक सामग्री के साथ मौके पर पहुंचा',
+            '📍 GPS स्थान पर मौजूदगी की डिजिटल पुष्टि',
+            '📸 काम पूरा होने के बाद पहले और अब की फ़ोटो अपलोड',
+            '🛡️ सड़क सुरक्षा और गुणवत्ता मानकों की जांच पूरी',
+          ],
+          statusTag: '✓ मौके पर पक्का समाधान',
+        },
+        {
+          id: 4,
+          navTitle: 'नागरिक संतुष्टि',
+          navSubtitle: 'आपकी मंज़ूरी के बाद ही बंद',
+          title: 'नागरिक सत्यापन और अंतिम क्लोजर',
+          tagline: 'जब तक आप संतुष्ट न हों, केस बंद नहीं होगा',
+          badge: 'चरण 4 • नागरिक का फैसला',
+          description:
+            'कोई भी सरकारी कर्मचारी अपनी मर्जी से शिकायत बंद नहीं कर सकता। काम पूरा होने पर नागरिक के फोन पर फ़ोटो सहित SMS/WhatsApp आता है। आपकी संतुष्टि के बाद ही शिकायत पूरी मानी जाती है।',
+          metricLabel: 'नागरिक संतुष्टि रेटिंग',
+          metricVal: '4.9 / 5.0 स्टार',
+          cardHeader: 'नागरिक द्वारा संतुष्टि दर्ज',
+          cardSub: 'शिकायत का सफल निवारण',
+          loc: 'सार्वजनिक नागरिक रिकॉर्ड में दर्ज',
+          features: [
+            '📲 काम पूरा होने का SMS और WhatsApp नागरिक को भेजा गया',
+            '👍 नागरिक ने कार्य की गुणवत्ता देखकर मंज़ूरी दी',
+            '⭐ 5/5 स्टार संतुष्टि रेटिंग आधिकारिक रिकॉर्ड में दर्ज',
+            '↺ असंतुष्ट होने पर 1-क्लिक में दोबारा जांच का पूरा अधिकार',
+          ],
+          statusTag: '✓ 100% संतुष्टि के साथ पूर्ण',
+        },
       ],
-      mockMetric: { label: 'Triage Latency', value: '< 1.2 seconds' },
     },
-    {
-      id: 3,
-      title: 'Field Officer Dispatch',
-      badge: 'Step 3 · On-Site Action',
-      tagline: 'Live GPS Telemetry & Work Execution',
-      icon: Truck,
-      color: '#F59E0B', // Amber
-      bgGradient: 'from-amber-500/10 via-yellow-500/5 to-transparent',
-      borderColor: 'border-[#F59E0B]',
-      description:
-        'Field supervisors receive instant SMS/WhatsApp alerts, navigate to the exact pinned coordinates, and upload verifiable before-and-after work progress photos.',
-      telemetry: [
-        '📱 WhatsApp & Portal Alert dispatched to Ward 12 maintenance squad',
-        '👷 Crew on-site: Asphalt cold-mix repair batch #DW-892 activated',
-        '📍 Geo-fenced check-in verified within 15 meters of complaint pin',
-        '📸 Post-repair proof photo uploaded with tamper-evident metadata',
-      ],
-      mockMetric: { label: 'Field Response Rate', value: '94.8% on-time' },
-    },
-    {
-      id: 4,
-      title: 'Citizen OTP Closure',
-      badge: 'Step 4 · Digital Handshake',
-      tagline: 'Power Stays in Citizen Hands',
-      icon: ShieldCheck,
-      color: '#16A34A', // Green
-      bgGradient: 'from-emerald-500/10 via-teal-500/5 to-transparent',
-      borderColor: 'border-[#16A34A]',
-      description:
-        'A complaint cannot be closed by municipal staff alone. The citizen receives an OTP and must personally verify work completion and provide feedback before ticket resolution.',
-      telemetry: [
-        '🔐 One-Time Password sent to registered citizen phone',
-        '✅ Citizen verified physical work completion via Portal OTP',
-        '⭐ Rating recorded: 5/5 Stars ("Smooth & rapid road repair")',
-        '📜 Tamper-proof audit event appended to municipality public ledger',
-      ],
-      mockMetric: { label: 'Citizen Satisfaction', value: '4.8 / 5.0' },
-    },
-  ];
+  }[language];
+
+  const currentSteps = t.steps;
+  const current = currentSteps[activeStep];
 
   // Auto-play interval
   useEffect(() => {
@@ -119,13 +255,13 @@ export default function RealtimeWorkflowShowcase({
       return;
     }
 
-    const intervalTime = 50; // smooth update every 50ms
-    const stepDuration = 5000; // 5 seconds per step
+    const intervalTime = 50;
+    const stepDuration = 5500;
 
     timerRef.current = setInterval(() => {
       setProgress((prev) => {
         if (prev >= 100) {
-          setActiveStep((s) => (s + 1) % steps.length);
+          setActiveStep((s) => (s + 1) % currentSteps.length);
           return 0;
         }
         return prev + (intervalTime / stepDuration) * 100;
@@ -135,7 +271,7 @@ export default function RealtimeWorkflowShowcase({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isPlaying, steps.length, activeStep]);
+  }, [isPlaying, currentSteps.length, activeStep]);
 
   const handleStepClick = (index: number) => {
     setActiveStep(index);
@@ -143,38 +279,38 @@ export default function RealtimeWorkflowShowcase({
   };
 
   const handlePrev = () => {
-    setActiveStep((prev) => (prev === 0 ? steps.length - 1 : prev - 1));
+    setActiveStep((prev) => (prev === 0 ? currentSteps.length - 1 : prev - 1));
     setProgress(0);
   };
 
   const handleNext = () => {
-    setActiveStep((prev) => (prev + 1) % steps.length);
+    setActiveStep((prev) => (prev + 1) % currentSteps.length);
     setProgress(0);
   };
 
-  const current = steps[activeStep];
-  const StepIcon = current.icon;
+  // Color mappings per step
+  const stepColors = [
+    { accent: '#F4511E', bg: 'bg-orange-50 text-orange-700 border-orange-200' },
+    { accent: '#2563EB', bg: 'bg-blue-50 text-blue-700 border-blue-200' },
+    { accent: '#16A34A', bg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    { accent: '#D97706', bg: 'bg-amber-50 text-amber-700 border-amber-200' },
+  ];
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
       <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 sm:p-10 shadow-xs space-y-8 relative overflow-hidden">
-        {/* Subtle Ambient Backlight */}
-        <div
-          className={`absolute -top-32 -right-32 w-96 h-96 rounded-full blur-3xl opacity-20 pointer-events-none transition-all duration-700 bg-gradient-to-br ${current.bgGradient}`}
-        />
-
         {/* Header Block */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-slate-100">
           <div className="space-y-2 max-w-2xl">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-50 border border-orange-100 text-[#F4511E] text-[11px] font-bold uppercase tracking-wider">
               <Radio className="w-3.5 h-3.5 animate-pulse text-[#F4511E]" />
-              <span>Real-Time Civic Resolution Engine</span>
+              <span>{t.tag}</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0F1B2D] tracking-tight">
-              From Live Geotag to Verified Solution in 4 Stages
+              {t.title}
             </h2>
             <p className="text-xs sm:text-sm text-[#64748B] leading-relaxed">
-              Every civic issue follows an automated, transparent lifecycle tracked down to the second. Experience how your voice triggers immediate on-ground governance.
+              {t.subtitle}
             </p>
           </div>
 
@@ -183,17 +319,17 @@ export default function RealtimeWorkflowShowcase({
             <button
               onClick={() => setIsPlaying(!isPlaying)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 text-xs font-semibold text-slate-700 transition-colors"
-              title={isPlaying ? 'Pause auto-play' : 'Resume auto-play'}
+              title={isPlaying ? 'Pause' : 'Autoplay'}
             >
               {isPlaying ? (
                 <>
                   <Pause className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Pause</span>
+                  <span>{t.pause}</span>
                 </>
               ) : (
                 <>
                   <Play className="w-3.5 h-3.5 text-[#F4511E]" />
-                  <span>Autoplay</span>
+                  <span>{t.autoPlay}</span>
                 </>
               )}
             </button>
@@ -216,8 +352,7 @@ export default function RealtimeWorkflowShowcase({
 
         {/* 4-Step Interactive Navigation Pills */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {steps.map((s, idx) => {
-            const Icon = s.icon;
+          {currentSteps.map((s, idx) => {
             const isActive = idx === activeStep;
             return (
               <button
@@ -245,27 +380,17 @@ export default function RealtimeWorkflowShowcase({
                   >
                     0{s.id}
                   </div>
-                  <Icon
-                    className={`w-4 h-4 transition-transform group-hover:scale-110 ${
-                      isActive ? 'text-[#FF6A2A]' : 'text-slate-400'
-                    }`}
-                  />
+                  <span className={`text-[10px] font-mono font-bold ${isActive ? 'text-[#FF6A2A]' : 'text-slate-400'}`}>
+                    {idx + 1}/4
+                  </span>
                 </div>
 
                 <div className="relative z-10">
-                  <p
-                    className={`text-xs font-extrabold truncate ${
-                      isActive ? 'text-white' : 'text-[#0F1B2D]'
-                    }`}
-                  >
-                    {s.title}
+                  <p className={`text-xs font-extrabold truncate ${isActive ? 'text-white' : 'text-[#0F1B2D]'}`}>
+                    {s.navTitle}
                   </p>
-                  <p
-                    className={`text-[10px] mt-0.5 truncate ${
-                      isActive ? 'text-slate-300' : 'text-slate-500'
-                    }`}
-                  >
-                    {s.tagline}
+                  <p className={`text-[10px] mt-0.5 truncate ${isActive ? 'text-slate-300' : 'text-slate-500'}`}>
+                    {s.navSubtitle}
                   </p>
                 </div>
               </button>
@@ -281,11 +406,11 @@ export default function RealtimeWorkflowShowcase({
             <div className="flex items-center gap-2">
               <span
                 className="w-2.5 h-2.5 rounded-full animate-ping"
-                style={{ backgroundColor: current.color }}
+                style={{ backgroundColor: stepColors[activeStep].accent }}
               />
               <span
                 className="text-xs font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border bg-white shadow-2xs"
-                style={{ borderColor: current.color, color: current.color }}
+                style={{ borderColor: stepColors[activeStep].accent, color: stepColors[activeStep].accent }}
               >
                 {current.badge}
               </span>
@@ -303,176 +428,111 @@ export default function RealtimeWorkflowShowcase({
             </p>
 
             {/* Quick Metrics Bar */}
-            <div className="grid grid-cols-2 gap-4 pt-2">
+            <div className="grid grid-cols-2 gap-4 pt-1">
               <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
                 <span className="text-[10px] font-mono uppercase text-slate-400 block tracking-wider">
-                  {current.mockMetric.label}
+                  {current.metricLabel}
                 </span>
                 <span className="text-lg font-mono font-extrabold text-[#0F1B2D]">
-                  {current.mockMetric.value}
+                  {current.metricVal}
                 </span>
               </div>
               <div className="p-3.5 rounded-xl bg-white border border-slate-200/80 shadow-2xs">
                 <span className="text-[10px] font-mono uppercase text-slate-400 block tracking-wider">
-                  Active Coverage
+                  {t.coverageLabel}
                 </span>
                 <span className="text-lg font-mono font-extrabold text-[#16A34A]">
-                  100% Dwarka Wards
+                  {t.coverageVal}
                 </span>
               </div>
             </div>
 
             {/* CTA action buttons */}
-            <div className="flex flex-wrap items-center gap-3 pt-3">
+            <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
                 onClick={onRaiseClick}
                 className="inline-flex items-center gap-2 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider shadow-xs transition-colors"
               >
-                <span>Try Live Lodging</span>
+                <span>{t.btnRaise}</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={onTrackClick}
                 className="inline-flex items-center gap-2 bg-white hover:bg-slate-100 border border-slate-200 text-[#0F1B2D] px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors"
               >
-                <span>Track Live Status</span>
+                <span>{t.btnTrack}</span>
               </button>
             </div>
           </div>
 
-          {/* Right Column: Live Simulated Telemetry / Graphic Terminal */}
-          <div className="lg:col-span-6 bg-[#0F1B2D] text-slate-100 rounded-2xl p-6 border border-slate-800 shadow-xl space-y-5 relative overflow-hidden font-mono">
-            {/* Ambient Corner Glow */}
-            <div
-              className="absolute -bottom-16 -right-16 w-48 h-48 rounded-full blur-2xl opacity-20 pointer-events-none"
-              style={{ backgroundColor: current.color }}
-            />
-
-            {/* Terminal Window Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-xs">
+          {/* Right Column: User-Friendly Civic Card (Replaced Dark Terminal) */}
+          <div className="lg:col-span-6 bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4 relative overflow-hidden">
+            {/* Header of Stage Preview Card */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="flex gap-1.5">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                <div className="w-8 h-8 rounded-xl bg-orange-50 border border-orange-200 flex items-center justify-center text-[#F4511E]">
+                  {activeStep === 0 && <Camera className="w-4 h-4" />}
+                  {activeStep === 1 && <Building2 className="w-4 h-4 text-blue-600" />}
+                  {activeStep === 2 && <Wrench className="w-4 h-4 text-emerald-600" />}
+                  {activeStep === 3 && <ThumbsUp className="w-4 h-4 text-amber-600" />}
                 </div>
-                <span className="text-[11px] text-slate-400 font-sans font-semibold ml-2">
-                  samadhan-engine.dwarka.gov
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded font-sans">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                LIVE STREAM
-              </div>
-            </div>
-
-            {/* Stage Visual Simulation Graphic */}
-            <div className="p-4 rounded-xl bg-slate-900/90 border border-slate-800/80 space-y-3 font-sans">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-white flex items-center gap-2">
-                  <StepIcon className="w-4 h-4 text-[#F4511E]" />
-                  <span>Stage Simulation: {current.title}</span>
-                </span>
-                <span className="text-[10px] text-slate-400 font-mono">SS-2026-LIVE</span>
+                <div>
+                  <h4 className="text-xs font-extrabold text-[#0F1B2D]">
+                    {current.cardHeader}
+                  </h4>
+                  <p className="text-[10px] text-slate-500 font-mono">
+                    {current.cardSub}
+                  </p>
+                </div>
               </div>
 
-              {/* Dynamic Interactive Stage Content */}
-              {activeStep === 0 && (
-                <div className="space-y-2 text-xs">
-                  <div className="p-2.5 bg-slate-800/70 rounded-lg flex items-center justify-between">
-                    <span className="text-slate-300 flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-[#F4511E]" />
-                      Sector 10 Dwarka, Delhi
-                    </span>
-                    <span className="text-[10px] text-emerald-400 font-mono">GPS Acc: ±4m</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-400">
-                    <span className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">
-                      📷 2 Photos Attached
-                    </span>
-                    <span className="px-2 py-1 rounded bg-slate-800 border border-slate-700 text-slate-300">
-                      🎙️ Audio Transcribed
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {activeStep === 1 && (
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between items-center p-2.5 bg-blue-950/40 border border-blue-900/50 rounded-lg">
-                    <span className="text-blue-200">Category: Roads & Infrastructure</span>
-                    <span className="text-[10px] font-mono bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded">
-                      99.4% MATCH
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-[11px] text-slate-300 px-1">
-                    <span>Assigned SLA Window:</span>
-                    <span className="font-mono text-amber-400 font-bold">48 Hours (High Priority)</span>
-                  </div>
-                </div>
-              )}
-
-              {activeStep === 2 && (
-                <div className="space-y-2 text-xs">
-                  <div className="p-2.5 bg-amber-950/30 border border-amber-900/50 rounded-lg flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center text-[10px] font-bold">
-                        RP
-                      </div>
-                      <span className="text-amber-200 text-[11px]">Rajesh Patil (Ward 12 Squad)</span>
-                    </div>
-                    <span className="text-[10px] text-emerald-400 font-mono">On Field</span>
-                  </div>
-                  <div className="text-[11px] text-slate-400 px-1 flex justify-between">
-                    <span>GPS Check-in:</span>
-                    <span className="text-slate-200 font-mono">15m from coordinates</span>
-                  </div>
-                </div>
-              )}
-
-              {activeStep === 3 && (
-                <div className="space-y-2 text-xs">
-                  <div className="p-2.5 bg-emerald-950/40 border border-emerald-900/50 rounded-lg flex items-center justify-between">
-                    <span className="text-emerald-200 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      Tamper-proof OTP Verified
-                    </span>
-                    <span className="text-[10px] font-mono bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 rounded">
-                      CODE: 2026
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-[11px] text-slate-300 px-1">
-                    <span>Citizen Rating:</span>
-                    <span className="text-amber-400">★★★★★ (5.0 / 5.0)</span>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Live Event Ticker Stream */}
-            <div className="space-y-2">
-              <span className="text-[10px] text-slate-400 uppercase tracking-widest block font-sans font-semibold">
-                Real-Time Telemetry Stream:
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                {current.statusTag}
               </span>
-              <div className="space-y-1.5 text-xs text-slate-300 bg-black/40 p-3 rounded-xl border border-slate-800">
-                {current.telemetry.map((line, i) => (
-                  <div key={i} className="flex items-start gap-2 leading-relaxed">
-                    <span className="text-emerald-400 shrink-0 text-[10px] mt-0.5">&gt;</span>
-                    <span className="text-[11px] text-slate-300">{line}</span>
+            </div>
+
+            {/* Location Pill */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 flex items-center justify-between text-xs">
+              <span className="flex items-center gap-1.5 text-slate-700 font-medium text-[11px]">
+                <MapPin className="w-3.5 h-3.5 text-[#F4511E]" />
+                {current.loc}
+              </span>
+              <span className="text-[9px] font-bold text-slate-500 uppercase font-mono">
+                {language === 'hi' ? 'सत्यापित' : 'GPS Verified'}
+              </span>
+            </div>
+
+            {/* Key Civic Indicators (User-Friendly Checklist) */}
+            <div className="space-y-2 pt-1">
+              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block font-sans">
+                {language === 'hi' ? 'प्रमुख प्रक्रिया विशेषताएं' : 'Key Process Highlights'}
+              </span>
+              <div className="grid grid-cols-1 gap-2">
+                {current.features.map((feat, idx) => (
+                  <div
+                    key={idx}
+                    className="p-2.5 rounded-xl bg-slate-50/80 border border-slate-100 flex items-start gap-2 text-xs text-slate-700"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span className="leading-snug font-medium text-[11px]">{feat}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Live Audit Footnote */}
-            <div className="flex justify-between items-center text-[10px] text-slate-400 font-sans pt-1">
-              <span>Municipality Node: Dwarka Zone 1</span>
-              <span>Updated: Real-time</span>
+            {/* Bottom Official Guarantee Seal */}
+            <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+              <span className="flex items-center gap-1 font-semibold text-slate-600">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                {language === 'hi' ? 'नागरिक सेवा अधिकार अधिनियम' : 'Citizen Charter SLA Compliance'}
+              </span>
+              <span className="font-mono text-slate-400">
+                Portal: SS-2026-NCT
+              </span>
             </div>
           </div>
 
         </div>
-
       </div>
     </section>
   );

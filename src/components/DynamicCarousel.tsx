@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 
 interface DynamicCarouselProps {
-  language?: 'en' | 'hi' | 'mr';
+  language?: 'en' | 'hi';
 }
 
 export default function DynamicCarousel({ language = 'en' }: DynamicCarouselProps) {
@@ -158,74 +158,6 @@ export default function DynamicCarousel({ language = 'en' }: DynamicCarouselProp
         tab: 'समाधान',
       },
       paused: 'रुका हुआ',
-      autoPlaying: 'ऑटो-प्ले',
-    },
-    mr: {
-      step1: {
-        title: 'फक्त फोटो काढा किंवा बोलून सांगा',
-        subtitle: 'कोणताही मोठा अर्ज भरण्याची गरज नाही',
-        description:
-          'रस्त्यावरील खड्डा, बंद पथदिवा किंवा दूषित पाणी—मोबाईलवरून फोटो काढा किंवा बोलून सांगा. ज्येष्ठ नागरिक आणि सर्वांसाठी अतिशय सोपे.',
-        cardHeader: 'सोपी तक्रार नोंदणी • १००% मोफत',
-        badge: '३ सोपे पर्याय',
-        photo: 'फोटो काढा',
-        photoSub: 'कॅमेरा',
-        voice: 'बोला',
-        voiceSub: 'व्हॉइस नोट',
-        wa: 'व्हॉट्सॲप',
-        waSub: 'थेट चॅट',
-        locTitle: 'पत्ता आपोआप नोंदवला जातो',
-        locSub: 'द्वारका सेक्टर १०, नवी दिल्ली',
-        locBadge: '✓ पत्ता मिळाला',
-        tab: 'फोटो',
-      },
-      step2: {
-        title: 'थेट सरकारी विभागाला सूचना',
-        subtitle: 'कोणत्याही कार्यालयात जाण्याची गरज नाही',
-        description:
-          'तुमची तक्रार थेट संबंधित वॉर्ड अधिकाऱ्याकडे (मनपा, जलमंडळ, PWD) जाते. ४८ तासांत निवारणाची हमी.',
-        cardHeader: 'संबंधित विभागाकडे वर्ग',
-        deptBadge: 'MCD • DJB • PWD',
-        trackLabel: 'तक्रार क्रमांक (Tracking ID)',
-        officer: 'वॉर्ड अभियंता: राजेश पाटील',
-        ward: 'वॉर्ड १२, मनपा विभाग',
-        slaTitle: '४८ तासांत निवारण हमी',
-        slaDesc: 'सिटिझन चार्टर मुदत सक्रिय',
-        slaBadge: '४८ तास',
-        tab: 'विभाग',
-      },
-      step3: {
-        title: 'घटनास्थळी प्रत्यक्ष दुरुस्ती',
-        subtitle: 'फोटो पुराव्यासह तपासणी',
-        description:
-          'रस्ता दुरुस्ती किंवा नवीन पथदिवा—अभियंता चमू प्रत्यक्ष जागेवर काम पूर्ण करून फोटो अपलोड करते.',
-        cardHeader: 'दुरुस्ती काम पूर्ण झाले',
-        verifiedBadge: '✓ तपासणी पूर्ण',
-        beforeTag: 'आधी: समस्या',
-        beforeText: 'धोकादायक खड्डा',
-        beforeDate: '१२ ऑक्टोबर • नोंद',
-        afterTag: 'आता: समाधान',
-        afterText: 'पक्का रस्ता तयार',
-        afterDate: '१४ ऑक्टोबर • पूर्ण',
-        compliance: 'रस्ता सुरक्षा मानकांनुसार',
-        location: 'वॉर्ड १२, दिल्ली',
-        tab: 'दुरुस्ती',
-      },
-      step4: {
-        title: 'मोबाईलवर थेट खात्रीचा संदेश',
-        subtitle: 'तुमच्या संमतीशिवाय तक्रार बंद होणार नाही',
-        description:
-          'काम पूर्ण झाल्यावर WhatsApp आणि SMS वर फोटोसह संदेश येतो. तुम्ही समाधानी असाल तरच तक्रार बंद होईल.',
-        cardTitle: 'तुम्ही या कामावर समाधानी आहात का?',
-        cardSub: 'अंतिम मंजुरीसाठी तुमचे समाधान आवश्यक आहे',
-        receiptTitle: 'WhatsApp / SMS वर पावती पाठवली',
-        receiptMsg: '"तक्रार #SS-2026-004921 चे निवारण महापालिकेने केले आहे."',
-        btnYes: 'होय, काम झाले ✓',
-        btnReopen: 'पुन्हा उघडा ↺',
-        dutyNote: 'नागरिकांचे समाधान हीच आमची प्राथमिकता',
-        tab: 'समाधान',
-      },
-      paused: 'थांबवले',
       autoPlaying: 'ऑटो-प्ले',
     },
   }[language];

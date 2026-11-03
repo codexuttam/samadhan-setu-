@@ -7,8 +7,8 @@ interface NavbarProps {
   setPage: (page: string) => void;
   currentRole: 'citizen' | 'officer' | 'dept_admin' | 'super_admin';
   setRole: (role: 'citizen' | 'officer' | 'dept_admin' | 'super_admin') => void;
-  language: 'en' | 'hi' | 'mr';
-  setLanguage: (lang: 'en' | 'hi' | 'mr') => void;
+  language: 'en' | 'hi';
+  setLanguage: (lang: 'en' | 'hi') => void;
 }
 
 export default function Navbar({
@@ -24,11 +24,11 @@ export default function Navbar({
   const [showLangDropdown, setShowLangDropdown] = useState(false);
 
   const navLinks = [
-    { id: 'home', label: { en: 'Home', hi: 'मुख्य पृष्ठ', mr: 'मुख्य पृष्ठ' } },
-    { id: 'raise', label: { en: 'Raise a Complaint', hi: 'शिकायत दर्ज करें', mr: 'तक्रार नोंदवा' } },
-    { id: 'track', label: { en: 'Track Complaint', hi: 'ट्रैक शिकायत', mr: 'तक्रार ट्रॅक करा' } },
-    { id: 'how-it-works', label: { en: 'How It Works', hi: 'यह कैसे काम करता है', mr: 'हे कसे कार्य करते' } },
-    { id: 'help', label: { en: 'Help', hi: 'सहायता', mr: 'मदत' } },
+    { id: 'home', label: { en: 'Home', hi: 'मुख्य पृष्ठ' } },
+    { id: 'raise', label: { en: 'Raise a Complaint', hi: 'शिकायत दर्ज करें' } },
+    { id: 'track', label: { en: 'Track Complaint', hi: 'ट्रैक शिकायत' } },
+    { id: 'how-it-works', label: { en: 'How It Works', hi: 'यह कैसे काम करता है' } },
+    { id: 'help', label: { en: 'Help', hi: 'सहायता' } },
   ];
 
   const roleLabels = {
@@ -38,10 +38,9 @@ export default function Navbar({
     super_admin: 'Super Admin (All Wards)',
   };
 
-  const langNames = {
+  const langNames: Record<'en' | 'hi', string> = {
     en: 'English',
     hi: 'हिंदी (Hindi)',
-    mr: 'मराठी (Marathi)',
   };
 
   const handleNavClick = (pageId: string) => {
@@ -116,7 +115,7 @@ export default function Navbar({
 
               {showLangDropdown && (
                 <div className="absolute right-0 mt-2 w-44 bg-white border border-[#E5E7EB] rounded-lg shadow-lg py-1 z-50 text-xs">
-                  {(Object.keys(langNames) as Array<'en' | 'hi' | 'mr'>).map((l) => (
+                  {(Object.keys(langNames) as Array<'en' | 'hi'>).map((l) => (
                     <button
                       key={l}
                       onClick={() => {
@@ -142,12 +141,11 @@ export default function Navbar({
             {/* Direct Language select shortcut */}
             <button
               onClick={() => {
-                const next: Record<'en' | 'hi' | 'mr', 'en' | 'hi' | 'mr'> = { en: 'hi', hi: 'mr', mr: 'en' };
-                setLanguage(next[language]);
+                setLanguage(language === 'en' ? 'hi' : 'en');
               }}
-              className="px-2 py-1 border border-slate-200 rounded text-xs font-bold uppercase text-slate-700 bg-white"
+              className="px-2.5 py-1 border border-slate-200 rounded text-xs font-bold uppercase text-slate-700 bg-white"
             >
-              {language}
+              {language === 'en' ? 'हिंदी' : 'EN'}
             </button>
 
             {/* Hamburger button */}

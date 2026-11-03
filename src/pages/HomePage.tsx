@@ -21,7 +21,7 @@ import {
 
 interface HomePageProps {
   setPage: (page: string) => void;
-  language: 'en' | 'hi' | 'mr';
+  language: 'en' | 'hi';
   complaints: Complaint[];
   setTrackingInput: (id: string) => void;
   setSelectedTrackedId: (id: string) => void;
@@ -56,6 +56,22 @@ export default function HomePage({
       trackSubtitle: 'Enter your complaint ID to see the latest status and updates.',
       trackInputPlaceholder: 'Enter Complaint ID (e.g. SS2025001234)',
       trackBtn: 'Track',
+      statRegistered: 'Complaints registered',
+      statResolved: 'Resolved',
+      statDepts: 'Departments connected',
+      statAvgTime: 'Avg. response time',
+      sampleIdLabel: 'Complaint ID',
+      sampleDate: 'Submitted on 12 Sep 2026',
+      sampleCategory: 'Roads & Potholes',
+      sampleLoc: 'Parvati Nagar, Dwarka, Delhi',
+      sampleSubmitted: 'Submitted',
+      sampleAssigned: 'Assigned',
+      sampleProgress: 'In Progress',
+      sampleResolved: 'Resolved',
+      samplePending: 'Pending',
+      sampleLastUpdated: 'Last updated',
+      sampleTime: '14 Sep 2026, 10:24 AM',
+      sampleViewDetails: 'View Details',
     },
     hi: {
       eyebrow: 'स्वच्छ शहर। मजबूत समुदाय।',
@@ -72,28 +88,35 @@ export default function HomePage({
       searchBtn: 'खोजें',
       trackTitle: 'अपनी शिकायत ट्रैक करें',
       trackSubtitle: 'नवीनतम स्थिति देखने के लिए अपनी शिकायत आईडी दर्ज करें।',
-      trackInputPlaceholder: 'शिकायत आईडी दर्ज करें',
+      trackInputPlaceholder: 'शिकायत आईडी दर्ज करें (जैसे SS2025001234)',
       trackBtn: 'ट्रैक',
-    },
-    mr: {
-      eyebrow: 'स्वच्छ शहरे। मजबूत समुदाय।',
-      heroLine1: 'तुमची तक्रार।',
-      heroLine2: 'आमची जबाबदारी।',
-      heroDesc: 'तुमच्या भागातील स्थानिक नागरी समस्यांची नोंद करा आणि एक चांगला, स्वच्छ आणि सुरक्षित समुदाय तयार करण्यात मदत करा. तक्रार नोंदवा, तिच्या प्रगतीचा मागोवा घ्या आणि प्रत्यक्ष कारवाई पहा.',
-      btnRaise: 'तक्रार नोंदवा',
-      btnTrack: 'तक्रार ट्रॅक करा',
-      infoCardTitle: 'उद्याची स्वच्छता आजच्या तुमच्या तक्रारीपासून सुरू होते.',
-      infoCardBody: 'खऱ्या समस्या।\nखरी कारवाई।\nमजबूत समुदाय।',
-      helpTitle: 'तुम्हाला कशाची मदत हवी आहे?',
-      helpSubtitle: 'तक्रार नोंदवण्यासाठी एक श्रेणी शोधा किंवा निवडा.',
-      searchPlaceholder: 'समस्या शोधा...',
-      searchBtn: 'शोधा',
-      trackTitle: 'तुमच्या तक्रारीचा मागोवा घ्या',
-      trackSubtitle: 'नवीनतम स्थिती आणि अपडेट्स पाहण्यासाठी तुमची तक्रार आयडी प्रविष्ट करा.',
-      trackInputPlaceholder: 'तक्रार आयडी प्रविष्ट करा',
-      trackBtn: 'मागोवा घ्या',
+      statRegistered: 'कुल दर्ज शिकायतें',
+      statResolved: 'सफलतापूर्वक हल',
+      statDepts: 'संबद्ध सरकारी विभाग',
+      statAvgTime: 'औसत समाधान समय',
+      sampleIdLabel: 'शिकायत आईडी',
+      sampleDate: '12 सितंबर 2026 को दर्ज',
+      sampleCategory: 'सड़कें और गड्ढे',
+      sampleLoc: 'पार्वती नगर, द्वारका, दिल्ली',
+      sampleSubmitted: 'दर्ज',
+      sampleAssigned: 'सौंपी गई',
+      sampleProgress: 'कार्य प्रगति पर',
+      sampleResolved: 'समाधान पूर्ण',
+      samplePending: 'लंबित',
+      sampleLastUpdated: 'अंतिम अपडेट',
+      sampleTime: '14 सितंबर 2026, सुबह 10:24',
+      sampleViewDetails: 'विवरण देखें',
     },
   }[language];
+
+  const categoryTranslations: Record<string, { hi: { name: string; desc: string } }> = {
+    roads_potholes: { hi: { name: 'सड़कें और गड्ढे', desc: 'सड़क मरम्मत, गड्ढे और फुटपाथ' } },
+    street_lights: { hi: { name: 'स्ट्रीट लाइट्स', desc: 'खराब या बंद स्ट्रीट लाइट' } },
+    water_drainage: { hi: { name: 'पानी और जल निकासी', desc: 'पानी की सप्लाई, लीकेज, सीवर ओवरफ्लो' } },
+    garbage_sanitation: { hi: { name: 'कचरा और स्वच्छता', desc: 'कचरा उठाव और सार्वजनिक सफाई' } },
+    public_safety: { hi: { name: 'सार्वजनिक सुरक्षा', desc: 'अतिक्रमण और खुले खतरे' } },
+    other_issue: { hi: { name: 'अन्य नागरिक मुद्दे', desc: 'कोई अन्य नगर निगम समस्या' } },
+  };
 
   // Map category icon names to Lucide icons
   const getCategoryIcon = (iconName: string) => {
@@ -201,6 +224,7 @@ export default function HomePage({
 
       {/* 2. REAL-TIME RESOLUTION WORKFLOW ENGINE SHOWCASE */}
       <RealtimeWorkflowShowcase
+        language={language}
         onRaiseClick={() => setPage('raise')}
         onTrackClick={() => {
           const el = document.getElementById('tracking-section');
@@ -285,10 +309,12 @@ export default function HomePage({
                   </div>
                   <div className="space-y-1 mt-4">
                     <h3 className="font-extrabold text-xs text-[#0F1B2D] leading-snug flex items-center justify-between w-full">
-                      <span>{category.name}</span>
+                      <span>{language === 'hi' && categoryTranslations[category.id] ? categoryTranslations[category.id].hi.name : category.name}</span>
                       <ChevronRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#F4511E] group-hover:translate-x-0.5 transition-all" />
                     </h3>
-                    <p className="text-[10px] text-[#64748B] leading-tight line-clamp-2">{category.description}</p>
+                    <p className="text-[10px] text-[#64748B] leading-tight line-clamp-2">
+                      {language === 'hi' && categoryTranslations[category.id] ? categoryTranslations[category.id].hi.desc : category.description}
+                    </p>
                   </div>
                 </button>
               );
@@ -335,9 +361,9 @@ export default function HomePage({
             
             {/* Col 1: Complaint ID (3 cols) */}
             <div className="lg:col-span-2 space-y-1">
-              <span className="text-[10px] text-[#64748B] font-medium block">Complaint ID</span>
+              <span className="text-[10px] text-[#64748B] font-medium block">{content.sampleIdLabel}</span>
               <p className="font-mono text-sm font-extrabold text-[#0F172A] tracking-wider">SS2025007843</p>
-              <span className="text-[10px] text-slate-400 block">Submitted on 12 Sep 2026</span>
+              <span className="text-[10px] text-slate-400 block">{content.sampleDate}</span>
             </div>
 
             {/* Col 2: Category (2 cols) */}
@@ -346,9 +372,9 @@ export default function HomePage({
                 <TrafficCone className="w-5 h-5 shrink-0" />
               </div>
               <div className="space-y-0.5">
-                <h4 className="font-extrabold text-xs text-[#0F1B2D]">Roads & Potholes</h4>
+                <h4 className="font-extrabold text-xs text-[#0F1B2D]">{content.sampleCategory}</h4>
                 <p className="text-[10px] text-[#64748B] font-medium flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-[#F4511E]" /> Parvati Nagar, Dwarka, Delhi
+                  <MapPin className="w-3 h-3 text-[#F4511E]" /> {content.sampleLoc}
                 </p>
               </div>
             </div>
@@ -365,7 +391,7 @@ export default function HomePage({
                   <div className="w-5 h-5 rounded-full bg-[#16A34A] text-white flex items-center justify-center text-[10px] font-bold border-2 border-white shadow-xs">
                     ✓
                   </div>
-                  <span className="text-[10px] font-bold text-[#0F1B2D] mt-1.5">Submitted</span>
+                  <span className="text-[10px] font-bold text-[#0F1B2D] mt-1.5">{content.sampleSubmitted}</span>
                   <span className="text-[9px] text-slate-400 font-mono">12 Sep</span>
                 </div>
 
@@ -374,7 +400,7 @@ export default function HomePage({
                   <div className="w-5 h-5 rounded-full bg-[#16A34A] text-white flex items-center justify-center text-[10px] font-bold border-2 border-white shadow-xs">
                     ✓
                   </div>
-                  <span className="text-[10px] font-bold text-[#0F1B2D] mt-1.5">Assigned</span>
+                  <span className="text-[10px] font-bold text-[#0F1B2D] mt-1.5">{content.sampleAssigned}</span>
                   <span className="text-[9px] text-slate-400 font-mono">13 Sep</span>
                 </div>
 
@@ -383,7 +409,7 @@ export default function HomePage({
                   <div className="w-5 h-5 rounded-full bg-white border-2 border-[#16A34A] flex items-center justify-center text-[9px] font-bold shadow-xs">
                     <span className="w-2 h-2 rounded-full bg-[#16A34A]" />
                   </div>
-                  <span className="text-[10px] font-bold text-[#0F1B2D] mt-1.5">In Progress</span>
+                  <span className="text-[10px] font-bold text-[#0F1B2D] mt-1.5">{content.sampleProgress}</span>
                   <span className="text-[9px] text-slate-400 font-mono">14 Sep</span>
                 </div>
 
@@ -392,8 +418,8 @@ export default function HomePage({
                   <div className="w-5 h-5 rounded-full bg-slate-200 border-2 border-slate-300 flex items-center justify-center text-[10px] font-bold shadow-xs">
                     
                   </div>
-                  <span className="text-[10px] font-bold text-slate-500 mt-1.5">Resolved</span>
-                  <span className="text-[9px] text-slate-400 font-mono">Pending</span>
+                  <span className="text-[10px] font-bold text-slate-500 mt-1.5">{content.sampleResolved}</span>
+                  <span className="text-[9px] text-slate-400 font-mono">{content.samplePending}</span>
                 </div>
               </div>
             </div>
@@ -402,10 +428,10 @@ export default function HomePage({
             <div className="lg:col-span-2 flex flex-col items-start lg:items-end gap-1 text-left lg:text-right border-t lg:border-t-0 lg:border-l border-slate-100 pt-3 lg:pt-0 lg:pl-4">
               <div className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-[10px] font-bold">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                In Progress
+                {content.sampleProgress}
               </div>
-              <span className="text-[9px] text-[#64748B]">Last updated</span>
-              <span className="text-[10px] font-extrabold text-[#0F172A]">14 Sep 2026, 10:24 AM</span>
+              <span className="text-[9px] text-[#64748B]">{content.sampleLastUpdated}</span>
+              <span className="text-[10px] font-extrabold text-[#0F172A]">{content.sampleTime}</span>
             </div>
 
             {/* Col 5: Action Button (1 col) */}
@@ -414,7 +440,7 @@ export default function HomePage({
                 onClick={() => handleDirectTrack('SS2025012343')}
                 className="w-full lg:w-auto inline-flex items-center justify-center gap-1.5 bg-white border border-[#E5E7EB] hover:bg-slate-50 px-4 py-2 rounded-lg text-xs font-bold text-[#0F172A] shadow-xs transition-colors"
               >
-                View Details &rarr;
+                {content.sampleViewDetails} &rarr;
               </button>
             </div>
 
@@ -463,7 +489,7 @@ export default function HomePage({
               </div>
               <div>
                 <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">12,482</p>
-                <p className="text-[11px] text-[#64748B] font-semibold mt-1">Complaints registered</p>
+                <p className="text-[11px] text-[#64748B] font-semibold mt-1">{content.statRegistered}</p>
               </div>
             </div>
 
@@ -474,7 +500,7 @@ export default function HomePage({
               </div>
               <div>
                 <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">9,215</p>
-                <p className="text-[11px] text-[#64748B] font-semibold mt-1">Resolved</p>
+                <p className="text-[11px] text-[#64748B] font-semibold mt-1">{content.statResolved}</p>
               </div>
             </div>
 
@@ -485,7 +511,7 @@ export default function HomePage({
               </div>
               <div>
                 <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">18</p>
-                <p className="text-[11px] text-[#64748B] font-semibold mt-1">Departments connected</p>
+                <p className="text-[11px] text-[#64748B] font-semibold mt-1">{content.statDepts}</p>
               </div>
             </div>
 
@@ -496,7 +522,7 @@ export default function HomePage({
               </div>
               <div>
                 <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">2.4 days</p>
-                <p className="text-[11px] text-[#64748B] font-semibold mt-1">Avg. response time</p>
+                <p className="text-[11px] text-[#64748B] font-semibold mt-1">{content.statAvgTime}</p>
               </div>
             </div>
 

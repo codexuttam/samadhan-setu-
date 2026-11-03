@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Globe, Check, ArrowRight, Sparkles, X, ShieldCheck } from 'lucide-react';
 
 interface LanguagePreferenceModalProps {
-  currentLanguage: 'en' | 'hi' | 'mr';
-  onSelectLanguage: (lang: 'en' | 'hi' | 'mr') => void;
+  currentLanguage: 'en' | 'hi';
+  onSelectLanguage: (lang: 'en' | 'hi') => void;
   onClose: () => void;
 }
 
@@ -12,10 +12,10 @@ export default function LanguagePreferenceModal({
   onSelectLanguage,
   onClose,
 }: LanguagePreferenceModalProps) {
-  const [selected, setSelected] = useState<'en' | 'hi' | 'mr'>(currentLanguage);
+  const [selected, setSelected] = useState<'en' | 'hi'>(currentLanguage);
 
   const options: Array<{
-    id: 'en' | 'hi' | 'mr';
+    id: 'en' | 'hi';
     name: string;
     englishName: string;
     description: string;
@@ -37,14 +37,6 @@ export default function LanguagePreferenceModal({
       description: 'Civic services, grievance filing, and status tracking in English',
       badge: 'Official',
       flag: '🌐',
-    },
-    {
-      id: 'mr',
-      name: 'मराठी',
-      englishName: 'Marathi',
-      description: 'नागरी तक्रार निवारण आणि मागोवा मराठीत',
-      badge: 'प्रादेशिक भाषा',
-      flag: '🇮🇳',
     },
   ];
 
@@ -75,7 +67,7 @@ export default function LanguagePreferenceModal({
                 SAMADHAN SETU • समाधान सेतु
               </span>
               <h2 className="text-lg sm:text-xl font-extrabold text-white">
-                अपनी पसंदीदा भाषा चुनें
+                अपनी पसंदीदा भाषा चुनें / Select Language
               </h2>
             </div>
           </div>
@@ -84,8 +76,8 @@ export default function LanguagePreferenceModal({
           </p>
         </div>
 
-        {/* 3 ACCESSIBLE LANGUAGE OPTIONS */}
-        <div className="p-6 space-y-3 bg-slate-50/60">
+        {/* 2 ACCESSIBLE LANGUAGE OPTIONS (HINDI & ENGLISH ONLY) */}
+        <div className="p-6 space-y-3.5 bg-slate-50/60">
           {options.map((opt) => {
             const isSelected = selected === opt.id;
             return (
@@ -99,7 +91,7 @@ export default function LanguagePreferenceModal({
                 }`}
               >
                 <div className="flex items-center gap-3.5">
-                  <span className="text-2xl select-none">{opt.flag}</span>
+                  <span className="text-3xl select-none">{opt.flag}</span>
                   <div>
                     <div className="flex items-center gap-2">
                       <h3 className="text-base font-extrabold text-[#0F1B2D]">
@@ -120,7 +112,7 @@ export default function LanguagePreferenceModal({
                         {opt.badge}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 mt-0.5 leading-snug">
+                    <p className="text-xs text-slate-600 mt-1 leading-snug">
                       {opt.description}
                     </p>
                   </div>
@@ -152,7 +144,7 @@ export default function LanguagePreferenceModal({
             className="w-full sm:w-auto bg-[#0F1B2D] hover:bg-slate-800 active:scale-[0.98] text-white px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md shadow-slate-900/10"
           >
             <span>
-              {selected === 'hi' ? 'पुष्टि करें और आगे बढ़ें' : selected === 'mr' ? 'नक्की करा आणि पुढे जा' : 'Confirm & Continue'}
+              {selected === 'hi' ? 'पुष्टि करें और आगे बढ़ें' : 'Confirm & Continue'}
             </span>
             <ArrowRight className="w-4 h-4 text-[#FF6A2A]" />
           </button>
