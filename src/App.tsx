@@ -58,6 +58,27 @@ export default function App() {
   // Notification center overlay toggle
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
 
+  // Network Connectivity State (PWA Offline Resilience)
+  const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true);
+      toast.success('🌐 Reconnected to internet! Real-time sync active.');
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      toast('📶 Working Offline. Local cache and drafts will auto-sync.', { icon: '⚠️' });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   // Sync state to localStorage on every change
   useEffect(() => {
     saveState('complaints', complaints);
@@ -174,6 +195,14 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      {/* OFFLINE STATUS PWA BANNER */}
+      {!isOnline && (
+        <div className="bg-amber-600 text-white text-xs font-bold py-1.5 px-4 text-center flex items-center justify-center gap-2 shadow-inner">
+          <span className="w-2 h-2 rounded-full bg-white animate-ping" />
+          <span>OFFLINE MODE: You are currently disconnected. Grievances and drafts are safely stored locally and will sync when network is restored.</span>
+        </div>
+      )}
 
       {/* NOTIFICATION SATELLITE DRAWER PANEL */}
       {showNotificationCenter && (
