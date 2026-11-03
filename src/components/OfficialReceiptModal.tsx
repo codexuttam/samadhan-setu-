@@ -368,3 +368,4 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
     </div>
   );
 }
+

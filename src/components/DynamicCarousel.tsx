@@ -2,30 +2,33 @@ import React, { useState, useEffect } from 'react';
 import {
   Camera,
   MapPin,
-  Cpu,
+  Building2,
   Wrench,
   CheckCircle2,
   ShieldCheck,
   Clock,
   ChevronLeft,
   ChevronRight,
+  Mic,
+  MessageSquare,
   Sparkles,
-  ArrowRight,
-  Layers,
+  Phone,
+  ThumbsUp,
   FileCheck2,
-  Building,
-  AlertCircle
 } from 'lucide-react';
 
 interface CarouselStep {
   id: number;
   badge: string;
+  hindiBadge: string;
   title: string;
+  hindiTitle: string;
   subtitle: string;
   description: string;
   accentColor: string;
   bgGradient: string;
   pillColor: string;
+  imageUrl: string;
   icon: React.ReactNode;
   renderGraphic: () => React.ReactNode;
 }
@@ -33,55 +36,81 @@ interface CarouselStep {
 const steps: CarouselStep[] = [
   {
     id: 1,
-    badge: 'STEP 1 • REPORT & GEOTAG',
-    title: 'Snap & Geotag Proof',
-    subtitle: 'Citizen Mobile Capture',
-    description: 'Citizens snap a photo of the grievance. High-precision GPS coordinates, ward metadata, and timestamp are captured automatically.',
+    badge: 'STEP 1 • REPORT IN SECONDS',
+    hindiBadge: 'चरण 1 • सबसे आसान',
+    title: 'Snap a Photo or Just Speak',
+    hindiTitle: 'बस फ़ोटो खींचें या बोलकर बताएं',
+    subtitle: 'No Complicated Forms • कोई लंबा फ़ॉर्म नहीं',
+    description:
+      'सड़क का गड्ढा, बंद स्ट्रीटलाइट या गंदा पानी—बस मोबाइल से एक फ़ोटो लें या बोलकर बताएं। बुजुर्गों और हर उम्र के लोगों के लिए बेहद आसान।',
     accentColor: '#F4511E',
-    bgGradient: 'from-orange-500 to-red-600',
+    bgGradient: 'from-orange-500 to-amber-600',
     pillColor: 'bg-orange-50 text-orange-700 border-orange-200',
+    imageUrl: 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=800&auto=format&fit=crop&q=80',
     icon: <Camera className="w-5 h-5 text-white" />,
     renderGraphic: () => (
-      <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 select-none overflow-hidden">
-        {/* Subtle grid pattern */}
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#33415515_1px,transparent_1px),linear-gradient(to_bottom,#33415515_1px,transparent_1px)] bg-[size:16px_16px]" />
-        
-        {/* Simulated Camera Viewfinder */}
-        <div className="relative w-full max-w-[340px] aspect-[16/10] bg-slate-950/80 rounded-2xl border border-slate-700/80 shadow-2xl p-4 flex flex-col justify-between overflow-hidden backdrop-blur-md">
-          {/* Top Camera HUD */}
-          <div className="flex items-center justify-between text-[11px] text-slate-300 font-mono z-10">
-            <span className="flex items-center gap-1.5 font-bold text-red-400">
-              <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              LIVE REC
+      <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-6 select-none overflow-hidden">
+        {/* Background photo with clean subtle gradient */}
+        <img
+          src="https://images.unsplash.com/photo-1544717305-2782549b5136?w=800&auto=format&fit=crop&q=80"
+          alt="Citizen capturing community issue"
+          className="absolute inset-0 w-full h-full object-cover object-center filter brightness-[0.7] contrast-[1.05]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0F1B2D]/90 via-[#0F1B2D]/40 to-[#0F1B2D]/60" />
+
+        {/* Friendly High-Legibility Card */}
+        <div className="relative z-10 w-full max-w-[360px] bg-white/95 rounded-2xl border border-white/40 shadow-2xl p-4 sm:p-5 backdrop-blur-md space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-xs font-extrabold text-[#0F1B2D] uppercase tracking-wider">
+                सरल शिकायत दर्ज करें • 100% Free
+              </span>
+            </div>
+            <span className="bg-orange-100 text-[#F4511E] text-[10px] font-bold px-2 py-0.5 rounded-full font-sans">
+              3 विकल्प उपलब्ध
             </span>
-            <span className="bg-slate-800/90 border border-slate-700 px-2 py-0.5 rounded text-[10px] text-slate-300">
-              4K • 60FPS
-            </span>
-            <span className="text-slate-400 text-[10px]">ISO 160</span>
           </div>
 
-          {/* Central AI Bounding Box */}
-          <div className="relative my-auto self-center w-52 h-24 border-2 border-dashed border-[#F4511E] rounded-xl flex flex-col items-center justify-center bg-[#F4511E]/10 backdrop-blur-xs">
-            {/* Viewfinder corner brackets */}
-            <div className="absolute -top-1 -left-1 w-3 h-3 border-t-2 border-l-2 border-[#F4511E]" />
-            <div className="absolute -top-1 -right-1 w-3 h-3 border-t-2 border-r-2 border-[#F4511E]" />
-            <div className="absolute -bottom-1 -left-1 w-3 h-3 border-b-2 border-l-2 border-[#F4511E]" />
-            <div className="absolute -bottom-1 -right-1 w-3 h-3 border-b-2 border-r-2 border-[#F4511E]" />
-
-            <div className="flex items-center gap-1.5 bg-slate-900/90 text-white text-[11px] font-bold px-2.5 py-1 rounded-md border border-[#F4511E]/40 shadow-lg">
-              <AlertCircle className="w-3.5 h-3.5 text-[#F4511E]" />
-              <span>Deep Pothole Detected</span>
+          {/* 3 Large Accessible Options */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="p-2.5 bg-orange-50/80 border border-orange-200/80 rounded-xl flex flex-col items-center justify-center gap-1 shadow-xs">
+              <div className="w-8 h-8 rounded-full bg-[#F4511E] text-white flex items-center justify-center shadow-xs">
+                <Camera className="w-4 h-4" />
+              </div>
+              <span className="text-[11px] font-bold text-slate-800 leading-tight">फ़ोटो लें</span>
+              <span className="text-[9px] text-slate-500 font-medium">Take Photo</span>
             </div>
-            <span className="text-[10px] text-slate-300 font-mono mt-1">Confidence: 98.4%</span>
+
+            <div className="p-2.5 bg-blue-50/80 border border-blue-200/80 rounded-xl flex flex-col items-center justify-center gap-1 shadow-xs">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xs">
+                <Mic className="w-4 h-4" />
+              </div>
+              <span className="text-[11px] font-bold text-slate-800 leading-tight">बोलें</span>
+              <span className="text-[9px] text-slate-500 font-medium">Voice Note</span>
+            </div>
+
+            <div className="p-2.5 bg-emerald-50/80 border border-emerald-200/80 rounded-xl flex flex-col items-center justify-center gap-1 shadow-xs">
+              <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <span className="text-[11px] font-bold text-slate-800 leading-tight">व्हाट्सएप</span>
+              <span className="text-[9px] text-slate-500 font-medium">WhatsApp</span>
+            </div>
           </div>
 
-          {/* Bottom GPS & Timestamp Overlay */}
-          <div className="flex items-center justify-between z-10 pt-2 border-t border-slate-800/80 text-[10px]">
-            <div className="flex items-center gap-1 text-slate-300 font-mono">
-              <MapPin className="w-3 h-3 text-[#F4511E]" />
-              <span>28.6139° N, 77.2090° E</span>
+          {/* Location auto-detected badge */}
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-1.5 text-slate-700">
+              <MapPin className="w-4 h-4 text-[#F4511E] shrink-0" />
+              <div>
+                <p className="font-bold text-[11px] text-[#0F1B2D]">पता अपने आप दर्ज होता है</p>
+                <p className="text-[10px] text-slate-500">द्वारका सेक्टर 10, नई दिल्ली</p>
+              </div>
             </div>
-            <span className="text-slate-400 font-mono">Ward 42 • Dwarka</span>
+            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+              ✓ पता मिल गया
+            </span>
           </div>
         </div>
       </div>
@@ -89,62 +118,74 @@ const steps: CarouselStep[] = [
   },
   {
     id: 2,
-    badge: 'STEP 2 • AI TRIAGE & ROUTING',
-    title: 'Instant SLA Dispatch',
-    subtitle: 'Zero-Intermediary Triage',
-    description: 'Computer vision and NLP classify the complaint severity, generate an SLA deadline, and instantly route the ticket to the designated ward authority.',
-    accentColor: '#3B82F6',
-    bgGradient: 'from-blue-500 to-indigo-600',
+    badge: 'STEP 2 • DIRECT GOVERNMENT ROUTING',
+    hindiBadge: 'चरण 2 • सीधा विभाग को',
+    title: 'No Office Visits Needed',
+    hindiTitle: 'बिना दफ्तर के चक्कर काटे',
+    subtitle: 'Directly Assigned to Local Ward Officer • सीधे वार्ड अफ़सर को',
+    description:
+      'आपकी शिकायत किसी बिचौलिए के बिना सीधे नगर निगम (MCD), दिल्ली जल बोर्ड या PWD के वार्ड अधिकारी के पास पहुंचती है। 48 घंटे में समाधान का पक्का लक्ष्य।',
+    accentColor: '#2563EB',
+    bgGradient: 'from-blue-600 to-indigo-600',
     pillColor: 'bg-blue-50 text-blue-700 border-blue-200',
-    icon: <Cpu className="w-5 h-5 text-white" />,
+    imageUrl: 'https://images.unsplash.com/photo-1572021335469-31706a17aaef?w=800&auto=format&fit=crop&q=80',
+    icon: <Building2 className="w-5 h-5 text-white" />,
     renderGraphic: () => (
-      <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-[#0B1528] to-slate-900 p-6 select-none overflow-hidden">
-        {/* Glow backdrop */}
-        <div className="absolute w-48 h-48 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-6 select-none overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1572021335469-31706a17aaef?w=800&auto=format&fit=crop&q=80"
+          alt="Civic department team at work"
+          className="absolute inset-0 w-full h-full object-cover object-center filter brightness-[0.65] contrast-[1.05]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0F1B2D]/90 via-[#0F1B2D]/40 to-[#0F1B2D]/60" />
 
-        <div className="relative z-10 w-full max-w-[360px] flex items-center justify-between gap-3">
-          {/* Source Citizen Node */}
-          <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300 shadow-md">
-              <Camera className="w-5 h-5" />
+        <div className="relative z-10 w-full max-w-[360px] bg-white/95 rounded-2xl border border-white/40 shadow-2xl p-4 sm:p-5 backdrop-blur-md space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-blue-600" />
+              <span className="text-xs font-extrabold text-[#0F1B2D]">
+                संबंधित विभाग को तुरंत सूचना
+              </span>
             </div>
-            <span className="text-[10px] font-bold text-slate-300">Citizen Post</span>
-            <span className="text-[9px] text-slate-500 font-mono">ID: #SS8432</span>
-          </div>
-
-          {/* Animated Stream Lines */}
-          <div className="flex-1 flex flex-col items-center gap-1">
-            <div className="w-full h-0.5 bg-blue-500/30 relative">
-              <div className="absolute top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_#60A5FA] animate-ping" />
-            </div>
-          </div>
-
-          {/* AI Core Engine Node */}
-          <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 border border-blue-400/40 flex flex-col items-center justify-center shadow-lg shadow-blue-500/30">
-              <Cpu className="w-7 h-7 text-white animate-pulse" />
-              <span className="text-[8px] font-extrabold text-blue-100 tracking-wider uppercase mt-0.5">AI Engine</span>
-            </div>
-            <span className="text-[9px] font-bold text-blue-300">Auto-Assigned</span>
-            <span className="text-[8px] text-emerald-400 font-semibold bg-emerald-950/80 px-1.5 py-0.2 rounded border border-emerald-800">
-              SLA: 48h
+            <span className="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">
+              MCD • DJB • PWD
             </span>
           </div>
 
-          {/* Animated Stream Lines */}
-          <div className="flex-1 flex flex-col items-center gap-1">
-            <div className="w-full h-0.5 bg-indigo-500/30 relative">
-              <div className="absolute top-1/2 -translate-y-1/2 right-0 w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_#818CF8] animate-ping" />
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                शिकायत नंबर (Tracking ID)
+              </span>
+              <span className="font-mono font-extrabold text-blue-700 bg-white px-2 py-0.5 rounded border border-blue-200 text-xs">
+                SS-2026-004921
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1 border-t border-slate-200/60">
+              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
+                JE
+              </div>
+              <div>
+                <p className="font-extrabold text-[#0F1B2D] text-[11px]">
+                  वार्ड इंजीनियर: राजेश पाटिल
+                </p>
+                <p className="text-[10px] text-slate-500">वार्ड 12, नगर निगम क्षेत्र</p>
+              </div>
             </div>
           </div>
 
-          {/* Destination Officer Node */}
-          <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-12 h-12 rounded-xl bg-slate-800 border border-indigo-500/50 flex items-center justify-center text-indigo-400 shadow-md">
-              <Building className="w-5 h-5" />
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-amber-800">
+              <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+              <div>
+                <p className="font-bold text-[11px] text-amber-900">48 घंटे में समाधान गारंटी</p>
+                <p className="text-[9px] text-amber-700">Citizen Charter SLA Target Active</p>
+              </div>
             </div>
-            <span className="text-[10px] font-bold text-slate-300">PWD Road Div</span>
-            <span className="text-[9px] text-slate-500 font-mono">Ward 42 Exec</span>
+            <span className="text-[10px] font-extrabold text-amber-800 bg-white px-2 py-0.5 rounded border border-amber-300">
+              48 घंटे
+            </span>
           </div>
         </div>
       </div>
@@ -152,59 +193,65 @@ const steps: CarouselStep[] = [
   },
   {
     id: 3,
-    badge: 'STEP 3 • FIELD RESOLUTION',
-    title: 'Action & Proof Submission',
-    subtitle: 'Mandatory Photographic Proof',
-    description: 'Field engineers repair the infrastructure on site. Closing an active ticket requires geotagged photographic proof matching the original location coordinates.',
-    accentColor: '#10B981',
-    bgGradient: 'from-emerald-500 to-teal-600',
+    badge: 'STEP 3 • ON-GROUND RESOLUTION',
+    hindiBadge: 'चरण 3 • पक्की मरम्मत',
+    title: 'Fast Action & On-Site Repair',
+    hindiTitle: 'मौके पर पहुंचकर तुरंत मरम्मत',
+    subtitle: 'Quality Inspected with Real Photo Proof • फ़ोटो सबूत के साथ',
+    description:
+      'सड़क की मरम्मत, नया स्ट्रीटलाइट बल्ब या पानी की पाइपलाइन—इंजीनियर टीम मौके पर काम पूरा करती है और काम पूरा होने की नई फ़ोटो अपलोड करती है।',
+    accentColor: '#16A34A',
+    bgGradient: 'from-emerald-600 to-teal-600',
     pillColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    imageUrl: 'https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=800&auto=format&fit=crop&q=80',
     icon: <Wrench className="w-5 h-5 text-white" />,
     renderGraphic: () => (
-      <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-[#0A2016] to-slate-900 p-6 select-none overflow-hidden">
-        {/* Glow backdrop */}
-        <div className="absolute w-48 h-48 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-6 select-none overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1506521781263-d8422e82f27a?w=800&auto=format&fit=crop&q=80"
+          alt="Clean newly repaired road and neighborhood"
+          className="absolute inset-0 w-full h-full object-cover object-center filter brightness-[0.7] contrast-[1.05]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0F1B2D]/90 via-[#0F1B2D]/40 to-[#0F1B2D]/60" />
 
-        {/* Resolution Inspection Card */}
-        <div className="relative z-10 w-full max-w-[340px] bg-slate-950/90 rounded-2xl border border-emerald-500/40 p-4 shadow-xl backdrop-blur-md space-y-3">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+        <div className="relative z-10 w-full max-w-[360px] bg-white/95 rounded-2xl border border-white/40 shadow-2xl p-4 sm:p-5 backdrop-blur-md space-y-3">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-xs">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <div>
-                <p className="text-[11px] font-extrabold text-white">Repair Work Completed</p>
-                <p className="text-[9px] text-slate-400 font-mono">By: Er. Vikram Sharma (JE-PWD)</p>
-              </div>
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <span className="text-xs font-extrabold text-[#0F1B2D]">
+                मरम्मत कार्य पूरा हुआ (Repaired)
+              </span>
             </div>
-            <span className="bg-emerald-950 text-emerald-300 border border-emerald-700/60 px-2 py-0.5 rounded text-[10px] font-bold">
-              VERIFIED
+            <span className="bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-300">
+              ✓ जांच में पास
             </span>
           </div>
 
-          {/* Visual Before / After Split Proof */}
-          <div className="grid grid-cols-2 gap-2 text-center text-[10px]">
-            <div className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 space-y-1">
-              <span className="text-slate-400 text-[9px] font-bold uppercase tracking-wider block">Before Report</span>
-              <div className="h-10 bg-red-950/40 border border-red-800/40 rounded flex items-center justify-center text-red-300 font-mono text-[10px]">
-                Damaged (12 Sep)
-              </div>
+          {/* Simple Before & After Visual comparison */}
+          <div className="grid grid-cols-2 gap-2 text-center text-xs">
+            <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl space-y-1">
+              <span className="text-[10px] font-bold text-rose-700 uppercase tracking-wide block">
+                पहले: समस्या
+              </span>
+              <p className="font-extrabold text-slate-800 text-[11px]">खतरनाक गड्ढा</p>
+              <span className="text-[9px] text-slate-500 block">12 अक्टूबर • फ़ोटो दर्ज</span>
             </div>
 
-            <div className="bg-slate-900 border border-emerald-800/60 rounded-lg p-2.5 space-y-1">
-              <span className="text-emerald-400 text-[9px] font-bold uppercase tracking-wider block">Resolved Proof</span>
-              <div className="h-10 bg-emerald-950/40 border border-emerald-700/60 rounded flex items-center justify-center text-emerald-300 font-mono text-[10px]">
-                Re-surfaced (14 Sep)
-              </div>
+            <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-1">
+              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wide block">
+                अब: समाधान
+              </span>
+              <p className="font-extrabold text-emerald-800 text-[11px]">पक्की सड़क तैयार</p>
+              <span className="text-[9px] text-emerald-600 font-bold block">14 अक्टूबर • काम पूर्ण</span>
             </div>
           </div>
 
-          {/* Coordinates check */}
-          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 font-mono">
-            <span className="text-emerald-400 font-semibold flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Geotag Delta: 0.8m (Valid)
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center justify-between text-[11px] text-slate-700">
+            <span className="flex items-center gap-1 text-emerald-700 font-bold">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              सड़क सुरक्षा मानकों के अनुरूप
             </span>
-            <span className="text-slate-500">14 Sep, 10:24 AM</span>
+            <span className="text-[10px] font-mono text-slate-500">वार्ड 12, दिल्ली</span>
           </div>
         </div>
       </div>
@@ -212,43 +259,66 @@ const steps: CarouselStep[] = [
   },
   {
     id: 4,
-    badge: 'STEP 4 • CITIZEN VERIFICATION',
-    title: 'Citizen Signs Off',
-    subtitle: 'Transparent Civic Closure',
-    description: 'Tickets cannot be quietly closed by officials. The citizen gets an automated alert with resolution proof to verify or request a reopening.',
-    accentColor: '#F59E0B',
-    bgGradient: 'from-amber-500 to-orange-600',
+    badge: 'STEP 4 • COMPLETE SATISFACTION',
+    hindiBadge: 'चरण 4 • आपकी संतुष्टि',
+    title: 'Notification & Final Sign-Off',
+    hindiTitle: 'आपके मोबाइल पर पक्का मैसेज',
+    subtitle: 'Nothing Closes Until You Are Happy • आपकी अनुमति के बिना फाइल बंद नहीं होगी',
+    description:
+      'काम पूरा होने पर आपके WhatsApp और SMS पर फ़ोटो के साथ मैसेज आता है। जब आप संतुष्ट होंगे, तभी शिकायत बंद मानी जाएगी। नहीं तो 1 क्लिक में दोबारा जांच होगी।',
+    accentColor: '#D97706',
+    bgGradient: 'from-amber-600 to-orange-600',
     pillColor: 'bg-amber-50 text-amber-700 border-amber-200',
+    imageUrl: 'https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=800&auto=format&fit=crop&q=80',
     icon: <CheckCircle2 className="w-5 h-5 text-white" />,
     renderGraphic: () => (
-      <div className="relative w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-900 via-[#221708] to-slate-900 p-6 select-none overflow-hidden">
-        {/* Glow backdrop */}
-        <div className="absolute w-48 h-48 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative w-full h-full flex items-center justify-center p-4 sm:p-6 select-none overflow-hidden">
+        <img
+          src="https://images.unsplash.com/photo-1519331379826-f10be5486c6f?w=800&auto=format&fit=crop&q=80"
+          alt="Clean happy public park and community"
+          className="absolute inset-0 w-full h-full object-cover object-center filter brightness-[0.7] contrast-[1.05]"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0F1B2D]/90 via-[#0F1B2D]/40 to-[#0F1B2D]/60" />
 
-        {/* Citizen Sign-off Dialog */}
-        <div className="relative z-10 w-full max-w-[320px] bg-slate-950/95 rounded-2xl border border-amber-500/40 p-4 shadow-xl backdrop-blur-md text-center space-y-3">
-          <div className="w-11 h-11 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border border-emerald-500/30">
-            <FileCheck2 className="w-6 h-6" />
-          </div>
-
-          <div>
-            <h4 className="text-sm font-extrabold text-white">Are you satisfied with this work?</h4>
-            <p className="text-[11px] text-slate-400 mt-1">Ticket #SS2025007843 has been marked complete by PWD.</p>
-          </div>
-
-          <div className="flex gap-2 pt-1">
-            <div className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-[11px] font-bold shadow-md shadow-emerald-700/20 transition-all flex items-center justify-center gap-1 cursor-pointer">
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Yes, Close</span>
+        <div className="relative z-10 w-full max-w-[360px] bg-white/95 rounded-2xl border border-white/40 shadow-2xl p-4 sm:p-5 backdrop-blur-md space-y-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
-            <div className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-[11px] font-bold transition-all flex items-center justify-center gap-1 cursor-pointer border border-slate-700">
-              <span>Reopen</span>
+            <div>
+              <h4 className="text-xs font-extrabold text-[#0F1B2D]">
+                क्या आप काम से संतुष्ट हैं?
+              </h4>
+              <p className="text-[10px] text-slate-500">
+                Are you satisfied with this repair work?
+              </p>
             </div>
           </div>
 
-          <div className="text-[9px] text-slate-500 font-mono pt-1">
-            Auto-closes in 72 hours if no dispute raised
+          <div className="p-2.5 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-1 text-xs">
+            <p className="text-[11px] font-bold text-emerald-900 flex items-center gap-1">
+              <FileCheck2 className="w-3.5 h-3.5 text-emerald-600" />
+              WhatsApp / SMS पर पावती भेजी गई
+            </p>
+            <p className="text-[10px] text-slate-600">
+              "शिकायत #SS-2026-004921 का समाधान नगर निगम द्वारा कर दिया गया है।"
+            </p>
           </div>
+
+          {/* Two large friendly citizen action buttons */}
+          <div className="grid grid-cols-2 gap-2 pt-0.5">
+            <div className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer">
+              <ThumbsUp className="w-3.5 h-3.5" />
+              <span>हाँ, काम हो गया ✓</span>
+            </div>
+            <div className="py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold flex items-center justify-center gap-1 transition-all cursor-pointer border border-slate-300">
+              <span>दोबारा दिखाएं ↺</span>
+            </div>
+          </div>
+
+          <p className="text-[9px] text-slate-400 text-center font-medium">
+            जनता की संतुष्टि ही सरकार का संकल्प है • Transparent Redressal
+          </p>
         </div>
       </div>
     ),
@@ -263,7 +333,7 @@ export default function DynamicCarousel() {
     if (isPaused) return;
     const timer = setInterval(() => {
       setActiveStep((prev) => (prev + 1) % steps.length);
-    }, 4500);
+    }, 5000);
     return () => clearInterval(timer);
   }, [isPaused]);
 
@@ -276,11 +346,11 @@ export default function DynamicCarousel() {
       onMouseLeave={() => setIsPaused(false)}
     >
       {/* 1. TOP GRAPHIC PREVIEW CANVAS (Flex-1) */}
-      <div className="relative flex-1 min-h-[220px] overflow-hidden bg-slate-950">
+      <div className="relative flex-1 min-h-[230px] overflow-hidden bg-slate-900">
         {steps.map((step, idx) => (
           <div
             key={step.id}
-            className={`absolute inset-0 transition-all duration-500 ease-in-out ${
+            className={`absolute inset-0 transition-all duration-700 ease-in-out ${
               idx === activeStep
                 ? 'opacity-100 scale-100 pointer-events-auto'
                 : 'opacity-0 scale-95 pointer-events-none'
@@ -292,12 +362,13 @@ export default function DynamicCarousel() {
 
         {/* Floating Quick Step Indicators on Canvas */}
         <div className="absolute top-3 left-3 z-20 flex items-center gap-2">
-          <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold tracking-wider uppercase bg-black/60 backdrop-blur-md text-white border border-white/10 shadow-sm flex items-center gap-1.5">
+          <span className="px-3 py-1 rounded-lg text-[11px] font-extrabold tracking-wide bg-black/70 backdrop-blur-md text-white border border-white/20 shadow-md flex items-center gap-1.5">
             <span
-              className="w-2 h-2 rounded-full"
+              className="w-2.5 h-2.5 rounded-full"
               style={{ backgroundColor: current.accentColor }}
             />
-            {current.badge}
+            <span>{current.hindiBadge}</span>
+            <span className="text-slate-300 font-normal">| {current.badge}</span>
           </span>
         </div>
 
@@ -306,21 +377,21 @@ export default function DynamicCarousel() {
           <button
             onClick={() => setActiveStep((prev) => (prev - 1 + steps.length) % steps.length)}
             aria-label="Previous step"
-            className="w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 backdrop-blur-md text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 pointer-events-auto border border-white/10"
+            className="w-9 h-9 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 pointer-events-auto border border-white/20 shadow-md"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             onClick={() => setActiveStep((prev) => (prev + 1) % steps.length)}
             aria-label="Next step"
-            className="w-8 h-8 rounded-full bg-black/40 hover:bg-black/70 backdrop-blur-md text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 pointer-events-auto border border-white/10"
+            className="w-9 h-9 rounded-full bg-black/50 hover:bg-black/80 backdrop-blur-md text-white flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 pointer-events-auto border border-white/20 shadow-md"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      {/* 2. BOTTOM DETAILS & TAB BAR */}
+      {/* 2. BOTTOM DETAILS & ACCESSIBLE TAB BAR */}
       <div className="bg-white border-t border-slate-100 p-4 sm:p-5 flex flex-col justify-between shrink-0 relative">
         {/* Animated Progress Line */}
         <div className="absolute top-0 left-0 w-full h-[3px] bg-slate-100">
@@ -333,49 +404,49 @@ export default function DynamicCarousel() {
         {/* Step description */}
         <div className="flex items-start gap-3.5 mb-3">
           <div
-            className={`w-10 h-10 rounded-xl bg-gradient-to-br ${current.bgGradient} flex items-center justify-center shrink-0 shadow-md shadow-slate-200`}
+            className={`w-11 h-11 rounded-xl bg-gradient-to-br ${current.bgGradient} flex items-center justify-center shrink-0 shadow-md text-white`}
           >
             {current.icon}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <h3 className="text-sm font-extrabold text-[#0F1B2D] truncate">
-                {current.title}
+            <div className="flex flex-wrap items-baseline gap-2 mb-0.5">
+              <h3 className="text-sm sm:text-base font-extrabold text-[#0F1B2D]">
+                {current.hindiTitle}
               </h3>
-              <span className="text-[10px] font-semibold text-slate-400 hidden sm:inline">
-                • {current.subtitle}
+              <span className="text-xs font-bold text-slate-500">
+                • {current.title}
               </span>
             </div>
-            <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
+            <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
               {current.description}
             </p>
           </div>
         </div>
 
-        {/* Interactive Step Switcher Tabs */}
-        <div className="flex items-center justify-between pt-1 border-t border-slate-50">
-          <div className="flex items-center gap-1.5">
+        {/* Accessible Step Switcher Tabs */}
+        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {steps.map((step, idx) => (
               <button
                 key={step.id}
                 onClick={() => setActiveStep(idx)}
-                className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
                   idx === activeStep
-                    ? 'bg-[#0F1B2D] text-white shadow-xs'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                    ? 'bg-[#0F1B2D] text-white shadow-sm'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                 }`}
               >
-                <span>{step.id}</span>
-                <span className="hidden sm:inline font-medium text-[10px]">
-                  {step.title.split(' ')[0]}
+                <span>{step.id}.</span>
+                <span className="font-semibold text-[11px]">
+                  {step.hindiTitle.split(' ')[1] || step.title.split(' ')[0]}
                 </span>
               </button>
             ))}
           </div>
 
-          <span className="text-[10px] font-semibold text-slate-400 flex items-center gap-1">
-            <Clock className="w-3 h-3 text-slate-400" />
-            <span>{isPaused ? 'Paused' : 'Auto-playing'}</span>
+          <span className="text-[11px] font-semibold text-slate-400 flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5 text-slate-400" />
+            <span>{isPaused ? 'रुका हुआ (Paused)' : 'ऑटो-प्ले (Auto)'}</span>
           </span>
         </div>
       </div>

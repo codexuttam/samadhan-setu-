@@ -191,7 +191,7 @@ export default function HomePage({
             </div>
 
             {/* Hero Right Visual: Full-Width Dynamic Process Showcase */}
-            <div className="lg:col-span-7 h-[390px] rounded-2xl overflow-hidden border border-[#E5E7EB] bg-white shadow-xl shadow-slate-200/50">
+            <div className="lg:col-span-7 min-h-[410px] h-auto rounded-2xl overflow-hidden border border-[#E5E7EB] bg-white shadow-xl shadow-slate-200/50">
               <DynamicCarousel />
             </div>
 
