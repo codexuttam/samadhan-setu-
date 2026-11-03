@@ -14,7 +14,7 @@ import { registerNotificationWorkers } from './server/modules/notifications/noti
 import { registerFileWorkers, localStorage } from './server/modules/files/files.service';
 import { registerEscalationWorkers } from './server/modules/escalation/escalation.service';
 import { registerBroadcastWorkers } from './server/modules/broadcast/broadcast.service';
-import { transcribeAudio, triageComplaint, verifyResolutionEvidence } from './server/modules/ai/ai.service';
+import { transcribeAudio, triageComplaint, verifyResolutionEvidence, chatCivicConcierge } from './server/modules/ai/ai.service';
 
 import { publicRouter } from './server/routes/public.routes';
 import { authorityRouter } from './server/routes/authority.routes';
@@ -90,6 +90,25 @@ app.post('/api/ai/verify-resolution', async (req, res, next) => {
       issueDescription: issueDescription || 'Civic infrastructure repair',
       beforeImageUrl,
       afterImageUrl,
+    });
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// AI Civic Concierge Chat API ("Samadhan Sahayak")
+app.post('/api/ai/chat', async (req, res, next) => {
+  try {
+    const { messages, message, language } = req.body;
+    if (!message && (!messages || messages.length === 0)) {
+      return res.status(400).json({ error: 'message or messages required' });
+    }
+    const currentMessage = message || messages[messages.length - 1]?.content || '';
+    const result = await chatCivicConcierge({
+      messages: messages || [],
+      message: currentMessage,
+      language,
     });
     res.json(result);
   } catch (err) {

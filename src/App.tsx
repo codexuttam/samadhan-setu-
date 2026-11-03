@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import CivicConciergeChat, { ConciergePrefill } from './components/CivicConciergeChat';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -52,6 +53,7 @@ export default function App() {
   // Search context
   const [trackingInput, setTrackingInput] = useState<string>('');
   const [selectedTrackedId, setSelectedTrackedId] = useState<string>('');
+  const [conciergePrefill, setConciergePrefill] = useState<ConciergePrefill | null>(null);
 
   // Notification center overlay toggle
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -261,6 +263,7 @@ export default function App() {
             setPage={navigateTo}
             setSelectedTrackedId={setSelectedTrackedId}
             setTrackingInput={setTrackingInput}
+            prefillData={conciergePrefill}
           />
         )}
 
@@ -317,6 +320,15 @@ export default function App() {
 
       {/* GLOBAL FOOTER CONTRACT */}
       <Footer setPage={navigateTo} />
+
+      {/* AI CIVIC CONCIERGE WIDGET ("SAMADHAN SAHAYAK") */}
+      <CivicConciergeChat
+        onPrefillGrievance={(prefill) => {
+          setConciergePrefill(prefill);
+          navigateTo('raise');
+        }}
+        currentLanguage={language}
+      />
 
     </div>
   );

@@ -26,6 +26,13 @@ interface RaiseComplaintPageProps {
   setPage: (page: string) => void;
   setSelectedTrackedId: (id: string) => void;
   setTrackingInput: (id: string) => void;
+  prefillData?: {
+    title?: string;
+    description?: string;
+    categoryId?: string;
+    priority?: 'low' | 'medium' | 'high' | 'critical';
+    address?: string;
+  } | null;
 }
 
 export default function RaiseComplaintPage({
@@ -33,6 +40,7 @@ export default function RaiseComplaintPage({
   setPage,
   setSelectedTrackedId,
   setTrackingInput,
+  prefillData,
 }: RaiseComplaintPageProps) {
   const [currentStep, setCurrentStep] = useState(1);
   
@@ -135,6 +143,18 @@ export default function RaiseComplaintPage({
   const [lng, setLng] = useState(77.0500);
   const [isLocating, setIsLocating] = useState(false);
   const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
+
+  // Sync AI Concierge prefill data if supplied
+  useEffect(() => {
+    if (prefillData) {
+      if (prefillData.title) setTitle(prefillData.title);
+      if (prefillData.description) setDescription(prefillData.description);
+      if (prefillData.categoryId) setCategoryId(prefillData.categoryId);
+      if (prefillData.priority) setPriority(prefillData.priority);
+      if (prefillData.address) setAddress(prefillData.address);
+      setCurrentStep(1);
+    }
+  }, [prefillData]);
 
   // Nearby active issues detection to prevent redundant complaints
   const [nearbyIssues, setNearbyIssues] = useState<Array<{
