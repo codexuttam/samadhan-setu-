@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import InteractiveMap from '../components/InteractiveMap';
+import OfficialReceiptModal from '../components/OfficialReceiptModal';
 import { CATEGORIES, DEPARTMENTS, WARDS, Complaint, getDepartmentForCategory, computeSLADeadline, getSLADurationHours } from '../data/mockData';
 import {
   ArrowLeft,
@@ -191,6 +192,8 @@ export default function RaiseComplaintPage({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successComplaintId, setSuccessComplaintId] = useState<string | null>(null);
+  const [submittedComplaint, setSubmittedComplaint] = useState<Complaint | null>(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   // Load preselected category from homepage if any
   useEffect(() => {
@@ -366,6 +369,7 @@ export default function RaiseComplaintPage({
 
       onAddComplaint(createdComplaint);
       setSuccessComplaintId(generatedId);
+      setSubmittedComplaint(createdComplaint);
       setIsSubmitting(false);
       setCurrentStep(7); // success page step
     }, 1200);
@@ -1033,11 +1037,11 @@ export default function RaiseComplaintPage({
             </button>
             <button
               onClick={() => {
-                toast(`⬇️ Downloading PDF Receipt for ${successComplaintId} to your system...`);
+                setShowReceiptModal(true);
               }}
-              className="flex-1 border-2 border-slate-200 hover:bg-slate-50 text-slate-700 py-3 rounded-lg font-bold uppercase tracking-wider transition-colors text-[10px]"
+              className="flex-1 border-2 border-slate-200 hover:bg-slate-50 text-slate-700 py-3 rounded-lg font-bold uppercase tracking-wider transition-colors text-[10px] flex items-center justify-center gap-1.5"
             >
-              Download Receipt
+              <span>View & Print Receipt 🖨️</span>
             </button>
           </div>
           
@@ -1048,6 +1052,13 @@ export default function RaiseComplaintPage({
             Back to Home Page
           </button>
         </div>
+      )}
+
+      {showReceiptModal && submittedComplaint && (
+        <OfficialReceiptModal
+          complaint={submittedComplaint}
+          onClose={() => setShowReceiptModal(false)}
+        />
       )}
 
     </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Complaint, ComplaintUpdate, Feedback, DEPARTMENTS, OFFICERS } from '../data/mockData';
+import OfficialReceiptModal from '../components/OfficialReceiptModal';
 import {
   ArrowLeft,
   MapPin,
@@ -16,6 +17,7 @@ import {
   VolumeX,
   Sparkles,
   ShieldCheck,
+  Printer,
 } from 'lucide-react';
 
 interface ComplaintDetailsPageProps {
@@ -46,6 +48,7 @@ export default function ComplaintDetailsPage({
 
   // Text-to-Speech Accessibility Audio state
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
   const handleSpeakStatus = () => {
     if (!complaint) return;
@@ -195,7 +198,17 @@ export default function ComplaintDetailsPage({
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setShowReceiptModal(true)}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all border cursor-pointer bg-white hover:bg-slate-50 text-[#0F1B2D] border-slate-200 shadow-xs"
+          title="View & Print Official Government Acknowledgment Slip with QR Code"
+        >
+          <Printer className="w-3.5 h-3.5 text-[#0F1B2D]" />
+          <span>Official Receipt 🖨️</span>
+        </button>
+
         <button
           type="button"
           onClick={handleSpeakStatus}
@@ -552,6 +565,13 @@ export default function ComplaintDetailsPage({
         </div>
 
       </div>
+
+      {showReceiptModal && (
+        <OfficialReceiptModal
+          complaint={complaint}
+          onClose={() => setShowReceiptModal(false)}
+        />
+      )}
 
     </div>
   );
