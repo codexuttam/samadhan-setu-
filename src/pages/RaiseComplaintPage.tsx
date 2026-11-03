@@ -282,12 +282,13 @@ export default function RaiseComplaintPage({
 
   const handleFileUploadSimulated = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      const fileList = Array.from(e.target.files).map(file => ({
+      const fileList = Array.from(e.target.files).map((file) => ({
         name: file.name,
         size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
         type: file.type || 'image/jpeg',
+        url: URL.createObjectURL(file),
       }));
-      setEvidenceFiles(prev => [...prev, ...fileList]);
+      setEvidenceFiles((prev) => [...prev, ...fileList]);
     }
   };
 
@@ -340,7 +341,7 @@ export default function RaiseComplaintPage({
         updatedAt: new Date().toISOString(),
         slaDeadline: computeSLADeadline(new Date().toISOString(), priority),
         slaBreached: false,
-        evidenceUrls: evidenceFiles.map(() => ''),
+        evidenceUrls: evidenceFiles.map((f: any) => f.url || 'https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=400&auto=format&fit=crop&q=60'),
       };
 
       onAddComplaint(createdComplaint);
@@ -964,7 +965,7 @@ export default function RaiseComplaintPage({
               disabled={isSubmitting}
               className="flex items-center gap-1.5 bg-[#16A34A] hover:bg-emerald-600 text-white px-6 py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
             >
-              {isSubmitting ? 'Submitting Compliant...' : 'Submit Complaint ✓'}
+              {isSubmitting ? 'Submitting Complaint...' : 'Submit Complaint ✓'}
             </button>
           </div>
         </div>

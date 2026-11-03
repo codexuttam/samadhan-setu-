@@ -257,6 +257,41 @@ export default function InteractiveMap({
         </div>
       )}
 
+      {/* Quick Civic Hotspots Tray */}
+      {interactive && (
+        <div className="absolute bottom-16 left-3 right-3 flex items-center gap-1.5 overflow-x-auto pb-1 z-10 pointer-events-auto">
+          {initialMarkers.map((m) => {
+            const isSelected = clickPin && Math.abs(clickPin.lat - m.lat) < 0.005;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  setClickPin({ x: m.x, y: m.y, lat: m.lat, lng: m.lng });
+                  setActiveHoverMarker(m);
+                  if (onSelectLocation) {
+                    onSelectLocation({
+                      lat: m.lat,
+                      lng: m.lng,
+                      wardId: m.wardId,
+                      address: `${m.title}, ${m.wardName}, Dwarka, Delhi`,
+                    });
+                  }
+                }}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-bold shrink-0 transition-all cursor-pointer shadow-xs border flex items-center gap-1 ${
+                  isSelected || highlightWardId === m.wardId
+                    ? 'bg-[#0F1B2D] text-white border-slate-900 ring-2 ring-orange-500/50'
+                    : 'bg-white/95 hover:bg-slate-50 text-slate-700 border-slate-200'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: m.color }} />
+                <span>{m.title} ({m.wardName.split('-')[1]?.trim() || m.wardName})</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* Interactive Selected Coordinates display */}
       {interactive && clickPin && (
         <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-xs p-2.5 rounded-lg border border-[#E5E7EB] shadow-xs text-xs z-10 flex flex-col gap-1">

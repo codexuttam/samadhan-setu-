@@ -42,7 +42,7 @@ export default function ComplaintDetailsPage({
   // Feedback rating states
   const [rating, setRating] = useState(5);
   const [feedbackComment, setFeedbackComment] = useState('');
-  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
 
   // Text-to-Speech Accessibility Audio state
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -121,6 +121,8 @@ export default function ComplaintDetailsPage({
     const updated: Complaint = {
       ...complaint,
       status: 'In Progress',
+      reopenCount: (complaint.reopenCount || 0) + 1,
+      escalationReason: 'CITIZEN_REOPENED',
       updatedAt: new Date().toISOString(),
     };
 
@@ -170,7 +172,7 @@ export default function ComplaintDetailsPage({
     onAddFeedback(feedbackObj);
     onUpdateComplaint(updated);
     onAddUpdateLog(newLog);
-    setFeedbackSubmitted(true);
+    setShowFeedbackForm(false);
     toast('✓ Satisfaction logged. Thank you for your feedback! This complaint is now officially CLOSED.');
   };
 
@@ -348,10 +350,10 @@ export default function ComplaintDetailsPage({
         <div className="lg:col-span-4 space-y-6">
           
           {/* Action Gateway for Resolved Complaints */}
-          {complaint.status === 'Resolved' && !feedbackSubmitted && (
-            <div className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-6 shadow-xs space-y-5 animate-pulse">
+          {complaint.status === 'Resolved' && !showFeedbackForm && (
+            <div className="bg-emerald-50 border-2 border-emerald-500 rounded-2xl p-6 shadow-xs space-y-5">
               <div className="flex gap-2.5 items-start">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5 animate-pulse" />
                 <div>
                   <h3 className="font-extrabold text-sm text-emerald-900">Is your issue resolved?</h3>
                   <p className="text-emerald-700 font-medium mt-0.5">The assigned officer has completed work and submitted resolution proof. Please verify.</p>
@@ -418,14 +420,14 @@ export default function ComplaintDetailsPage({
                 <button
                   type="button"
                   onClick={handleReopen}
-                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg font-bold uppercase tracking-wider text-[10px]"
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-lg font-bold uppercase tracking-wider text-[10px] cursor-pointer transition-colors"
                 >
                   ✕ Reopen Issue
                 </button>
                 <button
                   type="button"
-                  onClick={() => setFeedbackSubmitted(true)} // Toggle satisfaction uploader box
-                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg font-bold uppercase tracking-wider text-[10px]"
+                  onClick={() => setShowFeedbackForm(true)} // Toggle satisfaction uploader box
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-bold uppercase tracking-wider text-[10px] cursor-pointer transition-colors"
                 >
                   ✓ Approve & Close
                 </button>
@@ -434,11 +436,20 @@ export default function ComplaintDetailsPage({
           )}
 
           {/* Citizen feedback card */}
-          {feedbackSubmitted && complaint.status === 'Resolved' && (
-            <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-xs space-y-4">
-              <h3 className="text-xs font-extrabold uppercase tracking-widest text-[#0F1B2D]">
-                Satisfaction Feedback
-              </h3>
+          {showFeedbackForm && complaint.status === 'Resolved' && (
+            <div className="bg-white border-2 border-emerald-500 rounded-2xl p-6 shadow-xs space-y-4">
+              <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                <h3 className="text-xs font-extrabold uppercase tracking-widest text-[#0F1B2D]">
+                  Satisfaction Feedback
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowFeedbackForm(false)}
+                  className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+                >
+                  ✕ Cancel
+                </button>
+              </div>
               
               <form onSubmit={handleApproveSubmit} className="space-y-4">
                 {/* Rating star selectors */}
@@ -450,7 +461,7 @@ export default function ComplaintDetailsPage({
                         key={num}
                         type="button"
                         onClick={() => setRating(num)}
-                        className="p-1 text-yellow-400 hover:scale-110 transition-transform"
+                        className="p-1 text-yellow-400 hover:scale-110 transition-transform cursor-pointer"
                       >
                         <Star className={`w-6 h-6 ${rating >= num ? 'fill-yellow-400' : 'text-slate-300'}`} />
                       </button>
@@ -470,13 +481,33 @@ export default function ComplaintDetailsPage({
                   />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full bg-[#16A34A] hover:bg-emerald-600 text-white py-2.5 rounded-lg font-bold uppercase tracking-wider text-[10px]"
-                >
-                  Submit satisfaction & Close ✓
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowFeedbackForm(false)}
+                    className="border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2.5 rounded-lg font-bold uppercase tracking-wider text-[10px]"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-[#16A34A] hover:bg-emerald-600 text-white py-2.5 rounded-lg font-bold uppercase tracking-wider text-[10px] transition-colors"
+                  >
+                    Submit satisfaction & Close ✓
+                  </button>
+                </div>
               </form>
+            </div>
+          )}
+
+          {/* Permanent Closed Confirmation */}
+          {complaint.status === 'Closed' && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 space-y-2">
+              <div className="flex items-center gap-2 text-emerald-800 font-extrabold text-xs">
+                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                <span>Grievance Resolved & Officially Closed</span>
+              </div>
+              <p className="text-[11px] text-emerald-700">Citizen verified resolution. Satisfaction rating and repair verification logged in municipal audit logs.</p>
             </div>
           )}
 
