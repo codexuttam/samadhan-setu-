@@ -98,32 +98,45 @@ adminRouter.post(
       z.object({
         departmentId: z.string().uuid().optional(),
         priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
-        fromLevelOrder: z.coerce.number(),
-        toLevelOrder: z.coerce.number(),
-        slaHours: z.coerce.number().min(1),
+        fromLevelOrder: z.coerce.number().int().min(1),
+        toLevelOrder: z.coerce.number().int().min(1),
+        slaHours: z.coerce.number().int().min(1),
+      }).refine((r) => r.toLevelOrder > r.fromLevelOrder, {
+        message: 'toLevelOrder must be greater than fromLevelOrder',
+        path: ['toLevelOrder'],
       }),
       req.body,
     );
 
-    const rule = await prisma.escalationRule.upsert({
-      where: {
-        departmentId_priority_fromLevelOrder: {
-          departmentId: data.departmentId || null as any,
-          priority: data.priority || null as any,
-          fromLevelOrder: data.fromLevelOrder,
-        },
-      },
-      update: { toLevelOrder: data.toLevelOrder, slaHours: data.slaHours, active: true },
-      create: {
-        departmentId: data.departmentId,
-        priority: data.priority,
-        fromLevelOrder: data.fromLevelOrder,
-        toLevelOrder: data.toLevelOrder,
-        slaHours: data.slaHours,
-      },
+    // Prisma cannot use NULL values inside a compound-unique `where`, and
+    // Postgres treats NULLs as distinct in unique indexes — so match explicitly.
+    const match = {
+      departmentId: data.departmentId ?? null,
+      priority: data.priority ?? null,
+      fromLevelOrder: data.fromLevelOrder,
+    };
+
+    const rule = await prisma.$transaction(async (tx) => {
+      const existing = await tx.escalationRule.findFirst({ where: match });
+      if (existing) {
+        return tx.escalationRule.update({
+          where: { id: existing.id },
+          data: { toLevelOrder: data.toLevelOrder, slaHours: data.slaHours, active: true },
+        });
+      }
+      return tx.escalationRule.create({
+        data: { ...match, toLevelOrder: data.toLevelOrder, slaHours: data.slaHours },
+      });
     });
 
-    await audit({ actor: { type: 'AUTHORITY', id: req.authUser!.id }, action: 'RULES_UPDATED', entity: 'EscalationRule', entityId: rule.id });
+    await audit({
+      actor: { type: 'AUTHORITY', id: req.authUser!.id, role: req.authUser!.roleCode },
+      action: 'RULES_UPDATED',
+      entity: 'EscalationRule',
+      entityId: rule.id,
+      ip: req.ip,
+      metadata: { ...match, toLevelOrder: rule.toLevelOrder, slaHours: rule.slaHours },
+    });
     res.json({ rule });
   }),
 );
