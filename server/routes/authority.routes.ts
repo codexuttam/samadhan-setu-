@@ -66,6 +66,7 @@ authorityRouter.get('/me', (req, res) => {
 // Authority Dashboard Metrics
 authorityRouter.get(
   '/dashboard',
+  requirePermission('ticket.view'),
   asyncHandler(async (req, res) => {
     const u = req.authUser!;
     const scopeWhere = ticketScopeWhere(u);
@@ -144,19 +145,48 @@ authorityRouter.get(
   requirePermission('ticket.view'),
   asyncHandler(async (req, res) => {
     const u = req.authUser!;
-    const { status, priority, search, page = '1', limit = '20' } = req.query;
-    const pageNum = Math.max(1, parseInt(page as string, 10));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit as string, 10)));
+    const {
+      status,
+      priority,
+      search,
+      page,
+      limit,
+    } = parse(
+      z.object({
+        status: z
+          .enum([
+            'SUBMITTED',
+            'ASSIGNED',
+            'ACCEPTED',
+            'INSPECTION',
+            'IN_PROGRESS',
+            'WORK_COMPLETED',
+            'AWAITING_CITIZEN_VERIFICATION',
+            'RESOLVED',
+            'REOPENED',
+            'ESCALATED',
+            'CLOSED',
+          ])
+          .optional(),
+        priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
+        search: z.string().max(120).optional(),
+        page: z.coerce.number().int().min(1).default(1),
+        limit: z.coerce.number().int().min(1).max(50).default(20),
+      }),
+      req.query,
+    );
+    const pageNum = page ?? 1;
+    const limitNum = limit ?? 20;
 
     const where: any = {
       ...ticketScopeWhere(u),
-      ...(status ? { status: status as any } : {}),
-      ...(priority ? { priority: priority as any } : {}),
-      ...(search
+      ...(status ? { status } : {}),
+      ...(priority ? { priority } : {}),
+      ...(search?.trim()
         ? {
             OR: [
-              { publicReference: { contains: (search as string).trim(), mode: 'insensitive' } },
-              { title: { contains: (search as string).trim(), mode: 'insensitive' } },
+              { publicReference: { contains: search.trim(), mode: 'insensitive' } },
+              { title: { contains: search.trim(), mode: 'insensitive' } },
             ],
           }
         : {}),
@@ -301,26 +331,45 @@ authorityRouter.get(
   asyncHandler(async (req, res) => {
     const u = req.authUser!;
     const scopeWhere = ticketScopeWhere(u);
-    const { departmentId, reason, level, priority, search, page = '1', limit = '20' } = req.query;
-    const pageNum = Math.max(1, parseInt(page as string, 10));
-    const limitNum = Math.min(50, Math.max(1, parseInt(limit as string, 10)));
+    const {
+      departmentId,
+      reason,
+      level,
+      priority,
+      search,
+      page,
+      limit,
+    } = parse(
+      z.object({
+        departmentId: z.string().uuid().optional(),
+        reason: z.enum(['SLA_BREACHED', 'CITIZEN_REOPENED', 'MANUAL']).optional(),
+        level: z.coerce.number().int().min(1).max(10).optional(),
+        priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']).optional(),
+        search: z.string().max(120).optional(),
+        page: z.coerce.number().int().min(1).default(1),
+        limit: z.coerce.number().int().min(1).max(50).default(20),
+      }),
+      req.query,
+    );
+    const pageNum = page ?? 1;
+    const limitNum = limit ?? 20;
 
     const where: any = {
       ticket: {
         ...scopeWhere,
-        ...(departmentId ? { departmentId: departmentId as string } : {}),
-        ...(priority ? { priority: priority as any } : {}),
-        ...(search
+        ...(departmentId ? { departmentId } : {}),
+        ...(priority ? { priority } : {}),
+        ...(search?.trim()
           ? {
               OR: [
-                { publicReference: { contains: (search as string).trim(), mode: 'insensitive' } },
-                { title: { contains: (search as string).trim(), mode: 'insensitive' } },
+                { publicReference: { contains: search.trim(), mode: 'insensitive' } },
+                { title: { contains: search.trim(), mode: 'insensitive' } },
               ],
             }
           : {}),
       },
-      ...(reason ? { reason: reason as any } : {}),
-      ...(level ? { toLevelOrder: parseInt(level as string, 10) } : {}),
+      ...(reason ? { reason } : {}),
+      ...(level ? { toLevelOrder: level } : {}),
     };
 
     const [total, escalations] = await Promise.all([
@@ -402,6 +451,7 @@ authorityRouter.post(
 // Civic WhatsApp Broadcast APIs
 authorityRouter.get(
   '/broadcasts/preview',
+  requirePermission('ticket.update_status'),
   asyncHandler(async (req, res) => {
     const { wardId, zoneId, departmentId, categoryId, includeResolved } = req.query as any;
     const preview = await previewBroadcastRecipients(

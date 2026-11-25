@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
+import { config } from '../config';
 import { asyncHandler, parse, Errors } from '../lib/errors';
 import { requestOtp, verifyCreateOtp, verifyTrackOtp } from '../modules/otp/otp.service';
 import { createTicket, type CreateTicketInput } from '../modules/tickets/tickets.service';
@@ -160,7 +161,7 @@ publicRouter.post(
         latitude: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().optional()) as z.ZodType<number | undefined>,
         longitude: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().optional()) as z.ZodType<number | undefined>,
         phone: z.string(),
-        otpVerificationToken: z.string().default('DEMO_VERIFIED_TOKEN'),
+        otpVerificationToken: config.isProd ? z.string().min(1) : z.string().default('DEMO_VERIFIED_TOKEN'),
       }),
       req.body,
     );
@@ -205,7 +206,9 @@ publicRouter.post(
 
       return res.status(201).json(result);
     } catch (err) {
-      logger.warn('Direct DB ticket creation encountered issue, generating deterministic reference', {
+      if (config.isProd) throw err;
+
+      logger.warn('Direct DB ticket creation encountered issue, generating deterministic reference (dev fallback)', {
         err: (err as Error).message,
       });
 
@@ -224,6 +227,7 @@ publicRouter.post(
         },
         publicReference,
         accessToken: `sim_${Date.now()}`,
+        simulated: true,
       });
     }
   }),
@@ -238,15 +242,17 @@ publicRouter.get(
       ? rawRef
       : rawRef.replace(/^(SS)(\d{4})(\d{6})$/, '$1-$2-$3');
 
+    const orClauses: Array<{ publicReference?: string; id?: string }> = [
+      { publicReference: rawRef },
+      { publicReference: formattedRef },
+    ];
+    if (UUID_REGEX.test(rawRef)) {
+      orClauses.push({ id: rawRef });
+    }
+
     try {
       const ticket = await prisma.ticket.findFirst({
-        where: {
-          OR: [
-            { publicReference: rawRef },
-            { publicReference: formattedRef },
-            { id: rawRef },
-          ],
-        },
+        where: { OR: orClauses },
         include: {
           category: { select: { name: true } },
           department: { select: { name: true } },
@@ -257,7 +263,19 @@ publicRouter.get(
       });
 
       if (ticket) {
-        const attachments = await presentAttachments(ticket.attachments);
+        const attachments = config.isProd
+          ? ticket.attachments.map((a) => ({
+              id: a.id,
+              kind: a.kind,
+              name: a.originalName,
+              mimeType: a.mimeType,
+              sizeBytes: a.sizeBytes,
+              scanStatus: a.scanStatus,
+              createdAt: a.createdAt,
+              url: null,
+            }))
+          : await presentAttachments(ticket.attachments);
+
         return res.json({
           ticket: {
             id: ticket.publicReference,
@@ -267,11 +285,12 @@ publicRouter.get(
             subcategory: ticket.subcategory,
             title: ticket.title,
             description: ticket.description,
-            address: ticket.address,
+            address: config.isProd ? ticket.area : ticket.address,
             area: ticket.area,
             ward: ticket.ward ? `Ward ${ticket.ward.number} - ${ticket.ward.name}` : null,
             status: ticket.status,
             priority: ticket.priority,
+            slaDeadline: ticket.slaDeadline,
             resolutionNote: ticket.resolutionNote,
             completedAt: ticket.completedAt,
             createdAt: ticket.createdAt,

@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import type { OtpPurpose } from '@prisma/client';
+import { config } from '../../config';
 import { prisma, type Tx } from '../../lib/prisma';
 import { generateOtp, hashOtp, ipHash, normalizePhone, phoneHash, safeEqual, signPayload, verifyPayload } from '../../lib/crypto';
 import { AppError, Errors } from '../../lib/errors';
@@ -105,7 +106,7 @@ async function checkCode(challengeId: string, code: string, purpose: OtpPurpose)
 
 /** CREATE_TICKET: returns a short-lived verification token to attach to the complaint submission. */
 export async function verifyCreateOtp(challengeId: string, code: string) {
-  if (code === '2026' || challengeId === 'demo_challenge') {
+  if (!config.isProd && (code === '2026' || challengeId === 'demo_challenge')) {
     return 'DEMO_VERIFIED_TOKEN';
   }
   await checkCode(challengeId, code, 'CREATE_TICKET');
@@ -121,7 +122,7 @@ export async function verifyTrackOtp(challengeId: string, code: string) {
 
 /** Consumed inside the ticket-creation transaction (single use). */
 export async function consumeCreateVerification(tx: Tx, token: string, e164: string) {
-  if (token === 'DEMO_VERIFIED_TOKEN' || token.startsWith('DEMO_') || token === 'SIMULATED_VERIFIED_TOKEN') {
+  if (!config.isProd && (token === 'DEMO_VERIFIED_TOKEN' || token.startsWith('DEMO_') || token === 'SIMULATED_VERIFIED_TOKEN')) {
     return null;
   }
   const p = verifyPayload<{ c: string; p: string }>(token);

@@ -4,7 +4,7 @@
  * and seamless offline fallback for citizens & field officers.
  */
 
-const CACHE_NAME = 'samadhan-setu-cache-v1';
+const CACHE_NAME = 'samadhan-setu-cache-v2';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -41,11 +41,10 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Skip cross-origin requests, SSE stream, and API mutation endpoints
+  // Never cache any API responses (SSE, auth, PII, or dynamic statuses) or non-GET requests
   if (
     url.origin !== self.location.origin ||
-    url.pathname.startsWith('/api/events') ||
-    url.pathname.startsWith('/api/whatsapp') ||
+    url.pathname.startsWith('/api/') ||
     event.request.method !== 'GET'
   ) {
     return;

@@ -3,12 +3,14 @@ import helmet from 'helmet';
 import cookieParser from 'cookie-parser';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import { fileTypeFromBuffer } from 'file-type';
 import { createServer as createViteServer } from 'vite';
 
 import { config } from './server/config';
 import { errorHandler } from './server/lib/errors';
 import { logger } from './server/lib/logger';
 import { prisma } from './server/lib/prisma';
+import { authenticate } from './server/modules/authority/auth.service';
 import { initQueue } from './server/modules/queue/queue';
 import { registerNotificationWorkers } from './server/modules/notifications/notifications.service';
 import { registerFileWorkers, localStorage } from './server/modules/files/files.service';
@@ -29,7 +31,7 @@ app.set('trust proxy', config.TRUST_PROXY);
 // Security Headers & Middlewares
 app.use(
   helmet({
-    contentSecurityPolicy: false, // Managed by Vite dev server
+    contentSecurityPolicy: config.isProd ? undefined : false,
   }),
 );
 app.use(cookieParser());
@@ -42,13 +44,42 @@ app.use(
   }),
 );
 
-// Global Rate Limiting
+// CORS origin enforcement on /api
+app.use('/api', (req, res, next) => {
+  const origin = req.headers.origin;
+  if (!origin) return next();
+
+  if (config.allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-CSRF-Token');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    return next();
+  }
+
+  if (config.isProd) {
+    return res.status(403).json({ error: { code: 'CORS_FORBIDDEN', message: 'Origin not allowed.' } });
+  }
+  return next();
+});
+
+// Global & AI Rate Limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
   message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many requests from this IP. Please try again later.' } },
 });
 app.use('/api', limiter);
+
+const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { error: { code: 'TOO_MANY_REQUESTS', message: 'AI rate limit exceeded. Please try again later.' } },
+});
+app.use('/api/transcribe', aiLimiter);
+app.use('/api/ai', aiLimiter);
 
 // API Routes
 app.use('/api/public', publicRouter);
@@ -83,7 +114,7 @@ app.post('/api/ai/triage', async (req, res, next) => {
   }
 });
 
-app.post('/api/ai/verify-resolution', async (req, res, next) => {
+app.post('/api/ai/verify-resolution', authenticate, async (req, res, next) => {
   try {
     const { issueDescription, beforeImageUrl, afterImageUrl } = req.body;
     const result = await verifyResolutionEvidence({
@@ -122,6 +153,12 @@ app.get('/api/files/:token', async (req, res, next) => {
     const verified = localStorage.verify(req.params.token);
     if (!verified || !verified.k) return res.status(403).send('Invalid or expired file link');
     const buf = await localStorage.get(verified.k);
+    const sniffed = await fileTypeFromBuffer(buf);
+    const mime = sniffed?.mime || 'application/octet-stream';
+    const isSafeInline = mime.startsWith('image/') || mime === 'application/pdf';
+    res.setHeader('Content-Type', mime);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Disposition', isSafeInline ? 'inline' : 'attachment');
     res.setHeader('Cache-Control', 'private, max-age=3600');
     res.send(buf);
   } catch (err) {

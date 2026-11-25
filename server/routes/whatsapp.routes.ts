@@ -1,4 +1,5 @@
 import { Router, type Request, type Response } from 'express';
+import { config } from '../config';
 import { asyncHandler, Errors } from '../lib/errors';
 import { handleWebhookVerification, verifySignature, processWebhookEvents } from '../modules/whatsapp/webhook.service';
 import { logger } from '../lib/logger';
@@ -49,55 +50,57 @@ whatsappRouter.post(
 
 /**
  * POST /api/whatsapp/simulate
- * Developer endpoint to simulate an inbound message from a citizen
+ * Developer endpoint to simulate an inbound message from a citizen (dev/test only)
  */
-whatsappRouter.post(
-  '/simulate',
-  asyncHandler(async (req: Request, res: Response) => {
-    const { from, text, latitude, longitude, address, action } = req.body;
-    const fromPhone = from || '+919876543210';
+if (!config.isProd) {
+  whatsappRouter.post(
+    '/simulate',
+    asyncHandler(async (req: Request, res: Response) => {
+      const { from, text, latitude, longitude, address, action } = req.body;
+      const fromPhone = from || '+919876543210';
 
-    const simulatedMessage = {
-      from: fromPhone,
-      id: `wamid_sim_${Date.now()}`,
-      timestamp: Math.floor(Date.now() / 1000).toString(),
-      type: latitude && longitude ? 'location' : 'text',
-      text: text ? { body: text } : undefined,
-      location:
-        latitude && longitude
-          ? {
-              latitude: Number(latitude),
-              longitude: Number(longitude),
-              name: address || 'Dwarka Landmark',
-              address: address || 'Dwarka, Delhi',
-            }
-          : undefined,
-      button: action ? { payload: action, text: action } : undefined,
-    };
+      const simulatedMessage = {
+        from: fromPhone,
+        id: `wamid_sim_${Date.now()}`,
+        timestamp: Math.floor(Date.now() / 1000).toString(),
+        type: latitude && longitude ? 'location' : 'text',
+        text: text ? { body: text } : undefined,
+        location:
+          latitude && longitude
+            ? {
+                latitude: Number(latitude),
+                longitude: Number(longitude),
+                name: address || 'Dwarka Landmark',
+                address: address || 'Dwarka, Delhi',
+              }
+            : undefined,
+        button: action ? { payload: action, text: action } : undefined,
+      };
 
-    const simulatedPayload = {
-      object: 'whatsapp_business_account',
-      entry: [
-        {
-          id: 'sim_biz_1',
-          changes: [
-            {
-              field: 'messages',
-              value: {
-                messaging_product: 'whatsapp',
-                metadata: {
-                  display_phone_number: '+911145678900',
-                  phone_number_id: '1234567890',
+      const simulatedPayload = {
+        object: 'whatsapp_business_account',
+        entry: [
+          {
+            id: 'sim_biz_1',
+            changes: [
+              {
+                field: 'messages',
+                value: {
+                  messaging_product: 'whatsapp',
+                  metadata: {
+                    display_phone_number: '+911145678900',
+                    phone_number_id: '1234567890',
+                  },
+                  messages: [simulatedMessage],
                 },
-                messages: [simulatedMessage],
               },
-            },
-          ],
-        },
-      ],
-    };
+            ],
+          },
+        ],
+      };
 
-    const result = await processWebhookEvents(simulatedPayload);
-    res.json({ success: true, simulatedMessage, result });
-  }),
-);
+      const result = await processWebhookEvents(simulatedPayload);
+      res.json({ success: true, simulatedMessage, result });
+    }),
+  );
+}
