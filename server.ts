@@ -5,9 +5,10 @@ import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { fileTypeFromBuffer } from 'file-type';
 import { createServer as createViteServer } from 'vite';
+import { z } from 'zod';
 
 import { config } from './server/config';
-import { errorHandler } from './server/lib/errors';
+import { errorHandler, parse } from './server/lib/errors';
 import { logger } from './server/lib/logger';
 import { prisma } from './server/lib/prisma';
 import { sseHandler } from './server/lib/sse';
@@ -115,13 +116,33 @@ app.post('/api/ai/triage', async (req, res, next) => {
   }
 });
 
+const inlineImageSchema = z
+  .object({
+    data: z.string().min(1),
+    mimeType: z.string().regex(/^image\//, 'mimeType must be an image/* type'),
+  })
+  .optional();
+
 app.post('/api/ai/verify-resolution', authenticate, async (req, res, next) => {
   try {
-    const { issueDescription, beforeImageUrl, afterImageUrl } = req.body;
+    const body = parse(
+      z.object({
+        ticketId: z.string().uuid().optional(),
+        issueDescription: z.string().min(3).max(2000).optional(),
+        beforeImageUrl: z.string().max(1000).optional(),
+        afterImageUrl: z.string().max(1000).optional(),
+        beforeImageBase64: inlineImageSchema,
+        afterImageBase64: inlineImageSchema,
+      }),
+      req.body,
+    );
     const result = await verifyResolutionEvidence({
-      issueDescription: issueDescription || 'Civic infrastructure repair',
-      beforeImageUrl,
-      afterImageUrl,
+      ticketId: body.ticketId,
+      issueDescription: body.issueDescription || 'Civic infrastructure repair',
+      beforeImageUrl: body.beforeImageUrl,
+      afterImageUrl: body.afterImageUrl,
+      beforeImageBase64: body.beforeImageBase64,
+      afterImageBase64: body.afterImageBase64,
     });
     res.json(result);
   } catch (err) {

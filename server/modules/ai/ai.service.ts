@@ -1,11 +1,14 @@
 import { config } from '../../config';
 import { logger } from '../../lib/logger';
+import { prisma } from '../../lib/prisma';
+import { storage } from '../files/files.service';
 
 export interface TranscribeResult {
   text: string;
   categorySuggestion?: string;
   priority?: 'low' | 'medium' | 'high' | 'critical';
   summary?: string;
+  isFallback?: boolean;
 }
 
 export interface TriageResult {
@@ -100,76 +103,178 @@ Respond strictly with valid JSON with these keys:
     summary: 'Citizen reported road potholes causing safety risk.',
     categorySuggestion: 'Roads & Footpaths',
     priority: 'high',
+    isFallback: true,
   };
 }
 
-/**
- * Triage civic complaint text for emergency keywords and smart classification.
- */
-export async function triageComplaint(text: string): Promise<TriageResult> {
+const VALID_PRIORITIES = new Set(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
+
+function ruleBasedTriage(text: string): TriageResult {
   const lower = text.toLowerCase();
 
-  // Fast-path rule based checks for urgent hazards
+  let suggestedCategory: string | undefined;
+  let suggestedDepartment: string | undefined;
+
+  if (/(pothole|road|footpath|flyover|गड्ढा|सड़क|फुटपाथ)/.test(lower)) {
+    suggestedCategory = 'Roads & Potholes';
+    suggestedDepartment = 'Public Works Department (PWD) / MCD';
+  } else if (/(spark|wire|electric|shock|light|pole|करंट|तार|बिजली|स्ट्रीट लाइट|खंभा)/.test(lower)) {
+    suggestedCategory = 'Street Lighting & Electrical';
+    suggestedDepartment = 'BSES / Municipal Power Division';
+  } else if (/(water|drain|sewage|sewer|manhole|flood|पानी|गंदा पानी|नाली|सीवर|मेनहोल|जलभराव)/.test(lower)) {
+    suggestedCategory = 'Water Supply & Drainage';
+    suggestedDepartment = 'Delhi Jal Board (DJB)';
+  } else if (/(garbage|waste|trash|cleaning|dump|कूड़ा|कचरा|गंदगी|सफाई)/.test(lower)) {
+    suggestedCategory = 'Garbage & Sanitation';
+    suggestedDepartment = 'Municipal Corporation Sanitation Division';
+  } else if (/(encroach|park|safety|अतिक्रमण|पार्क|सुरक्षा)/.test(lower)) {
+    suggestedCategory = 'Public Safety & Parks';
+    suggestedDepartment = 'Local Council / Enforcement';
+  }
+
+  // Fast-path rule-based checks for urgent hazards (English + Hindi/Hinglish)
   if (
-    lower.includes('sparking') ||
-    lower.includes('live wire') ||
-    lower.includes('electric shock') ||
-    lower.includes('manhole open') ||
-    lower.includes('gas leak') ||
-    lower.includes('structural collapse')
+    /(sparking|live wire|electric shock|manhole open|open manhole|gas leak|structural collapse|करंट|बिजली का तार|खुला मेनहोल|गैस लीक)/.test(
+      lower,
+    )
   ) {
     return {
+      suggestedCategory: suggestedCategory ?? 'Public Safety & Hazards',
+      suggestedDepartment,
       priority: 'CRITICAL',
       urgencyReason: 'Immediate public safety hazard detected.',
     };
   }
 
-  if (lower.includes('dirty water') || lower.includes('overflowing sewage') || lower.includes('flood')) {
+  if (/(dirty water|overflowing sewage|flood|गंदा पानी|सीवर|नाली|जलभराव)/.test(lower)) {
     return {
+      suggestedCategory: suggestedCategory ?? 'Water Supply & Drainage',
+      suggestedDepartment,
       priority: 'HIGH',
       urgencyReason: 'Health and sanitation contamination risk.',
     };
   }
 
   return {
+    suggestedCategory,
+    suggestedDepartment,
     priority: 'MEDIUM',
     urgencyReason: 'Standard civic resolution queue.',
   };
 }
 
+/**
+ * Triage civic complaint text for emergency hazards and smart classification
+ * across English, Hindi, and Hinglish.
+ */
+export async function triageComplaint(text: string): Promise<TriageResult> {
+  const apiKey = config.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+
+  if (apiKey && text.trim()) {
+    try {
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+      const prompt = `You are a civic grievance triage classifier for Samadhan Setu (India).
+Analyze the complaint (which may be in English, Hindi, or Hinglish) and respond strictly with JSON:
+{
+  "suggestedCategory": "Roads & Potholes" | "Water Supply & Drainage" | "Garbage & Sanitation" | "Street Lighting & Electrical" | "Public Safety & Parks" | "Other Civic Issue",
+  "suggestedDepartment": "responsible department name",
+  "priority": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+  "urgencyReason": "brief 1-sentence reason"
+}
+Open manholes, sparking live wires, gas leaks, and structural collapses MUST be CRITICAL.
+Complaint: "${text.slice(0, 1500)}"`;
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.1, responseMimeType: 'application/json' },
+        }),
+      });
+
+      if (response.ok) {
+        const json = await response.json();
+        const candidate = json.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (candidate) {
+          const parsed = JSON.parse(candidate);
+          const rawPriority = typeof parsed.priority === 'string' ? parsed.priority.toUpperCase() : '';
+          return {
+            suggestedCategory: typeof parsed.suggestedCategory === 'string' ? parsed.suggestedCategory : undefined,
+            suggestedDepartment: typeof parsed.suggestedDepartment === 'string' ? parsed.suggestedDepartment : undefined,
+            priority: (VALID_PRIORITIES.has(rawPriority) ? rawPriority : 'MEDIUM') as TriageResult['priority'],
+            urgencyReason: typeof parsed.urgencyReason === 'string' ? parsed.urgencyReason : 'AI-classified civic grievance.',
+          };
+        }
+      }
+    } catch (err) {
+      logger.warn('Gemini triage failed, falling back to multilingual rules', { err: (err as Error).message });
+    }
+  }
+
+  return ruleBasedTriage(text);
+}
+
 export interface ResolutionVerificationResult {
+  verifiedByAi: boolean;
   confidenceScore: number;
   isAuthentic: boolean;
   analysis: string;
   flags: string[];
 }
 
+export interface ImageInlineInput {
+  data: string;
+  mimeType: string;
+}
+
+async function loadTicketImagePart(ticketId: string, kind: 'CITIZEN_EVIDENCE' | 'COMPLETION_PROOF'): Promise<ImageInlineInput | null> {
+  try {
+    const att = await prisma.ticketAttachment.findFirst({
+      where: { ticketId, kind, mimeType: { startsWith: 'image/' } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!att) return null;
+    const buf = await storage.get(att.storageKey);
+    return { data: buf.toString('base64'), mimeType: att.mimeType };
+  } catch (err) {
+    logger.warn('Could not load ticket attachment bytes for AI vision check', { ticketId, kind, err: (err as Error).message });
+    return null;
+  }
+}
+
 /**
  * AI-powered visual evidence inspector.
- * Verifies that the field officer's post-repair evidence genuinely resolved the reported issue.
+ * Passes real image bytes to Gemini Vision to verify that post-repair proof resolves the reported issue.
  */
 export async function verifyResolutionEvidence(params: {
+  ticketId?: string;
   issueDescription: string;
   beforeImageUrl?: string;
   afterImageUrl?: string;
+  beforeImageBase64?: ImageInlineInput;
+  afterImageBase64?: ImageInlineInput;
 }): Promise<ResolutionVerificationResult> {
   const apiKey = config.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
-  if (apiKey) {
+  const beforeImg =
+    params.beforeImageBase64 ?? (params.ticketId ? await loadTicketImagePart(params.ticketId, 'CITIZEN_EVIDENCE') : null);
+  const afterImg =
+    params.afterImageBase64 ?? (params.ticketId ? await loadTicketImagePart(params.ticketId, 'COMPLETION_PROOF') : null);
+
+  if (apiKey && (beforeImg || afterImg)) {
     try {
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
       const prompt = `You are a municipal civil engineering auditor for Samadhan Setu.
 A field officer has marked the following civic complaint as resolved:
 Issue: "${params.issueDescription}".
-Before Image: ${params.beforeImageUrl || 'Citizen photo attached'}.
-After Image: ${params.afterImageUrl || 'Officer completion proof attached'}.
 
-Analyze whether this resolution evidence looks authentic and complete:
-1. Does the repair address the cited problem?
-2. Estimate a confidence score from 0 to 100%.
+Inspect the attached before/after photo evidence carefully:
+1. Does the repair genuinely address the cited problem?
+2. Estimate a confidence score from 0 to 100.
 3. Provide a brief 1-2 sentence engineering assessment.
-4. List key visual verification indicators.
+4. List key visual verification indicators or anomalies.
 
 Respond strictly as JSON:
 {
@@ -179,11 +284,21 @@ Respond strictly as JSON:
   "flags": ["Surface bitumen compacted", "No standing water visible"]
 }`;
 
+      const parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [{ text: prompt }];
+      if (beforeImg) {
+        parts.push({ text: 'Before (citizen evidence):' });
+        parts.push({ inlineData: { mimeType: beforeImg.mimeType.split(';')[0], data: beforeImg.data } });
+      }
+      if (afterImg) {
+        parts.push({ text: 'After (officer completion proof):' });
+        parts.push({ inlineData: { mimeType: afterImg.mimeType.split(';')[0], data: afterImg.data } });
+      }
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          contents: [{ role: 'user', parts }],
           generationConfig: { temperature: 0.2, responseMimeType: 'application/json' },
         }),
       });
@@ -194,24 +309,29 @@ Respond strictly as JSON:
         if (candidate) {
           const parsed = JSON.parse(candidate);
           return {
-            confidenceScore: Math.min(100, Math.max(0, parsed.confidenceScore || 90)),
-            isAuthentic: parsed.isAuthentic ?? true,
-            analysis: parsed.analysis || 'Resolution evidence matches repair standards.',
-            flags: parsed.flags || ['Visual inspection verified'],
+            verifiedByAi: true,
+            confidenceScore: Math.min(100, Math.max(0, Number(parsed.confidenceScore) || 0)),
+            isAuthentic: Boolean(parsed.isAuthentic),
+            analysis: typeof parsed.analysis === 'string' ? parsed.analysis : 'Visual inspection completed.',
+            flags: Array.isArray(parsed.flags) ? parsed.flags : ['VISUAL_INSPECTION_COMPLETE'],
           };
         }
+      } else {
+        const errBody = await response.text();
+        logger.warn('Gemini verification returned non-200', { status: response.status, body: errBody });
       }
     } catch (err) {
       logger.error('Gemini verification analysis failed', { err: (err as Error).message });
     }
   }
 
-  // High-fidelity fallback verification
+  // Honest fallback when Gemini key or real image bytes are unavailable
   return {
-    confidenceScore: 94,
-    isAuthentic: true,
-    analysis: 'Bituminous asphalt patch verified with clean edges; road surface restored to level gradient.',
-    flags: ['Material density compliant', 'Surrounding road alignment verified', 'Geotag within tolerance'],
+    verifiedByAi: false,
+    confidenceScore: 0,
+    isAuthentic: false,
+    analysis: 'Automated AI visual verification is unavailable (missing Gemini key or image bytes). Manual supervisor review is required.',
+    flags: ['MANUAL_REVIEW_REQUIRED'],
   };
 }
 
