@@ -14,11 +14,14 @@ interface QueueBackend {
   register(name: string, handler: JobHandler): Promise<void>;
   enqueue(name: string, data: unknown, opts?: { delayMs?: number; jobId?: string }): Promise<void>;
   repeat(name: string, everyMs: number): Promise<void>;
+  close(): Promise<void>;
 }
 
 class InProcessQueue implements QueueBackend {
   private handlers = new Map<string, JobHandler>();
   private pending = new Set<string>();
+  private intervals: ReturnType<typeof setInterval>[] = [];
+  private timers = new Set<ReturnType<typeof setTimeout>>();
 
   async register(name: string, handler: JobHandler) {
     this.handlers.set(name, handler);
@@ -28,7 +31,8 @@ class InProcessQueue implements QueueBackend {
     const key = opts?.jobId ? `${name}:${opts.jobId}` : null;
     if (key && this.pending.has(key)) return;
     if (key) this.pending.add(key);
-    setTimeout(async () => {
+    const timer = setTimeout(async () => {
+      this.timers.delete(timer);
       if (key) this.pending.delete(key);
       const h = this.handlers.get(name);
       if (!h) return;
@@ -38,16 +42,29 @@ class InProcessQueue implements QueueBackend {
         logger.error('Job failed', { job: name, err: err as Error });
       }
     }, opts?.delayMs ?? 0);
+    timer.unref();
+    this.timers.add(timer);
   }
 
   async repeat(name: string, everyMs: number) {
-    setInterval(() => void this.enqueue(name, {}, { jobId: 'repeat' }), everyMs).unref();
+    const interval = setInterval(() => void this.enqueue(name, {}, { jobId: 'repeat' }), everyMs);
+    interval.unref();
+    this.intervals.push(interval);
     void this.enqueue(name, {}, { delayMs: 5_000, jobId: 'repeat' });
+  }
+
+  async close() {
+    for (const iv of this.intervals) clearInterval(iv);
+    this.intervals = [];
+    for (const t of this.timers) clearTimeout(t);
+    this.timers.clear();
+    this.pending.clear();
   }
 }
 
 class BullQueue implements QueueBackend {
   private queues = new Map<string, any>();
+  private workers: any[] = [];
   private connection: any;
   private bull: any;
 
@@ -63,7 +80,8 @@ class BullQueue implements QueueBackend {
   }
 
   async register(name: string, handler: JobHandler) {
-    new this.bull.Worker(name, async (job: any) => handler(job.data), { connection: this.connection, concurrency: 5 });
+    const worker = new this.bull.Worker(name, async (job: any) => handler(job.data), { connection: this.connection, concurrency: 5 });
+    this.workers.push(worker);
   }
 
   async enqueue(name: string, data: unknown, opts?: { delayMs?: number; jobId?: string }) {
@@ -77,6 +95,12 @@ class BullQueue implements QueueBackend {
 
   async repeat(name: string, everyMs: number) {
     await this.q(name).add(name, {}, { repeat: { every: everyMs }, jobId: `${name}-repeat`, removeOnComplete: 100 });
+  }
+
+  async close() {
+    await Promise.allSettled(this.workers.map((w) => w.close()));
+    await Promise.allSettled(Array.from(this.queues.values()).map((q) => q.close()));
+    await this.connection?.quit().catch(() => {});
   }
 }
 
@@ -92,6 +116,10 @@ export async function initQueue() {
     if (config.isProd) logger.warn('Queue: REDIS_URL not set — using in-process queue (not recommended in production)');
     backend = new InProcessQueue();
   }
+}
+
+export async function closeQueue() {
+  if (backend) await backend.close();
 }
 
 export const queue = {

@@ -11,9 +11,9 @@ import { config } from './server/config';
 import { errorHandler, parse } from './server/lib/errors';
 import { logger } from './server/lib/logger';
 import { prisma } from './server/lib/prisma';
-import { sseHandler } from './server/lib/sse';
+import { sseHandler, closeSseClients } from './server/lib/sse';
 import { authenticate } from './server/modules/authority/auth.service';
-import { initQueue } from './server/modules/queue/queue';
+import { initQueue, closeQueue } from './server/modules/queue/queue';
 import { registerNotificationWorkers } from './server/modules/notifications/notifications.service';
 import { registerFileWorkers, localStorage } from './server/modules/files/files.service';
 import { registerEscalationWorkers } from './server/modules/escalation/escalation.service';
@@ -45,6 +45,20 @@ app.use(
     },
   }),
 );
+
+// Health & Readiness Probes (unthrottled)
+app.get('/healthz', (_req, res) => {
+  res.status(200).json({ status: 'ok', uptimeSeconds: Math.round(process.uptime()) });
+});
+
+app.get('/readyz', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ status: 'ready' });
+  } catch {
+    res.status(503).json({ status: 'not_ready' });
+  }
+});
 
 // CORS origin enforcement on /api
 app.use('/api', (req, res, next) => {
@@ -257,9 +271,31 @@ async function startServer() {
   }
 
   const PORT = config.PORT;
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     logger.info(`Samadhan Setu Grievance Engine listening on port ${PORT}`);
   });
+
+  let shuttingDown = false;
+  const shutdown = async (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info(`Received ${signal}, shutting down gracefully...`);
+
+    const forceTimer = setTimeout(() => {
+      logger.error('Graceful shutdown timed out; forcing exit');
+      process.exit(1);
+    }, 10_000);
+    forceTimer.unref();
+
+    closeSseClients();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await closeQueue().catch((err) => logger.warn('Error closing queue', { err }));
+    await prisma.$disconnect().catch((err) => logger.warn('Error disconnecting Prisma', { err }));
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+  process.on('SIGINT', () => void shutdown('SIGINT'));
 }
 
 startServer().catch((err) => {

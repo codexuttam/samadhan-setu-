@@ -32,6 +32,91 @@ publicRouter.get(
   }),
 );
 
+// Public Transparency Analytics & Live Map Hotspots (30s cache)
+let statsCache: { at: number; data: unknown } | null = null;
+
+publicRouter.get(
+  '/stats',
+  asyncHandler(async (_req, res) => {
+    if (statsCache && Date.now() - statsCache.at < 30_000) {
+      return res.json(statsCache.data);
+    }
+
+    try {
+      const [total, resolved, inProgress, escalated, deptCounts, deptList, hotspots] = await Promise.all([
+        prisma.ticket.count(),
+        prisma.ticket.count({ where: { status: { in: ['RESOLVED', 'CLOSED'] } } }),
+        prisma.ticket.count({ where: { status: { in: ['ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS'] } } }),
+        prisma.ticket.count({ where: { OR: [{ status: 'ESCALATED' }, { escalationLevel: { gt: 0 } }] } }),
+        prisma.ticket.groupBy({ by: ['departmentId'], _count: { _all: true } }),
+        prisma.department.findMany({ select: { id: true, code: true, name: true }, orderBy: { name: 'asc' } }),
+        prisma.ticket.findMany({
+          where: {
+            status: { notIn: ['RESOLVED', 'CLOSED'] },
+            latitude: { not: null },
+            longitude: { not: null },
+          },
+          select: {
+            publicReference: true,
+            latitude: true,
+            longitude: true,
+            priority: true,
+            area: true,
+            category: { select: { name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 50,
+        }),
+      ]);
+
+      const countByDept = new Map<string, number>();
+      for (const row of deptCounts) {
+        countByDept.set(row.departmentId, row._count._all);
+      }
+
+      const payload = {
+        available: true,
+        total,
+        resolved,
+        inProgress,
+        escalated,
+        resolutionRate: total > 0 ? Math.round((resolved / total) * 100) : 0,
+        departments: deptList.map((d) => ({
+          id: d.id,
+          code: d.code,
+          name: d.name,
+          count: countByDept.get(d.id) ?? 0,
+        })),
+        hotspots: hotspots.map((h) => ({
+          publicReference: h.publicReference,
+          latitude: h.latitude,
+          longitude: h.longitude,
+          priority: h.priority,
+          area: h.area,
+          category: h.category.name,
+        })),
+        cachedAt: new Date().toISOString(),
+      };
+
+      statsCache = { at: Date.now(), data: payload };
+      return res.json(payload);
+    } catch (err) {
+      logger.warn('Failed to compute public stats from DB', { err: (err as Error).message });
+      return res.json({
+        available: false,
+        total: 0,
+        resolved: 0,
+        inProgress: 0,
+        escalated: 0,
+        resolutionRate: 0,
+        departments: [],
+        hotspots: [],
+        cachedAt: new Date().toISOString(),
+      });
+    }
+  }),
+);
+
 // Nearby Active Issues & Duplicate Check (within ~500m radius)
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
