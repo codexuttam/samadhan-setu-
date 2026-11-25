@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "test": "tsx server/tests/escalation.test.ts"
+    "test": "tsx server/tests/escalation.test.ts && tsx server/tests/broadcast.test.ts && tsx server/tests/whatsapp.webhook.test.ts && tsx server/tests/core.hardening.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
