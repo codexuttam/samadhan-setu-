@@ -18,6 +18,7 @@ import { queue } from '../queue/queue';
 export interface StorageProvider {
   put(key: string, body: Buffer, mime: string): Promise<void>;
   get(key: string): Promise<Buffer>;
+  del(key: string): Promise<void>;
   signedUrl(key: string, ttlSeconds: number, downloadName?: string): Promise<string>;
 }
 
@@ -35,6 +36,9 @@ class LocalPrivateStorage implements StorageProvider {
   }
   async get(key: string) {
     return fs.readFile(this.file(key));
+  }
+  async del(key: string) {
+    await fs.unlink(this.file(key)).catch(() => {});
   }
   async signedUrl(key: string, ttlSeconds: number) {
     const token = signPayload({ k: key, exp: Math.floor(Date.now() / 1000) + ttlSeconds }, config.SESSION_SECRET + ':files');
@@ -72,6 +76,10 @@ class S3PrivateStorage implements StorageProvider {
     const c = await this.c();
     const out = await c.send(new this.s3.GetObjectCommand({ Bucket: config.S3_BUCKET, Key: key }));
     return Buffer.from(await out.Body.transformToByteArray());
+  }
+  async del(key: string) {
+    const c = await this.c();
+    await c.send(new this.s3.DeleteObjectCommand({ Bucket: config.S3_BUCKET, Key: key }));
   }
   async signedUrl(key: string, ttlSeconds: number) {
     const c = await this.c();
@@ -141,6 +149,11 @@ export async function storeFiles(files: ValidatedFile[]) {
     stored.push({ key, f, hash: sha256(f.buffer) });
   }
   return stored;
+}
+
+export async function deleteStoredFiles(stored: { key: string }[]) {
+  if (!stored.length) return;
+  await Promise.allSettled(stored.map((s) => storage.del(s.key)));
 }
 
 export async function recordAttachments(

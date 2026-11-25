@@ -1,6 +1,7 @@
 import type { DeliveryStatus } from '@prisma/client';
 import { prisma, withTx } from '../../lib/prisma';
 import { logger } from '../../lib/logger';
+import { broadcastSse } from '../../lib/sse';
 import { config } from '../../config';
 import { whatsapp } from './provider';
 import { createNotification } from '../notifications/notifications.service';
@@ -370,5 +371,13 @@ export async function handleInboundInteractiveAction(msg: MetaWebhookMessage) {
     phone: targetPhone,
     reference: newRef,
     hasLocation,
+  });
+
+  broadcastSse({
+    type: 'WHATSAPP_INBOUND_TICKET',
+    payload: {
+      publicReference: newRef,
+      hasLocation,
+    },
   });
 }

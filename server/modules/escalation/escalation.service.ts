@@ -1,9 +1,11 @@
 import { prisma, withTx } from '../../lib/prisma';
 import { logger } from '../../lib/logger';
 import { AppError, Errors } from '../../lib/errors';
+import { broadcastSse } from '../../lib/sse';
 import { broadcastTicketNotification, createNotification, dispatch } from '../notifications/notifications.service';
 import { audit } from '../audit/audit.service';
 import { queue } from '../queue/queue';
+import { resolveSlaHours } from './sla';
 import type { AuthUser } from '../authority/rbac';
 
 const ESCALATION_JOB = 'escalation-sla-check';
@@ -119,16 +121,13 @@ export async function checkSlaEscalations() {
       const idempotencyKey = `sla_breach:${t.id}:${fromLevelOrder}->${toLevelOrder}:${t.escalationLevel + 1}`;
 
       try {
-        const { notifIds } = await withTx(async (tx) => {
+        const { notifIds, escalatedTicket } = await withTx(async (tx) => {
           // Prevent duplicate escalation records if already processed
           const existingEsc = await tx.escalation.findUnique({ where: { idempotencyKey } });
-          if (existingEsc) return { notifIds: [] };
+          if (existingEsc) return { notifIds: [] as string[], escalatedTicket: null };
 
           // Next SLA rule calculation
-          const rule = await tx.escalationRule.findFirst({
-            where: { active: true, fromLevelOrder: toLevelOrder, departmentId: t.departmentId },
-          });
-          const nextSlaHours = rule?.slaHours ?? 24;
+          const nextSlaHours = await resolveSlaHours(tx, t.departmentId, t.priority, toLevelOrder);
           const newDeadline = new Date(Date.now() + nextSlaHours * 3600_000);
 
           const updated = await tx.ticket.update({
@@ -185,10 +184,21 @@ export async function checkSlaEscalations() {
             tx,
           );
 
-          return { notifIds };
+          return { notifIds, escalatedTicket: updated };
         });
 
         if (notifIds?.length) dispatch(notifIds);
+        if (escalatedTicket) {
+          broadcastSse({
+            type: 'TICKET_ESCALATED',
+            payload: {
+              ticketId: escalatedTicket.id,
+              publicReference: escalatedTicket.publicReference,
+              status: escalatedTicket.status,
+              escalationLevel: escalatedTicket.escalationLevel,
+            },
+          });
+        }
       } catch (err) {
         logger.error('Failed to escalate ticket SLA', { ticketId: t.id, err: err as Error });
       }
@@ -246,10 +256,7 @@ export async function manualEscalateTicket(params: {
     const idempotencyKey = `manual_esc:${t.id}:${newSeq}:${Date.now()}`;
 
     // Calculate new SLA deadline
-    const rule = await tx.escalationRule.findFirst({
-      where: { active: true, fromLevelOrder: toLevelOrder, departmentId: t.departmentId },
-    });
-    const nextSlaHours = rule?.slaHours ?? 24;
+    const nextSlaHours = await resolveSlaHours(tx, t.departmentId, t.priority, toLevelOrder);
     const newDeadline = new Date(Date.now() + nextSlaHours * 3600_000);
 
     const updated = await tx.ticket.update({
@@ -309,6 +316,15 @@ export async function manualEscalateTicket(params: {
   });
 
   if (notifIds?.length) dispatch(notifIds);
+  broadcastSse({
+    type: 'TICKET_ESCALATED',
+    payload: {
+      ticketId: ticket.id,
+      publicReference: ticket.publicReference,
+      status: ticket.status,
+      escalationLevel: ticket.escalationLevel,
+    },
+  });
   return ticket;
 }
 
@@ -378,6 +394,14 @@ export async function checkAutoResolutions() {
         });
 
         if (notifIds?.length) dispatch(notifIds);
+        broadcastSse({
+          type: 'TICKET_AUTO_RESOLVED',
+          payload: {
+            ticketId: t.id,
+            publicReference: t.publicReference,
+            status: 'RESOLVED',
+          },
+        });
       } catch (err) {
         logger.error('Failed processing auto-resolution for ticket', { ticketId: t.id, err: err as Error });
       }
