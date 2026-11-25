@@ -2,7 +2,7 @@ import { Router } from 'express';
 import multer from 'multer';
 import { z } from 'zod';
 import { asyncHandler, parse, Errors } from '../lib/errors';
-import { authenticate, csrfProtect, login, logout, completeMfa, beginTotp, confirmTotp } from '../modules/authority/auth.service';
+import { authenticate, csrfProtect, login, logout, completeMfa, beginTotp, confirmTotp, activateAccount } from '../modules/authority/auth.service';
 import { requirePermission, ticketScopeWhere, canWorkOn, inScope, PERMISSIONS } from '../modules/authority/rbac';
 import { prisma } from '../lib/prisma';
 import { manualTransitions } from '../modules/tickets/stateMachine';
@@ -34,8 +34,40 @@ authorityRouter.post(
   }),
 );
 
+authorityRouter.post(
+  '/activate',
+  asyncHandler(async (req, res) => {
+    const { token, password } = parse(
+      z.object({
+        token: z.string().min(16),
+        password: z.string().min(12),
+      }),
+      req.body,
+    );
+    await activateAccount(token, password, req.ip);
+    res.json({ success: true });
+  }),
+);
+
 // Protected routes middleware
 authorityRouter.use(authenticate, csrfProtect);
+
+authorityRouter.post(
+  '/mfa/setup',
+  asyncHandler(async (req, res) => {
+    const result = await beginTotp(req.authUser!);
+    res.json(result);
+  }),
+);
+
+authorityRouter.post(
+  '/mfa/confirm',
+  asyncHandler(async (req, res) => {
+    const { code } = parse(z.object({ code: z.string().length(6) }), req.body);
+    await confirmTotp(req.authUser!, code);
+    res.json({ success: true, totpEnabled: true });
+  }),
+);
 
 authorityRouter.post(
   '/logout',
