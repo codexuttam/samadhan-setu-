@@ -392,7 +392,7 @@ export default function HomePage({
                     ✓
                   </div>
                   <span className="text-[10px] font-bold text-[#0F1B2D] mt-1.5">{content.sampleSubmitted}</span>
-                  <span className="text-[9px] text-slate-400 font-mono">12 Sep</span>
+                  <span className="text-[9px] text-slate-400 font-mono">{language === 'hi' ? '12 सितं' : '12 Sep'}</span>
                 </div>
 
                 {/* Assigned */}
@@ -401,7 +401,7 @@ export default function HomePage({
                     ✓
                   </div>
                   <span className="text-[10px] font-bold text-[#0F1B2D] mt-1.5">{content.sampleAssigned}</span>
-                  <span className="text-[9px] text-slate-400 font-mono">13 Sep</span>
+                  <span className="text-[9px] text-slate-400 font-mono">{language === 'hi' ? '13 सितं' : '13 Sep'}</span>
                 </div>
 
                 {/* In Progress */}
@@ -410,7 +410,7 @@ export default function HomePage({
                     <span className="w-2 h-2 rounded-full bg-[#16A34A]" />
                   </div>
                   <span className="text-[10px] font-bold text-[#0F1B2D] mt-1.5">{content.sampleProgress}</span>
-                  <span className="text-[9px] text-slate-400 font-mono">14 Sep</span>
+                  <span className="text-[9px] text-slate-400 font-mono">{language === 'hi' ? '14 सितं' : '14 Sep'}</span>
                 </div>
 
                 {/* Resolved */}
@@ -521,7 +521,9 @@ export default function HomePage({
                 <Clock className="w-5 h-5 shrink-0" />
               </div>
               <div>
-                <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">2.4 days</p>
+                <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">
+                  {language === 'hi' ? '2.4 दिन' : '2.4 days'}
+                </p>
                 <p className="text-[11px] text-[#64748B] font-semibold mt-1">{content.statAvgTime}</p>
               </div>
             </div>

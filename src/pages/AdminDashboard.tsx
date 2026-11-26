@@ -44,6 +44,7 @@ interface AdminDashboardProps {
   setPage: (page: string) => void;
   setSelectedTrackedId: (id: string) => void;
   setTrackingInput: (id: string) => void;
+  language?: 'en' | 'hi';
 }
 
 export default function AdminDashboard({

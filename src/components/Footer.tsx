@@ -4,15 +4,18 @@ import { Mail, Phone, Clock, Linkedin, Facebook, Instagram, Youtube } from 'luci
 
 interface FooterProps {
   setPage: (page: string) => void;
+  language?: 'en' | 'hi';
 }
 
-export default function Footer({ setPage }: FooterProps) {
+export default function Footer({ setPage, language = 'en' }: FooterProps) {
+  const isHi = language === 'hi';
+
   const quickLinks = [
-    { id: 'home', label: 'Home' },
-    { id: 'raise', label: 'Raise a Complaint' },
-    { id: 'track', label: 'Track Complaint' },
-    { id: 'how-it-works', label: 'How It Works' },
-    { id: 'help', label: 'Help & Support' },
+    { id: 'home', label: isHi ? 'मुख्य पृष्ठ' : 'Home' },
+    { id: 'raise', label: isHi ? 'शिकायत दर्ज करें' : 'Raise a Complaint' },
+    { id: 'track', label: isHi ? 'ट्रैक शिकायत' : 'Track Complaint' },
+    { id: 'how-it-works', label: isHi ? 'यह कैसे काम करता है' : 'How It Works' },
+    { id: 'help', label: isHi ? 'सहायता एवं समर्थन' : 'Help & Support' },
   ];
 
   return (
@@ -22,9 +25,11 @@ export default function Footer({ setPage }: FooterProps) {
           
           {/* Column 1: Brand description (spanning 5 columns) */}
           <div className="md:col-span-5 space-y-6">
-            <Logo inverted={true} className="h-12" />
+            <Logo inverted={true} className="h-12" language={language} />
             <p className="text-gray-300 text-sm leading-relaxed max-w-md">
-              Samadhan Setu is a community-driven civic infrastructure platform. We empower citizens to report, track, and verify local issues, collaborating closely with municipal departments for cleaner, safer, and better-managed neighborhoods.
+              {isHi
+                ? 'समाधान सेतु एक समुदाय-संचालित नागरिक बुनियादी ढांचा मंच है। हम नागरिकों को स्थानीय समस्याओं की रिपोर्ट करने, ट्रैक करने और सत्यापित करने में सक्षम बनाते हैं, और स्वच्छ, सुरक्षित व बेहतर मोहल्लों के लिए नगर निगम विभागों के साथ मिलकर काम करते हैं।'
+                : 'Samadhan Setu is a community-driven civic infrastructure platform. We empower citizens to report, track, and verify local issues, collaborating closely with municipal departments for cleaner, safer, and better-managed neighborhoods.'}
             </p>
             <div className="flex space-x-4">
               <a href="https://www.linkedin.com/in/samadhan-setu-service/" target="_blank" rel="noreferrer" className="p-2 rounded-full bg-white/5 hover:bg-white/10 hover:text-[#FF6A2A] transition-all" aria-label="LinkedIn">
@@ -44,7 +49,9 @@ export default function Footer({ setPage }: FooterProps) {
 
           {/* Column 2: Quick Links (spanning 3 columns) */}
           <div className="md:col-span-3 space-y-5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#FF6A2A]">Quick Links</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#FF6A2A]">
+              {isHi ? 'त्वरित लिंक' : 'Quick Links'}
+            </h3>
             <ul className="space-y-3 text-sm">
               {quickLinks.map((link) => (
                 <li key={link.id}>
@@ -61,7 +68,9 @@ export default function Footer({ setPage }: FooterProps) {
 
           {/* Column 3: Support Contact (spanning 4 columns) */}
           <div className="md:col-span-4 space-y-5">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#FF6A2A]">Emergency Support</h3>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#FF6A2A]">
+              {isHi ? 'आपातकालीन सहायता' : 'Emergency Support'}
+            </h3>
             <div className="space-y-4 text-sm text-gray-300">
               <a href="mailto:supportsamadhansetu@gmail.com" className="flex items-center gap-3 group">
                 <span className="p-2 rounded-lg bg-white/5 group-hover:bg-white/10 text-[#FF6A2A] transition-colors">
@@ -82,8 +91,12 @@ export default function Footer({ setPage }: FooterProps) {
                   <Clock className="w-4 h-4" />
                 </span>
                 <div>
-                  <p className="font-semibold text-white">Citizen Helpdesk Hours</p>
-                  <p className="text-xs text-gray-400 mt-0.5">Mon – Sat, 9:00 AM – 6:00 PM IST</p>
+                  <p className="font-semibold text-white">
+                    {isHi ? 'नागरिक हेल्पडेस्क समय' : 'Citizen Helpdesk Hours'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {isHi ? 'सोम – शनि, सुबह 9:00 – शाम 6:00 बजे' : 'Mon – Sat, 9:00 AM – 6:00 PM IST'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -93,11 +106,21 @@ export default function Footer({ setPage }: FooterProps) {
 
         {/* Bottom copyright & legal banner */}
         <div className="border-t border-white/10 mt-12 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs text-gray-400 font-sans">
-          <p>© 2026 Samadhan Setu. Municipal Corporation Redressal Infrastructure.</p>
+          <p>
+            {isHi
+              ? '© 2026 समाधान सेतु। नगर निगम शिकायत निवारण प्रणाली।'
+              : '© 2026 Samadhan Setu. Municipal Corporation Redressal Infrastructure.'}
+          </p>
           <div className="flex gap-6">
-            <button onClick={() => setPage('help')} className="hover:text-white transition-colors">Privacy Policy</button>
-            <button onClick={() => setPage('help')} className="hover:text-white transition-colors">Terms of Use</button>
-            <button onClick={() => setPage('help')} className="hover:text-white transition-colors">Accessibility Guidelines</button>
+            <button onClick={() => setPage('help')} className="hover:text-white transition-colors">
+              {isHi ? 'गोपनीयता नीति' : 'Privacy Policy'}
+            </button>
+            <button onClick={() => setPage('help')} className="hover:text-white transition-colors">
+              {isHi ? 'उपयोग की शर्तें' : 'Terms of Use'}
+            </button>
+            <button onClick={() => setPage('help')} className="hover:text-white transition-colors">
+              {isHi ? 'सुगम्यता दिशानिर्देश' : 'Accessibility Guidelines'}
+            </button>
           </div>
         </div>
       </div>

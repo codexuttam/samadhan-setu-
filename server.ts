@@ -106,11 +106,11 @@ app.use('/api/whatsapp', whatsappRouter);
 // AI Voice-to-Text Transcription & Triage API
 app.post('/api/transcribe', async (req, res, next) => {
   try {
-    const { audioData, mimeType } = req.body;
+    const { audioData, mimeType, language } = req.body;
     if (!audioData) {
       return res.status(400).json({ error: 'audioData base64 string is required' });
     }
-    const result = await transcribeAudio(audioData, mimeType);
+    const result = await transcribeAudio(audioData, mimeType, language);
     res.json(result);
   } catch (err) {
     next(err);

@@ -28,6 +28,7 @@ interface ComplaintDetailsPageProps {
   onAddUpdateLog: (log: ComplaintUpdate) => void;
   onAddFeedback: (feedback: Feedback) => void;
   onBack: () => void;
+  language?: 'en' | 'hi';
 }
 
 export default function ComplaintDetailsPage({

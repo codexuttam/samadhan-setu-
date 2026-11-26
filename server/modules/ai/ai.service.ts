@@ -25,6 +25,7 @@ export interface TriageResult {
 export async function transcribeAudio(
   base64Audio: string,
   mimeType: string = 'audio/webm',
+  language?: string,
 ): Promise<TranscribeResult> {
   const apiKey = config.GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
@@ -98,6 +99,16 @@ Respond strictly with valid JSON with these keys:
   }
 
   // Intelligent fallback for demo / test environments
+  if (language === 'hi') {
+    return {
+      text: 'मुख्य बाज़ार चौराहे के पास सड़क पर बड़े गड्ढे हैं, जिससे यातायात का खतरा है।',
+      summary: 'बाज़ार चौराहे के पास सड़क पर गड्ढों की शिकायत।',
+      categorySuggestion: 'Roads & Footpaths',
+      priority: 'high',
+      isFallback: true,
+    };
+  }
+
   return {
     text: 'Road repair required: severe potholes causing traffic danger near market junction.',
     summary: 'Citizen reported road potholes causing safety risk.',

@@ -17,6 +17,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { tPriority } from '../i18n/translations';
 
 export interface ConciergePrefill {
   title?: string;
@@ -69,21 +70,40 @@ export default function CivicConciergeChat({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'welcome_1',
-      role: 'assistant',
-      content:
-        'Namaste! I am Samadhan Sahayak (समाधान सहायक), your AI civic guide. Tell me about any civic grievance—such as road potholes, water cuts, dark streetlights, or garbage heaps—and I will route it to the exact municipal department and pre-fill your complaint ticket.',
-      timestamp: new Date().toISOString(),
-      suggestions: [
-        'Dangerous pothole near main market',
-        'Dirty drinking water / contaminated tap',
-        'Streetlight not working for 3 nights',
-        'Uncollected garbage dump outside colony',
-      ],
-    },
-  ]);
+  const isHi = currentLanguage === 'hi';
+
+  const getWelcomeMessage = (hi: boolean): ChatMessage => ({
+    id: 'welcome_1',
+    role: 'assistant',
+    content: hi
+      ? 'नमस्ते! मैं समाधान सहायक हूँ, आपका AI नागरिक मार्गदर्शक। मुझे अपनी किसी भी नागरिक समस्या—जैसे सड़क के गड्ढे, पानी की कटौती, बंद स्ट्रीट लाइट या कचरे के ढेर—के बारे में बताएँ। मैं इसे सही नगर निगम विभाग तक पहुँचाकर आपका शिकायत फॉर्म पहले से भर दूँगा।'
+      : 'Namaste! I am Samadhan Sahayak (समाधान सहायक), your AI civic guide. Tell me about any civic grievance—such as road potholes, water cuts, dark streetlights, or garbage heaps—and I will route it to the exact municipal department and pre-fill your complaint ticket.',
+    timestamp: new Date().toISOString(),
+    suggestions: hi
+      ? [
+          'मुख्य बाज़ार के पास बड़ा गड्ढा है',
+          'नल में गंदा पानी आ रहा है',
+          '3 रातों से स्ट्रीट लाइट बंद है',
+          'कॉलोनी के बाहर कचरे का ढेर',
+        ]
+      : [
+          'Dangerous pothole near main market',
+          'Dirty drinking water / contaminated tap',
+          'Streetlight not working for 3 nights',
+          'Uncollected garbage dump outside colony',
+        ],
+  });
+
+  const [messages, setMessages] = useState<ChatMessage[]>(() => [getWelcomeMessage(currentLanguage === 'hi')]);
+
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length === 1 && prev[0].id === 'welcome_1') {
+        return [getWelcomeMessage(currentLanguage === 'hi')];
+      }
+      return prev;
+    });
+  }, [currentLanguage]);
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -111,25 +131,25 @@ export default function CivicConciergeChat({
         reader.onloadend = async () => {
           const base64Audio = (reader.result as string).split(',')[1];
           try {
-            toast.loading('Transcribing voice with Gemini...', { id: 'voice-trans' });
+            toast.loading(isHi ? 'Gemini द्वारा आवाज़ लिखी जा रही है...' : 'Transcribing voice with Gemini...', { id: 'voice-trans' });
             const res = await fetch('/api/transcribe', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ audioData: base64Audio, mimeType: 'audio/webm' }),
+              body: JSON.stringify({ audioData: base64Audio, mimeType: 'audio/webm', language: currentLanguage }),
             });
             toast.dismiss('voice-trans');
             if (res.ok) {
               const data = await res.json();
               if (data.text) {
                 setInput(data.text);
-                toast.success('🎙️ Speech captured!');
+                toast.success(isHi ? '🎙️ आवाज़ सफलतापूर्वक लिखी गई!' : '🎙️ Speech captured!');
               }
             } else {
-              toast.error('Could not transcribe audio.');
+              toast.error(isHi ? 'ऑडियो लिखा नहीं जा सका।' : 'Could not transcribe audio.');
             }
           } catch {
             toast.dismiss('voice-trans');
-            toast.error('Voice transcription network error.');
+            toast.error(isHi ? 'वॉइस ट्रांसक्रिप्शन नेटवर्क त्रुटि।' : 'Voice transcription network error.');
           } finally {
             stream.getTracks().forEach((track) => track.stop());
           }
@@ -139,9 +159,9 @@ export default function CivicConciergeChat({
 
       mediaRecorder.start();
       setIsRecording(true);
-      toast('Listening... Speak your civic complaint', { icon: '🎙️' });
+      toast(isHi ? 'सुन रहा हूँ... अपनी शिकायत बोलें' : 'Listening... Speak your civic complaint', { icon: '🎙️' });
     } catch {
-      toast.error('Microphone access denied.');
+      toast.error(isHi ? 'माइक्रोफ़ोन की अनुमति अस्वीकृत।' : 'Microphone access denied.');
     }
   };
 
@@ -212,10 +232,10 @@ export default function CivicConciergeChat({
           speakText(assistantMessage.content);
         }
       } else {
-        toast.error('Assistant service temporarily busy.');
+        toast.error(isHi ? 'सहायक सेवा अभी व्यस्त है।' : 'Assistant service temporarily busy.');
       }
     } catch {
-      toast.error('Failed to communicate with AI Concierge.');
+      toast.error(isHi ? 'AI सहायक से संपर्क करने में समस्या आई।' : 'Failed to communicate with AI Concierge.');
     } finally {
       setLoading(false);
     }
@@ -224,10 +244,15 @@ export default function CivicConciergeChat({
   const handlePrefillClick = (prefill: ConciergePrefill) => {
     if (onPrefillGrievance) {
       onPrefillGrievance(prefill);
-      toast.success('Form pre-filled! Please review and confirm your complaint.', {
-        icon: '📝',
-        duration: 4000,
-      });
+      toast.success(
+        isHi
+          ? 'फ़ॉर्म भर दिया गया है! कृपया समीक्षा करें और शिकायत दर्ज करें।'
+          : 'Form pre-filled! Please review and confirm your complaint.',
+        {
+          icon: '📝',
+          duration: 4000,
+        },
+      );
       toggleOpen(false);
     }
   };
@@ -240,13 +265,13 @@ export default function CivicConciergeChat({
           <div className="hidden sm:flex flex-col items-end">
             <span className="bg-[#0F1B2D] text-white text-[11px] font-bold px-3 py-1.5 rounded-full shadow-lg border border-white/10 flex items-center gap-1.5 animate-bounce">
               <Sparkles className="w-3 h-3 text-[#FF6A2A]" />
-              Need help filing? Ask Sahayak
+              {isHi ? 'शिकायत में मदद चाहिए? सहायक से पूछें' : 'Need help filing? Ask Sahayak'}
             </span>
           </div>
           <button
             onClick={() => toggleOpen(true)}
             className="group relative flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-[#0F1B2D] to-[#1E293B] text-white shadow-2xl hover:scale-105 active:scale-95 transition-all border-2 border-[#FF6A2A]/40 hover:border-[#FF6A2A]"
-            aria-label="Open AI Civic Concierge"
+            aria-label={isHi ? 'AI नागरिक सहायक खोलें' : 'Open AI Civic Concierge'}
           >
             <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
             <Bot className="w-7 h-7 text-[#FF6A2A] group-hover:rotate-6 transition-transform" />
@@ -266,14 +291,14 @@ export default function CivicConciergeChat({
               <div>
                 <div className="flex items-center gap-2">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-white">
-                    Samadhan Sahayak
+                    {isHi ? 'समाधान सहायक' : 'Samadhan Sahayak'}
                   </h3>
                   <span className="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-1.5 py-0.5 rounded font-mono font-bold">
-                    AI Active
+                    {isHi ? 'AI सक्रिय' : 'AI Active'}
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-300">
-                  समाधान सहायक • Civic Concierge & Department Guide
+                  {isHi ? 'नागरिक सहायक एवं विभाग मार्गदर्शक' : 'समाधान सहायक • Civic Concierge & Department Guide'}
                 </p>
               </div>
             </div>
@@ -290,7 +315,11 @@ export default function CivicConciergeChat({
                 className={`p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors ${
                   speechEnabled ? 'text-[#FF6A2A]' : 'opacity-40'
                 }`}
-                title={speechEnabled ? 'Mute AI voice' : 'Enable voice readout'}
+                title={
+                  speechEnabled
+                    ? isHi ? 'AI आवाज़ बंद करें' : 'Mute AI voice'
+                    : isHi ? 'आवाज़ चालू करें' : 'Enable voice readout'
+                }
               >
                 {speechEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </button>
@@ -300,20 +329,19 @@ export default function CivicConciergeChat({
                     {
                       id: `welcome_${Date.now()}`,
                       role: 'assistant',
-                      content: 'Conversation reset. How can I help resolve your civic grievance today?',
+                      content: isHi
+                        ? 'बातचीत रीसेट हो गई है। आज मैं आपकी नागरिक शिकायत हल करने में कैसे मदद कर सकता हूँ?'
+                        : 'Conversation reset. How can I help resolve your civic grievance today?',
                       timestamp: new Date().toISOString(),
-                      suggestions: [
-                        'Road potholes near me',
-                        'Contaminated tap water',
-                        'Broken streetlight',
-                        'Garbage pileup',
-                      ],
+                      suggestions: isHi
+                        ? ['मेरे क्षेत्र में गड्ढे', 'दूषित पेयजल', 'खराब स्ट्रीट लाइट', 'कचरे का ढेर']
+                        : ['Road potholes near me', 'Contaminated tap water', 'Broken streetlight', 'Garbage pileup'],
                     },
                   ]);
-                  toast('Chat refreshed');
+                  toast(isHi ? 'चैट रीसेट की गई' : 'Chat refreshed');
                 }}
                 className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-                title="Restart chat"
+                title={isHi ? 'चैट पुनः शुरू करें' : 'Restart chat'}
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
@@ -323,7 +351,7 @@ export default function CivicConciergeChat({
                   toggleOpen(false);
                 }}
                 className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-                title="Close"
+                title={isHi ? 'बंद करें' : 'Close'}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -357,7 +385,8 @@ export default function CivicConciergeChat({
                     <div className="mt-3 p-3 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border border-orange-200 text-slate-800 space-y-2">
                       <div className="flex items-center justify-between text-[10px]">
                         <span className="font-bold text-orange-700 uppercase tracking-wider flex items-center gap-1">
-                          <FileEdit className="w-3 h-3 text-orange-600" /> Auto-Routing Prepared
+                          <FileEdit className="w-3 h-3 text-orange-600" />
+                          {isHi ? 'स्वचालित रूटिंग तैयार' : 'Auto-Routing Prepared'}
                         </span>
                         {msg.prefill.priority && (
                           <span
@@ -369,7 +398,9 @@ export default function CivicConciergeChat({
                                 : 'bg-blue-100 text-blue-700'
                             }`}
                           >
-                            {msg.prefill.priority} Priority
+                            {isHi
+                              ? `${tPriority(msg.prefill.priority, 'hi')} प्राथमिकता`
+                              : `${msg.prefill.priority} Priority`}
                           </span>
                         )}
                       </div>
@@ -381,7 +412,7 @@ export default function CivicConciergeChat({
                       {msg.prefill.department && (
                         <p className="text-[11px] text-slate-600 flex items-center gap-1">
                           <Building2 className="w-3 h-3 text-slate-400" />
-                          <span className="font-semibold text-slate-700">Authority:</span>{' '}
+                          <span className="font-semibold text-slate-700">{isHi ? 'विभाग:' : 'Authority:'}</span>{' '}
                           {msg.prefill.department}
                         </p>
                       )}
@@ -391,7 +422,7 @@ export default function CivicConciergeChat({
                         className="w-full mt-2 bg-[#FF6A2A] hover:bg-[#E55A1F] active:scale-[0.98] text-white font-bold py-1.5 px-3 rounded-lg text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all"
                       >
                         <FileEdit className="w-3.5 h-3.5" />
-                        Pre-fill & File Grievance Now
+                        {isHi ? 'अभी शिकायत फॉर्म भरें' : 'Pre-fill & File Grievance Now'}
                         <ArrowRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
@@ -435,7 +466,7 @@ export default function CivicConciergeChat({
                 </div>
                 <div className="bg-white border border-slate-200 px-3.5 py-2.5 rounded-2xl rounded-tl-none shadow-sm flex items-center gap-1.5 text-xs text-slate-500">
                   <span className="w-2 h-2 rounded-full bg-[#FF6A2A] animate-ping" />
-                  <span>Sahayak is analyzing civic database...</span>
+                  <span>{isHi ? 'सहायक नागरिक डेटाबेस की जांच कर रहा है...' : 'Sahayak is analyzing civic database...'}</span>
                 </div>
               </div>
             )}
@@ -460,7 +491,11 @@ export default function CivicConciergeChat({
                     ? 'bg-red-500 text-white animate-pulse'
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
                 }`}
-                title={isRecording ? 'Stop voice recording' : 'Speak grievance in Hindi/English'}
+                title={
+                  isRecording
+                    ? isHi ? 'रिकॉर्डिंग रोकें' : 'Stop voice recording'
+                    : isHi ? 'हिंदी या अंग्रेज़ी में शिकायत बोलें' : 'Speak grievance in Hindi/English'
+                }
               >
                 {isRecording ? <Square className="w-4 h-4 fill-white" /> : <Mic className="w-4 h-4" />}
               </button>
@@ -469,7 +504,7 @@ export default function CivicConciergeChat({
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Type or speak in Hindi/English..."
+                placeholder={isHi ? 'हिंदी या अंग्रेज़ी में लिखें या बोलें...' : 'Type or speak in Hindi/English...'}
                 className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#FF6A2A]/30 focus:border-[#FF6A2A]"
                 disabled={loading}
               />
@@ -486,7 +521,7 @@ export default function CivicConciergeChat({
             <div className="mt-1.5 flex items-center justify-between text-[9px] text-slate-400 px-1 font-mono">
               <span className="flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                MCD • DJB • PWD • BSES Routing
+                {isHi ? 'MCD • DJB • PWD • BSES रूटिंग' : 'MCD • DJB • PWD • BSES Routing'}
               </span>
               <span>Gemini 2.5 Flash</span>
             </div>

@@ -5,6 +5,7 @@ interface LogoProps {
   showText?: boolean;
   showTagline?: boolean;
   inverted?: boolean;
+  language?: 'en' | 'hi';
 }
 
 export default function Logo({
@@ -12,6 +13,7 @@ export default function Logo({
   showText = true,
   showTagline = true,
   inverted = false,
+  language = 'en',
 }: LogoProps) {
   return (
     <div className="flex items-center gap-3 select-none">
@@ -76,14 +78,14 @@ export default function Logo({
                 inverted ? 'text-white' : 'text-[#0F1B2D]'
               }`}
             >
-              Samadhan
+              {language === 'hi' ? 'समाधान' : 'Samadhan'}
             </span>
             <span
               className={`text-xl font-extrabold tracking-tight font-sans ml-1 ${
                 inverted ? 'text-[#FF8A50]' : 'text-[#2563EB]'
               }`}
             >
-              Setu
+              {language === 'hi' ? 'सेतु' : 'Setu'}
             </span>
           </div>
           {showTagline && (
@@ -92,7 +94,7 @@ export default function Logo({
                 inverted ? 'text-gray-300' : 'text-[#64748B]'
               }`}
             >
-              A Stronger Community Together
+              {language === 'hi' ? 'एक साथ, मजबूत समुदाय' : 'A Stronger Community Together'}
             </span>
           )}
         </div>

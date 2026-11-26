@@ -82,11 +82,20 @@ export default function App() {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      toast.success('🌐 Reconnected to internet! Real-time sync active.');
+      toast.success(
+        language === 'hi'
+          ? '🌐 इंटरनेट पुनः कनेक्ट हो गया! लाइव सिंक सक्रिय है।'
+          : '🌐 Reconnected to internet! Real-time sync active.',
+      );
     };
     const handleOffline = () => {
       setIsOnline(false);
-      toast('📶 Working Offline. Local cache and drafts will auto-sync.', { icon: '⚠️' });
+      toast(
+        language === 'hi'
+          ? '📶 ऑफ़लाइन मोड। ड्राफ़्ट स्थानीय रूप से सुरक्षित हैं।'
+          : '📶 Working Offline. Local cache and drafts will auto-sync.',
+        { icon: '⚠️' },
+      );
     };
 
     window.addEventListener('online', handleOnline);
@@ -95,7 +104,7 @@ export default function App() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [language]);
 
   // Sync state to localStorage on every change
   useEffect(() => {
@@ -198,15 +207,21 @@ export default function App() {
       <div className="bg-[#0F1B2D] text-white border-y border-white/5 py-2 px-4 flex justify-between items-center text-[11px] font-sans font-medium">
         <div className="max-w-7xl mx-auto w-full flex flex-col sm:flex-row items-center justify-between gap-2 px-2 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
-            <span className="p-1 rounded bg-amber-500 text-white animate-pulse font-mono text-[9px] font-bold">LIVE SIMULATOR</span>
-            <span>Switch roles in the top-right menu to test citizen dashboards, officer resolution proofs, and admin SLA queues.</span>
+            <span className="p-1 rounded bg-amber-500 text-white animate-pulse font-mono text-[9px] font-bold">
+              {language === 'hi' ? 'लाइव सिम्युलेटर' : 'LIVE SIMULATOR'}
+            </span>
+            <span>
+              {language === 'hi'
+                ? 'नागरिक डैशबोर्ड, अधिकारी कार्य-प्रमाण और एडमिन SLA कतार देखने के लिए भूमिका या पृष्ठ बदलें।'
+                : 'Switch roles in the top-right menu to test citizen dashboards, officer resolution proofs, and admin SLA queues.'}
+            </span>
           </div>
           <button
             onClick={() => setShowNotificationCenter(!showNotificationCenter)}
             className="flex items-center gap-1.5 bg-white/10 hover:bg-white/15 px-3 py-1 rounded text-white font-bold relative transition-colors"
           >
             <Bell className="w-3.5 h-3.5 text-[#FF6A2A]" />
-            <span>Alerts ({unreadNotifsCount})</span>
+            <span>{language === 'hi' ? `अलर्ट्स (${unreadNotifsCount})` : `Alerts (${unreadNotifsCount})`}</span>
             {unreadNotifsCount > 0 && (
               <span className="w-2 h-2 rounded-full bg-red-500 absolute -top-0.5 -right-0.5 animate-ping" />
             )}
@@ -218,7 +233,11 @@ export default function App() {
       {!isOnline && (
         <div className="bg-amber-600 text-white text-xs font-bold py-1.5 px-4 text-center flex items-center justify-center gap-2 shadow-inner">
           <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-          <span>OFFLINE MODE: You are currently disconnected. Grievances and drafts are safely stored locally and will sync when network is restored.</span>
+          <span>
+            {language === 'hi'
+              ? 'ऑफ़लाइन मोड: आप अभी इंटरनेट से डिस्कनेक्ट हैं। शिकायतें और ड्राफ़्ट स्थानीय रूप से सुरक्षित हैं और नेटवर्क आने पर सिंक हो जाएंगे।'
+              : 'OFFLINE MODE: You are currently disconnected. Grievances and drafts are safely stored locally and will sync when network is restored.'}
+          </span>
         </div>
       )}
 
@@ -228,7 +247,7 @@ export default function App() {
           <div className="space-y-4">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <h3 className="text-xs font-bold uppercase tracking-widest text-[#0F1B2D] flex items-center gap-1.5">
-                <Bell className="w-4 h-4 text-[#F4511E]" /> Alerts Hub
+                <Bell className="w-4 h-4 text-[#F4511E]" /> {language === 'hi' ? 'अलर्ट्स हब' : 'Alerts Hub'}
               </h3>
               <button
                 onClick={() => setShowNotificationCenter(false)}
@@ -240,7 +259,9 @@ export default function App() {
 
             <div className="space-y-3.5 overflow-y-auto max-h-[75vh] pr-1">
               {notifications.length === 0 ? (
-                <p className="text-xs text-slate-400 text-center py-8">No notifications active.</p>
+                <p className="text-xs text-slate-400 text-center py-8">
+                  {language === 'hi' ? 'कोई सक्रिय सूचना नहीं है।' : 'No notifications active.'}
+                </p>
               ) : (
                 notifications.map((n) => (
                   <div
@@ -270,7 +291,7 @@ export default function App() {
                     <p className="text-[#475569] leading-relaxed mb-1.5 font-medium">{n.message}</p>
                     {n.complaintId && (
                       <span className="text-[9px] font-mono text-[#F4511E] font-bold uppercase">
-                        Track: {n.complaintId} →
+                        {language === 'hi' ? 'ट्रैक करें:' : 'Track:'} {n.complaintId} →
                       </span>
                     )}
                   </div>
@@ -283,11 +304,11 @@ export default function App() {
             onClick={() => {
               setNotifications((prev) => prev.map((item) => ({ ...item, isRead: true })));
               setShowNotificationCenter(false);
-              toast('✓ All alerts marked read!');
+              toast(language === 'hi' ? '✓ सभी अलर्ट पढ़े हुए चिह्नित किए गए!' : '✓ All alerts marked read!');
             }}
             className="w-full bg-[#0F1B2D] text-white py-2 rounded-lg text-[10px] uppercase font-bold tracking-wider hover:bg-slate-800 transition-colors"
           >
-            Mark All Read
+            {language === 'hi' ? 'सभी को पढ़ा हुआ चिह्नित करें' : 'Mark All Read'}
           </button>
         </div>
       )}
@@ -311,6 +332,7 @@ export default function App() {
             setSelectedTrackedId={setSelectedTrackedId}
             setTrackingInput={setTrackingInput}
             prefillData={conciergePrefill}
+            language={language}
           />
         )}
 
@@ -323,12 +345,13 @@ export default function App() {
             onAddUpdateLog={handleAddUpdateLog}
             onAddFeedback={handleAddFeedback}
             onBack={() => navigateTo('home')}
+            language={language}
           />
         )}
 
-        {page === 'how-it-works' && <HowItWorksPage />}
+        {page === 'how-it-works' && <HowItWorksPage language={language} setPage={navigateTo} />}
 
-        {page === 'help' && <HelpPage />}
+        {page === 'help' && <HelpPage language={language} />}
 
         {/* Dashboard views by current Role state */}
         {page === 'dashboard' && (
@@ -337,6 +360,7 @@ export default function App() {
             setPage={navigateTo}
             setSelectedTrackedId={setSelectedTrackedId}
             setTrackingInput={setTrackingInput}
+            language={language}
           />
         )}
 
@@ -349,6 +373,7 @@ export default function App() {
             setPage={navigateTo}
             setSelectedTrackedId={setSelectedTrackedId}
             setTrackingInput={setTrackingInput}
+            language={language}
           />
         )}
 
@@ -361,12 +386,13 @@ export default function App() {
             setPage={navigateTo}
             setSelectedTrackedId={setSelectedTrackedId}
             setTrackingInput={setTrackingInput}
+            language={language}
           />
         )}
       </main>
 
       {/* GLOBAL FOOTER CONTRACT */}
-      <Footer setPage={navigateTo} />
+      <Footer setPage={navigateTo} language={language} />
 
       {/* AI CIVIC CONCIERGE WIDGET ("SAMADHAN SAHAYAK") */}
       <CivicConciergeChat

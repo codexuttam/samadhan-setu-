@@ -71,7 +71,7 @@ export default function Navbar({
           {/* ZONE 1: BRAND LOGO */}
           <div className="flex-1 md:flex-initial flex items-center">
             <button onClick={() => handleNavClick('home')} className="focus:outline-none">
-              <Logo className="h-10 md:h-12" />
+              <Logo className="h-10 md:h-12" language={language} />
             </button>
           </div>
 

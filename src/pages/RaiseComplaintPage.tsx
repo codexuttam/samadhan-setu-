@@ -34,6 +34,7 @@ interface RaiseComplaintPageProps {
     priority?: 'low' | 'medium' | 'high' | 'critical';
     address?: string;
   } | null;
+  language?: 'en' | 'hi';
 }
 
 export default function RaiseComplaintPage({
