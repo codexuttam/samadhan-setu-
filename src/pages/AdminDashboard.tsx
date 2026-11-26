@@ -10,6 +10,7 @@ import {
   ComplaintUpdate,
   computeSLADeadline,
 } from '../data/mockData';
+import { tCategoryName, tDepartment, tWard, tPriority, tStatus } from '../i18n/translations';
 import {
   TrendingUp,
   AlertOctagon,
@@ -55,7 +56,9 @@ export default function AdminDashboard({
   setPage,
   setSelectedTrackedId,
   setTrackingInput,
+  language = 'en',
 }: AdminDashboardProps) {
+  const isHi = language === 'hi';
   // Navigation subtabs inside admin
   const [activeTab, setActiveTab] = useState<'overview' | 'complaints' | 'escalated' | 'broadcast' | 'scorecard'>('overview');
 
@@ -70,7 +73,12 @@ export default function AdminDashboard({
   // Live SSE stream state
   const [isLiveSseConnected, setIsLiveSseConnected] = useState(false);
   const [liveEvents, setLiveEvents] = useState<Array<{ text: string; time: string }>>([
-    { text: 'SLA Engine Worker active: Monitoring 50 wards across Delhi', time: 'Active' },
+    {
+      text: isHi
+        ? 'SLA इंजन वर्कर सक्रिय: दिल्ली के 50 वार्डों की निगरानी जारी'
+        : 'SLA Engine Worker active: Monitoring 50 wards across Delhi',
+      time: isHi ? 'सक्रिय' : 'Active',
+    },
   ]);
 
   useEffect(() => {
@@ -174,12 +182,12 @@ export default function AdminDashboard({
     else if (cat.id === 'water_drainage') color = '#3B82F6';
     else if (cat.id === 'garbage_sanitation') color = '#10B981';
     else if (cat.id === 'public_safety') color = '#EF4444';
-    return { label: cat.name, value: count, color };
+    return { label: tCategoryName(cat.id, language, cat.name), value: count, color };
   });
 
   const wardCounts = WARDS.map((w) => {
     const count = complaints.filter((c) => c.wardId === w.id).length;
-    return { label: w.name, value: count, color: '#3B82F6' };
+    return { label: tWard(w.id, language, w.name), value: count, color: '#3B82F6' };
   });
 
   // Filter logic
@@ -263,7 +271,11 @@ export default function AdminDashboard({
       updated.updatedAt = new Date().toISOString();
       onUpdateComplaint(updated);
       logsAdded.forEach((log) => onAddUpdateLog(log));
-      toast(`⚙️ Administrative overrides successfully committed for complaint ${complaint.id}!`);
+      toast(
+        isHi
+          ? `⚙️ शिकायत ${complaint.id} के लिए प्रशासनिक बदलाव सफलतापूर्वक सहेजे गए!`
+          : `⚙️ Administrative overrides successfully committed for complaint ${complaint.id}!`,
+      );
     }
 
     // Reset overlay
@@ -288,11 +300,11 @@ export default function AdminDashboard({
   const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
-      toast('Please enter both title and announcement message.');
+      toast(isHi ? 'कृपया शीर्षक और घोषणा संदेश दोनों दर्ज करें।' : 'Please enter both title and announcement message.');
       return;
     }
     if (broadcastMatchingComplaints.length === 0) {
-      toast('No complaints match the selected ward/category criteria.');
+      toast(isHi ? 'चयनित वार्ड या श्रेणी में कोई शिकायत नहीं मिली।' : 'No complaints match the selected ward/category criteria.');
       return;
     }
 
@@ -319,20 +331,28 @@ export default function AdminDashboard({
           id: `bcast_${Date.now()}`,
           title: broadcastTitle.trim(),
           message: broadcastMessage.trim(),
-          wardName: wardObj?.name || 'All Wards (Dwarka Sub-City)',
-          categoryName: catObj?.name || 'All Issue Categories',
+          wardName: wardObj ? tWard(wardObj.id, language, wardObj.name) : (isHi ? 'सभी वार्ड (द्वारका)' : 'All Wards (Dwarka Sub-City)'),
+          categoryName: catObj ? tCategoryName(catObj.id, language, catObj.name) : (isHi ? 'सभी श्रेणियाँ' : 'All Issue Categories'),
           recipientsCount: estimatedBroadcastRecipients,
-          sentAt: 'Just now',
+          sentAt: isHi ? 'अभी-अभी' : 'Just now',
           deliveryStatus: 'ACCEPTED',
         },
         ...prev,
       ]);
 
-      toast(`📢 WhatsApp Broadcast dispatched to ${estimatedBroadcastRecipients} citizens across ${wardObj?.name || 'Dwarka'}!`);
+      toast(
+        isHi
+          ? `📢 ${wardObj ? tWard(wardObj.id, 'hi', wardObj.name) : 'द्वारका'} के ${estimatedBroadcastRecipients} नागरिकों को WhatsApp प्रसारण भेजा गया!`
+          : `📢 WhatsApp Broadcast dispatched to ${estimatedBroadcastRecipients} citizens across ${wardObj?.name || 'Dwarka'}!`,
+      );
       setBroadcastTitle('');
       setBroadcastMessage('');
     } catch {
-      toast(`📢 Broadcast queued for ${estimatedBroadcastRecipients} citizens via WhatsApp!`);
+      toast(
+        isHi
+          ? `📢 ${estimatedBroadcastRecipients} नागरिकों के लिए WhatsApp प्रसारण कतारबद्ध किया गया!`
+          : `📢 Broadcast queued for ${estimatedBroadcastRecipients} citizens via WhatsApp!`,
+      );
     } finally {
       setIsSendingBroadcast(false);
     }
@@ -353,13 +373,15 @@ export default function AdminDashboard({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5 mb-6">
         <div>
           <span className="text-[10px] font-extrabold tracking-widest text-[#F4511E] bg-orange-50 px-2.5 py-1 rounded-md border border-orange-100 uppercase">
-            SUPERIOR ADMINISTRATIVE COMMAND
+            {isHi ? 'उच्च प्रशासनिक नियंत्रण कक्ष' : 'SUPERIOR ADMINISTRATIVE COMMAND'}
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F1B2D] mt-2">
-            Operations & Escalation Command
+            {isHi ? 'संचालन एवं एस्केलेशन कमांड' : 'Operations & Escalation Command'}
           </h1>
           <p className="text-xs text-[#64748B] mt-1">
-            Global monitoring, assignment queues, and rule-based SLA breach analytics.
+            {isHi
+              ? 'समग्र निगरानी, कार्य आवंटन कतार और नियम-आधारित SLA उल्लंघन विश्लेषण।'
+              : 'Global monitoring, assignment queues, and rule-based SLA breach analytics.'}
           </p>
         </div>
 
@@ -372,7 +394,9 @@ export default function AdminDashboard({
               }`}
             />
             <span className={isLiveSseConnected ? 'text-emerald-700' : 'text-slate-500'}>
-              {isLiveSseConnected ? 'Live SSE Stream Active' : 'Connecting SSE...'}
+              {isLiveSseConnected
+                ? isHi ? 'लाइव SSE स्ट्रीम सक्रिय' : 'Live SSE Stream Active'
+                : isHi ? 'SSE जुड़ रहा है...' : 'Connecting SSE...'}
             </span>
           </div>
 
@@ -383,7 +407,7 @@ export default function AdminDashboard({
               activeTab === 'overview' ? 'bg-white text-[#0F1B2D] shadow-xs' : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            Overview
+            {isHi ? 'अवलोकन' : 'Overview'}
           </button>
           <button
             onClick={() => setActiveTab('complaints')}
@@ -391,7 +415,7 @@ export default function AdminDashboard({
               activeTab === 'complaints' ? 'bg-white text-[#0F1B2D] shadow-xs' : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            Complaints Directory
+            {isHi ? 'शिकायत निर्देशिका' : 'Complaints Directory'}
           </button>
           <button
             onClick={() => setActiveTab('escalated')}
@@ -400,7 +424,7 @@ export default function AdminDashboard({
             }`}
           >
             <AlertOctagon className="w-3.5 h-3.5" />
-            Escalated ({complaints.filter((c) => c.status === 'Escalated' || (c as any).escalationLevel > 0 || (c as any).reopenCount > 0).length})
+            {isHi ? 'एस्केलेटेड' : 'Escalated'} ({complaints.filter((c) => c.status === 'Escalated' || (c as any).escalationLevel > 0 || (c as any).reopenCount > 0).length})
           </button>
           <button
             onClick={() => setActiveTab('broadcast')}
@@ -409,7 +433,7 @@ export default function AdminDashboard({
             }`}
           >
             <Megaphone className="w-3.5 h-3.5" />
-            WhatsApp Broadcast
+            {isHi ? 'WhatsApp ब्रॉडकास्ट' : 'WhatsApp Broadcast'}
           </button>
           <button
             onClick={() => setActiveTab('scorecard')}
@@ -418,7 +442,7 @@ export default function AdminDashboard({
             }`}
           >
             <Award className="w-3.5 h-3.5" />
-            Scorecard & Leaderboard
+            {isHi ? 'स्कोरकार्ड और रैंकिंग' : 'Scorecard & Leaderboard'}
           </button>
         </div>
       </div>
@@ -430,7 +454,7 @@ export default function AdminDashboard({
           <div className="flex items-center gap-2 truncate">
             <Radio className="w-3.5 h-3.5 text-emerald-400 shrink-0 animate-pulse" />
             <span className="font-bold text-[10px] uppercase tracking-wider text-emerald-400 shrink-0">
-              Live Feed:
+              {isHi ? 'लाइव फ़ीड:' : 'Live Feed:'}
             </span>
             <span className="truncate font-medium text-slate-300">{liveEvents[0].text}</span>
           </div>
@@ -448,31 +472,41 @@ export default function AdminDashboard({
             
             {/* Metric 1 */}
             <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">Total Filed</span>
+              <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">
+                {isHi ? 'कुल दर्ज' : 'Total Filed'}
+              </span>
               <p className="text-2xl font-extrabold font-mono text-[#0F1B2D] mt-2">{totalComplaints}</p>
             </div>
 
             {/* Metric 2 */}
             <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">Pending Assignment</span>
+              <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">
+                {isHi ? 'नियुक्ति लंबित' : 'Pending Assignment'}
+              </span>
               <p className="text-2xl font-extrabold font-mono text-amber-500 mt-2">{pendingCount}</p>
             </div>
 
             {/* Metric 3 */}
             <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">In Investigation</span>
+              <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">
+                {isHi ? 'जांच/कार्य प्रगति पर' : 'In Investigation'}
+              </span>
               <p className="text-2xl font-extrabold font-mono text-blue-500 mt-2">{inProgressCount}</p>
             </div>
 
             {/* Metric 4 */}
             <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">Resolved Cases</span>
+              <span className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">
+                {isHi ? 'हल किए गए मामले' : 'Resolved Cases'}
+              </span>
               <p className="text-2xl font-extrabold font-mono text-emerald-500 mt-2">{resolvedCount}</p>
             </div>
 
             {/* Metric 5: SLA Breaches */}
             <div className="bg-red-50 border border-red-200 rounded-xl p-5 shadow-xs flex flex-col justify-between">
-              <span className="text-[10px] font-extrabold text-red-700 uppercase tracking-wider">SLA Overdue/Breached</span>
+              <span className="text-[10px] font-extrabold text-red-700 uppercase tracking-wider">
+                {isHi ? 'SLA समय-सीमा उल्लंघन' : 'SLA Overdue/Breached'}
+              </span>
               <p className="text-2xl font-extrabold font-mono text-red-600 mt-2">{slaBreachedCount}</p>
             </div>
 
@@ -480,18 +514,22 @@ export default function AdminDashboard({
 
           {/* Visual representations charts panel */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <ChartCard title="Complaints Over Time Trend" type="line" data={[]} />
-            <ChartCard title="Complaints by Ward Load" type="bar" data={wardCounts} />
-            <ChartCard title="Distribution Share by Bureau" type="donut" data={categoryCounts} />
+            <ChartCard title={isHi ? 'समय के साथ शिकायत प्रवृत्ति' : 'Complaints Over Time Trend'} type="line" data={[]} />
+            <ChartCard title={isHi ? 'वार्ड के अनुसार शिकायत भार' : 'Complaints by Ward Load'} type="bar" data={wardCounts} />
+            <ChartCard title={isHi ? 'विभागवार वितरण हिस्सेदारी' : 'Distribution Share by Bureau'} type="donut" data={categoryCounts} />
           </div>
 
           {/* SLA Escalation rules card info */}
           <div className="bg-amber-50 border border-amber-100 rounded-xl p-5 flex gap-4 text-[#B45309]">
             <AlertTriangle className="w-6 h-6 text-amber-500 shrink-0" />
             <div className="space-y-1">
-              <h3 className="font-bold text-sm text-amber-800">Automatic SLA Breach Dispatch Mode Active</h3>
+              <h3 className="font-bold text-sm text-amber-800">
+                {isHi ? 'स्वचालित SLA उल्लंघन प्रेषण मोड सक्रिय' : 'Automatic SLA Breach Dispatch Mode Active'}
+              </h3>
               <p className="text-xs text-amber-700 font-medium leading-relaxed">
-                The platform monitors submitted issues. Tickets that exceed their allotted resolution timelines (Critical: 6h, High: 24h, Medium: 48h, Low: 72h) are automatically tagged as "SLA Breached". Overdue tickets highlight in red and appear in priority queues for immediate supervisor overrides.
+                {isHi
+                  ? 'प्लेटफ़ॉर्म सभी दर्ज समस्याओं की निगरानी करता है। निर्धारित समय-सीमा (अति आवश्यक: 6 घंटे, उच्च: 24 घंटे, मध्यम: 48 घंटे, कम: 72 घंटे) पार करने वाली शिकायतें स्वतः "SLA उल्लंघन" चिह्नित हो जाती हैं और त्वरित पर्यवेक्षक कार्रवाई के लिए प्राथमिकता कतार में दिखती हैं।'
+                  : 'The platform monitors submitted issues. Tickets that exceed their allotted resolution timelines (Critical: 6h, High: 24h, Medium: 48h, Low: 72h) are automatically tagged as "SLA Breached". Overdue tickets highlight in red and appear in priority queues for immediate supervisor overrides.'}
               </p>
             </div>
           </div>
@@ -505,69 +543,69 @@ export default function AdminDashboard({
           {/* Filters Column (3 columns) */}
           <div className="lg:col-span-3 bg-white border border-[#E5E7EB] rounded-xl p-5 space-y-4 shadow-xs">
             <h3 className="font-bold text-[#0F1B2D] uppercase tracking-wider text-xs border-b border-slate-100 pb-2 flex items-center gap-1.5">
-              <Filter className="w-4 h-4 text-[#F4511E]" /> Filter Directory
+              <Filter className="w-4 h-4 text-[#F4511E]" /> {isHi ? 'निर्देशिका फ़िल्टर' : 'Filter Directory'}
             </h3>
 
             {/* Category Filter */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Category</label>
+              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">{isHi ? 'श्रेणी' : 'Category'}</label>
               <select
                 value={filterCategory}
                 onChange={(e) => setFilterCategory(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs"
               >
-                <option value="">All Categories</option>
+                <option value="">{isHi ? 'सभी श्रेणियाँ' : 'All Categories'}</option>
                 {CATEGORIES.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>{tCategoryName(c.id, language, c.name)}</option>
                 ))}
               </select>
             </div>
 
             {/* Ward Filter */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Ward Area</label>
+              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">{isHi ? 'वार्ड क्षेत्र' : 'Ward Area'}</label>
               <select
                 value={filterWard}
                 onChange={(e) => setFilterWard(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs"
               >
-                <option value="">All Wards</option>
+                <option value="">{isHi ? 'सभी वार्ड' : 'All Wards'}</option>
                 {WARDS.map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
+                  <option key={w.id} value={w.id}>{tWard(w.id, language, w.name)}</option>
                 ))}
               </select>
             </div>
 
             {/* Status Filter */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Status</label>
+              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">{isHi ? 'स्थिति' : 'Status'}</label>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs"
               >
-                <option value="">All Statuses</option>
-                <option value="Submitted">Pending Routing</option>
-                <option value="Assigned">Officer Assigned</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Resolved">Resolved</option>
-                <option value="Closed">Closed</option>
+                <option value="">{isHi ? 'सभी स्थितियाँ' : 'All Statuses'}</option>
+                <option value="Submitted">{isHi ? 'लंबित रूटिंग' : 'Pending Routing'}</option>
+                <option value="Assigned">{isHi ? 'अधिकारी को सौंपी गई' : 'Officer Assigned'}</option>
+                <option value="In Progress">{isHi ? 'कार्य प्रगति पर' : 'In Progress'}</option>
+                <option value="Resolved">{isHi ? 'समाधान पूर्ण' : 'Resolved'}</option>
+                <option value="Closed">{isHi ? 'बंद' : 'Closed'}</option>
               </select>
             </div>
 
             {/* Priority Filter */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Priority Level</label>
+              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">{isHi ? 'प्राथमिकता स्तर' : 'Priority Level'}</label>
               <select
                 value={filterPriority}
                 onChange={(e) => setFilterPriority(e.target.value)}
                 className="w-full px-3 py-2 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs"
               >
-                <option value="">All Priorities</option>
-                <option value="low">Low</option>
-                <option value="medium">Medium</option>
-                <option value="high">High</option>
-                <option value="critical">Critical</option>
+                <option value="">{isHi ? 'सभी प्राथमिकताएँ' : 'All Priorities'}</option>
+                <option value="low">{tPriority('low', language)}</option>
+                <option value="medium">{tPriority('medium', language)}</option>
+                <option value="high">{tPriority('high', language)}</option>
+                <option value="critical">{tPriority('critical', language)}</option>
               </select>
             </div>
           </div>
@@ -578,13 +616,13 @@ export default function AdminDashboard({
               <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100 text-[9px] uppercase font-bold text-slate-500 tracking-wider">
-                    <th className="py-3 px-4">Ticket</th>
-                    <th className="py-3 px-4">Grievance / Citizen</th>
-                    <th className="py-3 px-4">Ward</th>
-                    <th className="py-3 px-4">Department</th>
-                    <th className="py-3 px-4">Priority</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3 px-4">{isHi ? 'टिकट' : 'Ticket'}</th>
+                    <th className="py-3 px-4">{isHi ? 'शिकायत / नागरिक' : 'Grievance / Citizen'}</th>
+                    <th className="py-3 px-4">{isHi ? 'वार्ड' : 'Ward'}</th>
+                    <th className="py-3 px-4">{isHi ? 'विभाग' : 'Department'}</th>
+                    <th className="py-3 px-4">{isHi ? 'प्राथमिकता' : 'Priority'}</th>
+                    <th className="py-3 px-4">{isHi ? 'स्थिति' : 'Status'}</th>
+                    <th className="py-3 px-4 text-right">{isHi ? 'कार्रवाई' : 'Actions'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
@@ -602,7 +640,7 @@ export default function AdminDashboard({
                           <div className="space-y-0.5">
                             <span className="tracking-wider">{c.id}</span>
                             <span className="block text-[9px] text-[#64748B] font-sans font-normal">
-                              {new Date(c.createdAt).toLocaleDateString()}
+                              {new Date(c.createdAt).toLocaleDateString(isHi ? 'hi-IN' : undefined)}
                             </span>
                           </div>
                         </td>
@@ -612,19 +650,19 @@ export default function AdminDashboard({
                           <div className="space-y-1">
                             <p className="font-semibold text-[#0F172A] truncate">{c.title}</p>
                             <p className="text-[10px] text-slate-400 font-medium">
-                              Filed by {c.citizenName} · {c.citizenPhone}
+                              {isHi ? `दर्जकर्ता: ${c.citizenName} · ${c.citizenPhone}` : `Filed by ${c.citizenName} · ${c.citizenPhone}`}
                             </p>
                           </div>
                         </td>
 
                         {/* Ward */}
                         <td className="py-4 px-4 font-medium text-slate-700">
-                          {WARDS.find((w) => w.id === c.wardId)?.name.split(' - ')[1] || 'Ward 12'}
+                          {tWard(c.wardId, language, WARDS.find((w) => w.id === c.wardId)?.name || 'Ward 12').split(' - ')[1] || tWard(c.wardId, language)}
                         </td>
 
                         {/* Bureau */}
                         <td className="py-4 px-4 font-medium text-slate-500">
-                          {DEPARTMENTS.find((d) => d.id === c.departmentId)?.name || 'General'}
+                          {tDepartment(c.departmentId, language, DEPARTMENTS.find((d) => d.id === c.departmentId)?.name || 'General')}
                         </td>
 
                         {/* Priority with red warning if SLA breached */}
@@ -639,11 +677,11 @@ export default function AdminDashboard({
                                   : 'text-slate-600'
                               }`}
                             >
-                              {c.priority}
+                              {tPriority(c.priority, language)}
                             </span>
                             {isSlaBreached && (
                               <span className="block text-[9px] font-extrabold text-red-600 uppercase tracking-widest leading-none bg-red-100 px-1 rounded">
-                                SLA Breached
+                                {isHi ? 'SLA उल्लंघन' : 'SLA Breached'}
                               </span>
                             )}
                           </div>
@@ -660,7 +698,7 @@ export default function AdminDashboard({
                                 : 'text-emerald-600'
                             }`}
                           >
-                            {c.status === 'Submitted' ? 'Pending' : c.status}
+                            {tStatus(c.status, language)}
                           </span>
                         </td>
 
@@ -669,7 +707,7 @@ export default function AdminDashboard({
                           <button
                             onClick={() => handleDirectDetails(c.id)}
                             className="p-1.5 border border-slate-200 hover:bg-slate-50 rounded text-[#0F172A]"
-                            title="View Details"
+                            title={isHi ? 'विवरण देखें' : 'View Details'}
                           >
                             <Eye className="w-3.5 h-3.5" />
                           </button>
@@ -681,7 +719,7 @@ export default function AdminDashboard({
                               setOverridePriority(c.priority);
                             }}
                             className="p-1.5 border border-slate-200 bg-slate-50 hover:bg-[#F4511E] hover:text-white hover:border-[#F4511E] rounded text-[#0F172A]"
-                            title="Admin Controls Override"
+                            title={isHi ? 'प्रशासनिक नियंत्रण' : 'Admin Controls Override'}
                           >
                             <UserCheck className="w-3.5 h-3.5" />
                           </button>
@@ -706,15 +744,19 @@ export default function AdminDashboard({
                 <AlertOctagon className="w-6 h-6" />
               </div>
               <div>
-                <h2 className="text-base font-extrabold text-red-950">Escalated Grievance Management Hub</h2>
+                <h2 className="text-base font-extrabold text-red-950">
+                  {isHi ? 'एस्केलेटेड शिकायत प्रबंधन केंद्र' : 'Escalated Grievance Management Hub'}
+                </h2>
                 <p className="text-xs text-red-800 font-medium">
-                  Review grievances escalated due to SLA breaches, citizen re-openings, or supervisory manual triggers.
+                  {isHi
+                    ? 'SLA उल्लंघन, नागरिक द्वारा पुनः खोली गई या पर्यवेक्षक द्वारा एस्केलेट की गई शिकायतों की समीक्षा करें।'
+                    : 'Review grievances escalated due to SLA breaches, citizen re-openings, or supervisory manual triggers.'}
                 </p>
               </div>
             </div>
             <div className="flex gap-3 text-xs font-bold">
               <span className="bg-white px-3 py-1.5 rounded-lg border border-red-200 text-red-700">
-                Level 1-4 Hierarchy Active
+                {isHi ? 'स्तर 1–4 पदानुक्रम सक्रिय' : 'Level 1-4 Hierarchy Active'}
               </span>
             </div>
           </div>
@@ -722,7 +764,7 @@ export default function AdminDashboard({
           <div className="bg-white border border-[#E5E7EB] rounded-xl overflow-hidden shadow-xs">
             <div className="p-4 border-b border-slate-100 flex flex-wrap items-center justify-between gap-4">
               <h3 className="font-extrabold text-[#0F1B2D] uppercase tracking-wider text-xs flex items-center gap-2">
-                <Filter className="w-4 h-4 text-[#F4511E]" /> Escalated Complaints Directory
+                <Filter className="w-4 h-4 text-[#F4511E]" /> {isHi ? 'एस्केलेटेड शिकायत निर्देशिका' : 'Escalated Complaints Directory'}
               </h3>
               <div className="flex flex-wrap gap-2 text-xs">
                 <select
@@ -730,9 +772,9 @@ export default function AdminDashboard({
                   onChange={(e) => setFilterCategory(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs"
                 >
-                  <option value="">All Departments</option>
+                  <option value="">{isHi ? 'सभी विभाग' : 'All Departments'}</option>
                   {CATEGORIES.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <option key={c.id} value={c.id}>{tCategoryName(c.id, language, c.name)}</option>
                   ))}
                 </select>
                 <select
@@ -740,10 +782,10 @@ export default function AdminDashboard({
                   onChange={(e) => setFilterEscalationReason(e.target.value)}
                   className="px-3 py-1.5 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs font-semibold text-slate-700"
                 >
-                  <option value="">All Escalation Triggers</option>
-                  <option value="SLA_BREACHED">SLA Breach</option>
-                  <option value="CITIZEN_REOPENED">Citizen Reopened</option>
-                  <option value="MANUAL">Manual Escalation</option>
+                  <option value="">{isHi ? 'सभी एस्केलेशन कारण' : 'All Escalation Triggers'}</option>
+                  <option value="SLA_BREACHED">{isHi ? 'SLA उल्लंघन' : 'SLA Breach'}</option>
+                  <option value="CITIZEN_REOPENED">{isHi ? 'नागरिक द्वारा पुनः खोली गई' : 'Citizen Reopened'}</option>
+                  <option value="MANUAL">{isHi ? 'मैनुअल एस्केलेशन' : 'Manual Escalation'}</option>
                 </select>
               </div>
             </div>
@@ -752,14 +794,14 @@ export default function AdminDashboard({
               <table className="w-full text-left border-collapse min-w-[900px]">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100 text-[9px] uppercase font-bold text-slate-500 tracking-wider">
-                    <th className="py-3 px-4">Ticket ID</th>
-                    <th className="py-3 px-4">Title / Department</th>
-                    <th className="py-3 px-4">Current Authority</th>
-                    <th className="py-3 px-4">Escalation Level</th>
-                    <th className="py-3 px-4">Reason</th>
-                    <th className="py-3 px-4">SLA Status</th>
-                    <th className="py-3 px-4">Escalated At</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
+                    <th className="py-3 px-4">{isHi ? 'टिकट आईडी' : 'Ticket ID'}</th>
+                    <th className="py-3 px-4">{isHi ? 'शीर्षक / विभाग' : 'Title / Department'}</th>
+                    <th className="py-3 px-4">{isHi ? 'वर्तमान अधिकारी' : 'Current Authority'}</th>
+                    <th className="py-3 px-4">{isHi ? 'एस्केलेशन स्तर' : 'Escalation Level'}</th>
+                    <th className="py-3 px-4">{isHi ? 'कारण' : 'Reason'}</th>
+                    <th className="py-3 px-4">{isHi ? 'SLA स्थिति' : 'SLA Status'}</th>
+                    <th className="py-3 px-4">{isHi ? 'एस्केलेशन तिथि' : 'Escalated At'}</th>
+                    <th className="py-3 px-4 text-right">{isHi ? 'कार्रवाई' : 'Actions'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
@@ -769,7 +811,7 @@ export default function AdminDashboard({
                     .map((c) => {
                       const escLevel = (c as any).escalationLevel || ((c as any).reopenCount ? (c as any).reopenCount + 1 : 1);
                       const escReason = (c as any).escalationReason || ((c as any).reopenCount > 0 ? 'CITIZEN_REOPENED' : 'SLA_BREACHED');
-                      const currentOfficer = OFFICERS.find((o) => o.id === c.assignedOfficerId)?.name || 'Ward Officer / Admin';
+                      const currentOfficer = OFFICERS.find((o) => o.id === c.assignedOfficerId)?.name || (isHi ? 'वार्ड अधिकारी / एडमिन' : 'Ward Officer / Admin');
                       const isBreached = new Date('2026-10-06T00:45:00Z').getTime() > new Date(c.slaDeadline).getTime();
 
                       return (
@@ -780,7 +822,7 @@ export default function AdminDashboard({
                           <td className="py-4 px-4 max-w-xs">
                             <p className="font-semibold text-[#0F172A] truncate">{c.title}</p>
                             <p className="text-[10px] text-slate-400 font-medium">
-                              {DEPARTMENTS.find((d) => d.id === c.departmentId)?.name || 'Public Works'}
+                              {tDepartment(c.departmentId, language, DEPARTMENTS.find((d) => d.id === c.departmentId)?.name || 'Public Works')}
                             </p>
                           </td>
                           <td className="py-4 px-4 font-medium text-slate-700">
@@ -788,7 +830,7 @@ export default function AdminDashboard({
                           </td>
                           <td className="py-4 px-4">
                             <span className="px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-100 rounded-md font-bold text-[10px] uppercase">
-                              Level {Math.min(escLevel, 4)} {escLevel >= 4 ? '(Max Admin)' : ''}
+                              {isHi ? `स्तर ${Math.min(escLevel, 4)}${escLevel >= 4 ? ' (सर्वोच्च एडमिन)' : ''}` : `Level ${Math.min(escLevel, 4)} ${escLevel >= 4 ? '(Max Admin)' : ''}`}
                             </span>
                           </td>
                           <td className="py-4 px-4 font-semibold">
@@ -801,28 +843,34 @@ export default function AdminDashboard({
                                   : 'bg-blue-100 text-blue-800'
                               }`}
                             >
-                              {escReason.replace('_', ' ')}
+                              {isHi
+                                ? escReason === 'SLA_BREACHED'
+                                  ? 'SLA उल्लंघन'
+                                  : escReason === 'CITIZEN_REOPENED'
+                                  ? 'पुनः खोली गई'
+                                  : 'मैनुअल'
+                                : escReason.replace('_', ' ')}
                             </span>
                           </td>
                           <td className="py-4 px-4">
                             {isBreached ? (
                               <span className="flex items-center gap-1 font-bold text-red-600">
-                                🔴 BREACHED
+                                {isHi ? '🔴 समय-सीमा पार' : '🔴 BREACHED'}
                               </span>
                             ) : (
                               <span className="flex items-center gap-1 font-bold text-amber-600">
-                                🟡 WARNING
+                                {isHi ? '🟡 चेतावनी' : '🟡 WARNING'}
                               </span>
                             )}
                           </td>
                           <td className="py-4 px-4 text-slate-500 font-mono text-[11px]">
-                            {new Date(c.updatedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                            {new Date(c.updatedAt).toLocaleDateString(isHi ? 'hi-IN' : 'en-IN', { day: '2-digit', month: 'short' })}
                           </td>
                           <td className="py-4 px-4 text-right space-x-2 whitespace-nowrap">
                             <button
                               onClick={() => handleDirectDetails(c.id)}
                               className="p-1.5 border border-slate-200 hover:bg-slate-50 rounded text-[#0F172A]"
-                              title="View Full Details"
+                              title={isHi ? 'पूरा विवरण देखें' : 'View Full Details'}
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
@@ -835,7 +883,7 @@ export default function AdminDashboard({
                               }}
                               className="px-2.5 py-1 bg-[#F4511E] hover:bg-[#FF6A2A] text-white rounded text-[10px] font-bold uppercase tracking-wider"
                             >
-                              Escalate / Reassign
+                              {isHi ? 'एस्केलेट / पुनः आवंटित करें' : 'Escalate / Reassign'}
                             </button>
                           </td>
                         </tr>
@@ -857,17 +905,19 @@ export default function AdminDashboard({
               <div className="flex items-center gap-2 mb-3">
                 <span className="bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  Meta WhatsApp Cloud API Connected
+                  {isHi ? 'Meta WhatsApp क्लाउड API जुड़ा है' : 'Meta WhatsApp Cloud API Connected'}
                 </span>
                 <span className="bg-white/10 text-slate-200 text-[10px] font-semibold px-2.5 py-1 rounded-full">
-                  Transactional Outbox Active
+                  {isHi ? 'ट्रांज़ैक्शनल आउटबॉक्स सक्रिय' : 'Transactional Outbox Active'}
                 </span>
               </div>
               <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
-                Civic WhatsApp Broadcast Center
+                {isHi ? 'नागरिक WhatsApp प्रसारण केंद्र' : 'Civic WhatsApp Broadcast Center'}
               </h2>
               <p className="text-xs text-emerald-100/90 mt-2 leading-relaxed">
-                Send verified, real-time civic announcements and status bulletins directly to citizen WhatsApp inboxes across affected wards, zones, or issue categories.
+                {isHi
+                  ? 'प्रभावित वार्डों, ज़ोन या शिकायत श्रेणियों के नागरिकों के WhatsApp पर सीधे सत्यापित सरकारी घोषणाएँ और स्थिति अपडेट भेजें।'
+                  : 'Send verified, real-time civic announcements and status bulletins directly to citizen WhatsApp inboxes across affected wards, zones, or issue categories.'}
               </p>
             </div>
             <div className="absolute right-6 -bottom-6 opacity-10 pointer-events-none">
@@ -883,16 +933,20 @@ export default function AdminDashboard({
                 <div>
                   <h3 className="text-base font-extrabold text-[#0F1B2D] flex items-center gap-2">
                     <Megaphone className="w-4 h-4 text-emerald-600" />
-                    Compose Civic Broadcast
+                    {isHi ? 'नागरिक प्रसारण तैयार करें' : 'Compose Civic Broadcast'}
                   </h3>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    Targeted announcements to citizens with active grievances in selected areas.
+                    {isHi
+                      ? 'चयनित क्षेत्रों में सक्रिय शिकायतों वाले नागरिकों को लक्षित सूचनाएँ।'
+                      : 'Targeted announcements to citizens with active grievances in selected areas.'}
                   </p>
                 </div>
                 <div className="text-right">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Audience</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    {isHi ? 'लक्षित नागरिक' : 'Audience'}
+                  </span>
                   <span className="text-sm font-black font-mono text-emerald-600">
-                    {estimatedBroadcastRecipients} Citizens
+                    {estimatedBroadcastRecipients} {isHi ? 'नागरिक' : 'Citizens'}
                   </span>
                 </div>
               </div>
@@ -902,17 +956,17 @@ export default function AdminDashboard({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      Target Ward
+                      {isHi ? 'लक्षित वार्ड' : 'Target Ward'}
                     </label>
                     <select
                       value={broadcastWardId}
                       onChange={(e) => setBroadcastWardId(e.target.value)}
                       className="w-full text-xs font-medium border border-slate-200 rounded-lg p-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     >
-                      <option value="">All Wards (Entire Sub-City)</option>
+                      <option value="">{isHi ? 'सभी वार्ड (संपूर्ण उप-नगर)' : 'All Wards (Entire Sub-City)'}</option>
                       {WARDS.map((w) => (
                         <option key={w.id} value={w.id}>
-                          {w.name}
+                          {tWard(w.id, language, w.name)}
                         </option>
                       ))}
                     </select>
@@ -920,17 +974,17 @@ export default function AdminDashboard({
 
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      Issue Category
+                      {isHi ? 'शिकायत श्रेणी' : 'Issue Category'}
                     </label>
                     <select
                       value={broadcastCategoryId}
                       onChange={(e) => setBroadcastCategoryId(e.target.value)}
                       className="w-full text-xs font-medium border border-slate-200 rounded-lg p-2.5 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     >
-                      <option value="">All Issue Categories</option>
+                      <option value="">{isHi ? 'सभी शिकायत श्रेणियाँ' : 'All Issue Categories'}</option>
                       {CATEGORIES.map((c) => (
                         <option key={c.id} value={c.id}>
-                          {c.name}
+                          {tCategoryName(c.id, language, c.name)}
                         </option>
                       ))}
                     </select>
@@ -942,9 +996,13 @@ export default function AdminDashboard({
                   <div className="flex items-center gap-2.5">
                     <Radio className="w-4 h-4 text-emerald-600 shrink-0" />
                     <div>
-                      <span className="font-bold text-emerald-950 block">Target Audience Estimation</span>
+                      <span className="font-bold text-emerald-950 block">
+                        {isHi ? 'अनुमानित प्राप्तकर्ता गणना' : 'Target Audience Estimation'}
+                      </span>
                       <span className="text-[11px] text-emerald-700">
-                        {broadcastMatchingComplaints.length} matching complaints → {estimatedBroadcastRecipients} deduplicated WhatsApp deliveries
+                        {isHi
+                          ? `${broadcastMatchingComplaints.length} मेल खाती शिकायतें → ${estimatedBroadcastRecipients} विशिष्ट WhatsApp डिलीवरी`
+                          : `${broadcastMatchingComplaints.length} matching complaints → ${estimatedBroadcastRecipients} deduplicated WhatsApp deliveries`}
                       </span>
                     </div>
                   </div>
@@ -955,46 +1013,57 @@ export default function AdminDashboard({
                       onChange={(e) => setBroadcastIncludeResolved(e.target.checked)}
                       className="rounded text-emerald-600 focus:ring-emerald-500 h-3.5 w-3.5"
                     />
-                    <span className="text-[11px] font-semibold text-slate-600">Include Resolved</span>
+                    <span className="text-[11px] font-semibold text-slate-600">
+                      {isHi ? 'हल की गई शामिल करें' : 'Include Resolved'}
+                    </span>
                   </label>
                 </div>
 
                 {/* Broadcast Title */}
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Announcement Title *
+                    {isHi ? 'घोषणा शीर्षक *' : 'Announcement Title *'}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Urgent Water Supply Restoration Update: Ward 42"
+                    placeholder={isHi ? 'जैसे: वार्ड 12 में जल आपूर्ति बहाली की सूचना' : 'e.g. Urgent Water Supply Restoration Update: Ward 42'}
                     value={broadcastTitle}
                     onChange={(e) => setBroadcastTitle(e.target.value)}
                     maxLength={100}
                     className="w-full text-xs font-semibold border border-slate-200 rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                   <div className="flex justify-end text-[10px] text-slate-400 mt-1">
-                    {broadcastTitle.length}/100 characters
+                    {broadcastTitle.length}/100 {isHi ? 'अक्षर' : 'characters'}
                   </div>
                 </div>
 
                 {/* Broadcast Message */}
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                    Official Message Content (Meta Cloud Template: <span className="font-mono text-emerald-700 font-bold">ss_civic_broadcast</span>) *
+                    {isHi ? 'आधिकारिक संदेश सामग्री (Meta टेम्पलेट:' : 'Official Message Content (Meta Cloud Template:'}{' '}
+                    <span className="font-mono text-emerald-700 font-bold">ss_civic_broadcast</span>) *
                   </label>
                   <textarea
                     required
                     rows={4}
-                    placeholder="Type the official message here. e.g. Emergency pipeline repair work in Sector 6 is 90% completed. Water supply pressure will be fully restored by 6:00 PM today. Thank you for your cooperation."
+                    placeholder={
+                      isHi
+                        ? 'यहाँ आधिकारिक संदेश लिखें। जैसे: सेक्टर 6 में पाइपलाइन मरम्मत कार्य 90% पूरा हो गया है। आज शाम 6:00 बजे तक पानी की आपूर्ति सामान्य हो जाएगी।'
+                        : 'Type the official message here. e.g. Emergency pipeline repair work in Sector 6 is 90% completed. Water supply pressure will be fully restored by 6:00 PM today. Thank you for your cooperation.'
+                    }
                     value={broadcastMessage}
                     onChange={(e) => setBroadcastMessage(e.target.value)}
                     maxLength={500}
                     className="w-full text-xs border border-slate-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-emerald-500 leading-relaxed"
                   />
                   <div className="flex justify-between text-[10px] text-slate-400 mt-1">
-                    <span>Sent as pre-approved Meta Business Template with verified sender badge.</span>
-                    <span>{broadcastMessage.length}/500 characters</span>
+                    <span>
+                      {isHi
+                        ? 'सत्यापित प्रेषक बैज के साथ पूर्व-अनुमोदित Meta बिज़नेस टेम्पलेट के रूप में भेजा जाता है।'
+                        : 'Sent as pre-approved Meta Business Template with verified sender badge.'}
+                    </span>
+                    <span>{broadcastMessage.length}/500 {isHi ? 'अक्षर' : 'characters'}</span>
                   </div>
                 </div>
 
@@ -1008,12 +1077,14 @@ export default function AdminDashboard({
                     {isSendingBroadcast ? (
                       <>
                         <Clock className="w-4 h-4 animate-spin" />
-                        Queueing Broadcast Batches...
+                        {isHi ? 'प्रसारण बैच कतारबद्ध किए जा रहे हैं...' : 'Queueing Broadcast Batches...'}
                       </>
                     ) : (
                       <>
                         <Send className="w-4 h-4" />
-                        Broadcast to {estimatedBroadcastRecipients} WhatsApp Inboxes
+                        {isHi
+                          ? `${estimatedBroadcastRecipients} WhatsApp इनबॉक्स पर प्रसारित करें`
+                          : `Broadcast to ${estimatedBroadcastRecipients} WhatsApp Inboxes`}
                       </>
                     )}
                   </button>
@@ -1026,9 +1097,11 @@ export default function AdminDashboard({
               <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-slate-400 text-[10px] px-2 font-mono">
                 <span className="flex items-center gap-1.5">
                   <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-                  WhatsApp Citizen Preview
+                  {isHi ? 'WhatsApp नागरिक पूर्वावलोकन' : 'WhatsApp Citizen Preview'}
                 </span>
-                <span className="text-emerald-400 font-bold">100% End-to-End Encrypted</span>
+                <span className="text-emerald-400 font-bold">
+                  {isHi ? '100% एंड-टू-एंड एन्क्रिप्टेड' : '100% End-to-End Encrypted'}
+                </span>
               </div>
 
               {/* Chat Container */}
@@ -1036,7 +1109,7 @@ export default function AdminDashboard({
                 {/* Meta Verified Business Tag */}
                 <div className="text-center">
                   <span className="bg-[#182229] text-slate-300 border border-slate-700/50 text-[9px] px-3 py-1 rounded-full font-medium shadow-xs">
-                    🔒 Official Verified Government Channel
+                    {isHi ? '🔒 आधिकारिक सत्यापित सरकारी चैनल' : '🔒 Official Verified Government Channel'}
                   </span>
                 </div>
 
@@ -1049,29 +1122,35 @@ export default function AdminDashboard({
                     </div>
                     <div>
                       <span className="font-extrabold text-[11px] text-white flex items-center gap-1">
-                        Samadhan Setu Civic Alerts
+                        {isHi ? 'समाधान सेतु नागरिक अलर्ट्स' : 'Samadhan Setu Civic Alerts'}
                         <span className="text-[10px] text-[#25D366]">✓</span>
                       </span>
-                      <span className="text-[9px] text-slate-400 block">Delhi Municipal Governance</span>
+                      <span className="text-[9px] text-slate-400 block">
+                        {isHi ? 'दिल्ली नगर निगम प्रशासन' : 'Delhi Municipal Governance'}
+                      </span>
                     </div>
                   </div>
 
                   {/* Message Title */}
                   <div className="text-emerald-300 font-bold text-xs">
-                    📢 {broadcastTitle || 'Urgent Civic Grievance Update'}
+                    📢 {broadcastTitle || (isHi ? 'आवश्यक नागरिक शिकायत अपडेट' : 'Urgent Civic Grievance Update')}
                   </div>
 
                   {/* Message Body */}
                   <p className="text-[11px] text-slate-200 leading-relaxed whitespace-pre-wrap">
                     {broadcastMessage ||
-                      'Official notice regarding civic repairs and ongoing maintenance work in your ward. Tap below to track real-time resolution progress.'}
+                      (isHi
+                        ? 'आपके वार्ड में चल रहे नागरिक मरम्मत और रखरखाव कार्य से संबंधित आधिकारिक सूचना। लाइव प्रगति देखने के लिए नीचे टैप करें।'
+                        : 'Official notice regarding civic repairs and ongoing maintenance work in your ward. Tap below to track real-time resolution progress.')}
                   </p>
 
                   {/* Ward / Area Tag */}
                   <div className="flex items-center gap-1 text-[10px] text-slate-400 pt-1">
                     <MapPin className="w-3 h-3 text-emerald-400" />
                     <span>
-                      {WARDS.find((w) => w.id === broadcastWardId)?.name || 'Dwarka Sub-City Wards'}
+                      {broadcastWardId
+                        ? tWard(broadcastWardId, language, WARDS.find((w) => w.id === broadcastWardId)?.name)
+                        : isHi ? 'द्वारका उप-नगर वार्ड' : 'Dwarka Sub-City Wards'}
                     </span>
                   </div>
 
@@ -1082,7 +1161,7 @@ export default function AdminDashboard({
                       className="w-full bg-[#111B21] hover:bg-[#182229] border border-slate-700/80 text-emerald-400 font-bold py-2 rounded-lg text-center text-[11px] flex items-center justify-center gap-1.5 transition-colors"
                     >
                       <Eye className="w-3.5 h-3.5" />
-                      View Grievance Status
+                      {isHi ? 'शिकायत स्थिति देखें' : 'View Grievance Status'}
                     </button>
                   </div>
 
@@ -1095,7 +1174,9 @@ export default function AdminDashboard({
               </div>
 
               <div className="text-[10px] text-slate-400 text-center px-3 pt-1">
-                Citizens receive pre-approved template updates with one-touch status tracking and reply actions.
+                {isHi
+                  ? 'नागरिकों को एक-टैप स्थिति ट्रैकिंग और उत्तर विकल्पों के साथ पूर्व-अनुमोदित अपडेट प्राप्त होते हैं।'
+                  : 'Citizens receive pre-approved template updates with one-touch status tracking and reply actions.'}
               </div>
             </div>
           </div>
@@ -1106,14 +1187,16 @@ export default function AdminDashboard({
               <div>
                 <h3 className="text-sm font-extrabold text-[#0F1B2D] flex items-center gap-2">
                   <Radio className="w-4 h-4 text-emerald-600" />
-                  Recent WhatsApp Broadcast Logs
+                  {isHi ? 'हालिया WhatsApp प्रसारण लॉग' : 'Recent WhatsApp Broadcast Logs'}
                 </h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">
-                  Audit logs and delivery receipts for all civic announcements dispatched.
+                  {isHi
+                    ? 'भेजी गई सभी नागरिक घोषणाओं के ऑडिट लॉग और डिलीवरी रसीदें।'
+                    : 'Audit logs and delivery receipts for all civic announcements dispatched.'}
                 </p>
               </div>
               <span className="bg-slate-100 text-slate-700 text-[10px] font-extrabold px-2.5 py-1 rounded-md">
-                {sentBroadcasts.length} Announcements Logged
+                {sentBroadcasts.length} {isHi ? 'घोषणाएँ दर्ज' : 'Announcements Logged'}
               </span>
             </div>
 
@@ -1121,12 +1204,12 @@ export default function AdminDashboard({
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200/80 text-[10px] font-extrabold uppercase text-slate-500 tracking-wider">
-                    <th className="py-3 px-4">Announcement Title</th>
-                    <th className="py-3 px-4">Target Ward</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4 text-center">Audience</th>
-                    <th className="py-3 px-4">Timestamp</th>
-                    <th className="py-3 px-4 text-right">Meta Status</th>
+                    <th className="py-3 px-4">{isHi ? 'घोषणा शीर्षक' : 'Announcement Title'}</th>
+                    <th className="py-3 px-4">{isHi ? 'लक्षित वार्ड' : 'Target Ward'}</th>
+                    <th className="py-3 px-4">{isHi ? 'श्रेणी' : 'Category'}</th>
+                    <th className="py-3 px-4 text-center">{isHi ? 'प्राप्तकर्ता' : 'Audience'}</th>
+                    <th className="py-3 px-4">{isHi ? 'समय' : 'Timestamp'}</th>
+                    <th className="py-3 px-4 text-right">{isHi ? 'Meta स्थिति' : 'Meta Status'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs">
@@ -1158,7 +1241,11 @@ export default function AdminDashboard({
                               : 'bg-amber-100 text-amber-800'
                           }`}
                         >
-                          {b.deliveryStatus === 'READ' ? '✓✓ Read' : b.deliveryStatus === 'DELIVERED' ? '✓✓ Delivered' : '✓ Accepted'}
+                          {b.deliveryStatus === 'READ'
+                            ? isHi ? '✓✓ पढ़ा गया' : '✓✓ Read'
+                            : b.deliveryStatus === 'DELIVERED'
+                            ? isHi ? '✓✓ वितरित' : '✓✓ Delivered'
+                            : isHi ? '✓ स्वीकृत' : '✓ Accepted'}
                         </span>
                       </td>
                     </tr>
@@ -1176,10 +1263,12 @@ export default function AdminDashboard({
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
             <div>
               <h2 className="text-lg font-extrabold text-[#0F1B2D]">
-                Municipal Department Performance Scorecard
+                {isHi ? 'नगर निगम विभाग प्रदर्शन स्कोरकार्ड' : 'Municipal Department Performance Scorecard'}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Evaluates resolution velocity, SLA adherence, and citizen satisfaction ratings across municipal bodies.
+                {isHi
+                  ? 'विभागों की समाधान गति, SLA अनुपालन दर और नागरिक संतुष्टि रेटिंग का मूल्यांकन।'
+                  : 'Evaluates resolution velocity, SLA adherence, and citizen satisfaction ratings across municipal bodies.'}
               </p>
             </div>
             <button
@@ -1199,12 +1288,12 @@ export default function AdminDashboard({
                 a.href = url;
                 a.download = `samadhan_setu_scorecard_${new Date().toISOString().slice(0, 10)}.csv`;
                 a.click();
-                toast.success('📊 Municipal Audit Scorecard exported as CSV!');
+                toast.success(isHi ? '📊 नगर निगम ऑडिट स्कोरकार्ड CSV के रूप में निर्यात किया गया!' : '📊 Municipal Audit Scorecard exported as CSV!');
               }}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-[#0F1B2D] hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
             >
               <Download className="w-3.5 h-3.5 text-[#F4511E]" />
-              <span>Export Audit CSV</span>
+              <span>{isHi ? 'ऑडिट CSV निर्यात करें' : 'Export Audit CSV'}</span>
             </button>
           </div>
 
@@ -1213,21 +1302,21 @@ export default function AdminDashboard({
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-slate-50/80 border-b border-[#E5E7EB] text-[#64748B] font-extrabold text-[10px] uppercase tracking-wider">
-                    <th className="py-3 px-4">Rank</th>
-                    <th className="py-3 px-4">Department</th>
-                    <th className="py-3 px-4">Avg Resolution Velocity</th>
-                    <th className="py-3 px-4">SLA Compliance Rate</th>
-                    <th className="py-3 px-4">Citizen Rating (CSAT)</th>
-                    <th className="py-3 px-4">Performance Grade</th>
+                    <th className="py-3 px-4">{isHi ? 'रैंक' : 'Rank'}</th>
+                    <th className="py-3 px-4">{isHi ? 'विभाग' : 'Department'}</th>
+                    <th className="py-3 px-4">{isHi ? 'औसत समाधान गति' : 'Avg Resolution Velocity'}</th>
+                    <th className="py-3 px-4">{isHi ? 'SLA अनुपालन दर' : 'SLA Compliance Rate'}</th>
+                    <th className="py-3 px-4">{isHi ? 'नागरिक रेटिंग (CSAT)' : 'Citizen Rating (CSAT)'}</th>
+                    <th className="py-3 px-4">{isHi ? 'प्रदर्शन ग्रेड' : 'Performance Grade'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E5E7EB]">
                   {[
-                    { rank: 1, name: 'Roads & Infrastructure (MCD)', velocity: '18.4 hrs', sla: '96.2%', rating: '4.8 ★', grade: 'A+', gradeColor: 'bg-emerald-100 text-emerald-800' },
-                    { rank: 2, name: 'Delhi Jal Board (DJB)', velocity: '24.1 hrs', sla: '92.5%', rating: '4.5 ★', grade: 'A', gradeColor: 'bg-emerald-50 text-emerald-700' },
-                    { rank: 3, name: 'Electricity & Lighting (BSES)', velocity: '28.6 hrs', sla: '89.1%', rating: '4.3 ★', grade: 'B+', gradeColor: 'bg-blue-50 text-blue-700' },
-                    { rank: 4, name: 'Irrigation & Flood Control', velocity: '34.2 hrs', sla: '85.0%', rating: '4.1 ★', grade: 'B', gradeColor: 'bg-amber-50 text-amber-700' },
-                    { rank: 5, name: 'Garbage & Solid Waste Management', velocity: '41.5 hrs', sla: '78.2%', rating: '3.7 ★', grade: 'C (Action Req)', gradeColor: 'bg-red-50 text-red-700' },
+                    { rank: 1, name: isHi ? 'सड़क एवं बुनियादी ढांचा (MCD)' : 'Roads & Infrastructure (MCD)', velocity: isHi ? '18.4 घंटे' : '18.4 hrs', sla: '96.2%', rating: '4.8 ★', grade: 'A+', gradeColor: 'bg-emerald-100 text-emerald-800' },
+                    { rank: 2, name: isHi ? 'दिल्ली जल बोर्ड (DJB)' : 'Delhi Jal Board (DJB)', velocity: isHi ? '24.1 घंटे' : '24.1 hrs', sla: '92.5%', rating: '4.5 ★', grade: 'A', gradeColor: 'bg-emerald-50 text-emerald-700' },
+                    { rank: 3, name: isHi ? 'विद्युत एवं स्ट्रीट लाइट (BSES)' : 'Electricity & Lighting (BSES)', velocity: isHi ? '28.6 घंटे' : '28.6 hrs', sla: '89.1%', rating: '4.3 ★', grade: 'B+', gradeColor: 'bg-blue-50 text-blue-700' },
+                    { rank: 4, name: isHi ? 'सिंचाई एवं बाढ़ नियंत्रण' : 'Irrigation & Flood Control', velocity: isHi ? '34.2 घंटे' : '34.2 hrs', sla: '85.0%', rating: '4.1 ★', grade: 'B', gradeColor: 'bg-amber-50 text-amber-700' },
+                    { rank: 5, name: isHi ? 'कचरा एवं ठोस अपशिष्ट प्रबंधन' : 'Garbage & Solid Waste Management', velocity: isHi ? '41.5 घंटे' : '41.5 hrs', sla: '78.2%', rating: '3.7 ★', grade: isHi ? 'C (सुधार आवश्यक)' : 'C (Action Req)', gradeColor: 'bg-red-50 text-red-700' },
                   ].map((dept) => (
                     <tr key={dept.rank} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3.5 px-4 font-mono font-bold text-[#0F1B2D]">#{dept.rank}</td>
@@ -1265,10 +1354,10 @@ export default function AdminDashboard({
             <div className="flex justify-between items-start border-b border-slate-100 pb-3">
               <div>
                 <span className="text-[9px] font-mono text-slate-400 font-bold block uppercase tracking-wider">
-                  ADMIN OVERRIDE DISPATCH PANEL
+                  {isHi ? 'प्रशासनिक नियंत्रण एवं प्रेषण पैनल' : 'ADMIN OVERRIDE DISPATCH PANEL'}
                 </span>
                 <h3 className="text-base font-extrabold text-[#0F172A]">
-                  Overriding Ticket {currentAdminSelectedComplaint.id}
+                  {isHi ? `टिकट ${currentAdminSelectedComplaint.id} में बदलाव` : `Overriding Ticket ${currentAdminSelectedComplaint.id}`}
                 </h3>
               </div>
               <button
@@ -1284,27 +1373,31 @@ export default function AdminDashboard({
               
               {/* Dept assignment */}
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Route to Bureau / Department</label>
+                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                  {isHi ? 'विभाग / ब्यूरो को भेजें' : 'Route to Bureau / Department'}
+                </label>
                 <select
                   value={assignDeptId}
                   onChange={(e) => setAssignDeptId(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs text-[#0F172A]"
                 >
                   {DEPARTMENTS.map((d) => (
-                    <option key={d.id} value={d.id}>{d.name}</option>
+                    <option key={d.id} value={d.id}>{tDepartment(d.id, language, d.name)}</option>
                   ))}
                 </select>
               </div>
 
               {/* Officer Allocation selection based on matching department */}
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Designated Field Engineer</label>
+                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                  {isHi ? 'नियुक्त फील्ड इंजीनियर' : 'Designated Field Engineer'}
+                </label>
                 <select
                   value={assignOfficerId}
                   onChange={(e) => setAssignOfficerId(e.target.value)}
                   className="w-full px-3 py-2 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs text-[#0F172A]"
                 >
-                  <option value="">-- Assign Available Field Engineer --</option>
+                  <option value="">{isHi ? '-- उपलब्ध फील्ड इंजीनियर चुनें --' : '-- Assign Available Field Engineer --'}</option>
                   {OFFICERS.filter((o) => o.departmentId === assignDeptId).map((o) => (
                     <option key={o.id} value={o.id}>{o.name} ({o.status})</option>
                   ))}
@@ -1313,27 +1406,35 @@ export default function AdminDashboard({
 
               {/* Priority override */}
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Priority Override</label>
+                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                  {isHi ? 'प्राथमिकता बदलें' : 'Priority Override'}
+                </label>
                 <select
                   value={overridePriority}
                   onChange={(e) => setOverridePriority(e.target.value as any)}
                   className="w-full px-3 py-2 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs text-[#0F172A]"
                 >
-                  <option value="">Keep current priority</option>
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="critical">Critical</option>
+                  <option value="">{isHi ? 'वर्तमान प्राथमिकता बनाए रखें' : 'Keep current priority'}</option>
+                  <option value="low">{tPriority('low', language)}</option>
+                  <option value="medium">{tPriority('medium', language)}</option>
+                  <option value="high">{tPriority('high', language)}</option>
+                  <option value="critical">{tPriority('critical', language)}</option>
                 </select>
               </div>
 
               {/* Internal Auditor notes */}
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Internal Note / Escalation Reason</label>
+                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                  {isHi ? 'आंतरिक टिप्पणी / एस्केलेशन कारण' : 'Internal Note / Escalation Reason'}
+                </label>
                 <textarea
                   value={internalNote}
                   onChange={(e) => setInternalNote(e.target.value)}
-                  placeholder="Explain why override was applied (e.g. Citizen requested priority escalation, wrong automatic category routing corrected)."
+                  placeholder={
+                    isHi
+                      ? 'बदलाव का कारण लिखें (जैसे: नागरिक द्वारा प्राथमिकता बढ़ाने का अनुरोध, गलत श्रेणी सुधार)।'
+                      : 'Explain why override was applied (e.g. Citizen requested priority escalation, wrong automatic category routing corrected).'
+                  }
                   rows={3}
                   className="w-full px-3 py-2 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs text-[#0F172A]"
                 />
@@ -1346,13 +1447,13 @@ export default function AdminDashboard({
                   onClick={() => setSelectedAdminId(null)}
                   className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-[#0F1B2D] rounded-lg font-bold uppercase tracking-wider text-[10px]"
                 >
-                  Cancel
+                  {isHi ? 'रद्द करें' : 'Cancel'}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-[#F4511E] hover:bg-[#FF6A2A] text-white rounded-lg font-bold uppercase tracking-wider text-[10px] transition-colors"
                 >
-                  Save Override Changes
+                  {isHi ? 'बदलाव सहेजें' : 'Save Override Changes'}
                 </button>
               </div>
 

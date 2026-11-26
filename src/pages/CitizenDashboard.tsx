@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Complaint } from '../data/mockData';
+import { tSubcategory, tStatus } from '../i18n/translations';
 import {
   Search,
   Filter,
@@ -25,7 +26,9 @@ export default function CitizenDashboard({
   setPage,
   setSelectedTrackedId,
   setTrackingInput,
+  language = 'en',
 }: CitizenDashboardProps) {
+  const isHi = language === 'hi';
   const [filterStatus, setFilterStatus] = useState<'All' | 'Submitted' | 'In Progress' | 'Resolved' | 'Closed'>('All');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -76,14 +79,20 @@ export default function CitizenDashboard({
       {/* Header Panel */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F1B2D]">Good morning, Uttamraj.</h1>
-          <p className="text-xs sm:text-sm text-[#64748B]">Here is the operational status of your filed community reports.</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F1B2D]">
+            {isHi ? 'नमस्ते, उत्तमराज।' : 'Good morning, Uttamraj.'}
+          </h1>
+          <p className="text-xs sm:text-sm text-[#64748B]">
+            {isHi
+              ? 'यहाँ आपकी दर्ज की गई नागरिक शिकायतों की वर्तमान कार्य-स्थिति दी गई है।'
+              : 'Here is the operational status of your filed community reports.'}
+          </p>
         </div>
         <button
           onClick={() => setPage('raise')}
           className="flex items-center gap-1.5 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-xs"
         >
-          <Plus className="w-4 h-4" /> Raise New Complaint
+          <Plus className="w-4 h-4" /> {isHi ? 'नई शिकायत दर्ज करें' : 'Raise New Complaint'}
         </button>
       </div>
 
@@ -92,7 +101,9 @@ export default function CitizenDashboard({
         {/* Stat 1 */}
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">Total Filed</p>
+            <p className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">
+              {isHi ? 'कुल दर्ज' : 'Total Filed'}
+            </p>
             <p className="text-2xl font-extrabold font-mono text-[#0F1B2D] tabular-nums mt-1">{totalCount}</p>
           </div>
           <div className="p-3 bg-slate-50 text-[#0F1B2D] rounded-lg border border-slate-100">
@@ -103,7 +114,9 @@ export default function CitizenDashboard({
         {/* Stat 2 */}
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">Pending Routing</p>
+            <p className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">
+              {isHi ? 'लंबित रूटिंग' : 'Pending Routing'}
+            </p>
             <p className="text-2xl font-extrabold font-mono text-amber-500 tabular-nums mt-1">{pendingCount}</p>
           </div>
           <div className="p-3 bg-amber-50 text-amber-600 rounded-lg border border-amber-100">
@@ -114,7 +127,9 @@ export default function CitizenDashboard({
         {/* Stat 3 */}
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">In Investigation</p>
+            <p className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">
+              {isHi ? 'कार्य प्रगति पर' : 'In Investigation'}
+            </p>
             <p className="text-2xl font-extrabold font-mono text-blue-500 tabular-nums mt-1">{progressCount}</p>
           </div>
           <div className="p-3 bg-blue-50 text-blue-600 rounded-lg border border-blue-100">
@@ -125,7 +140,9 @@ export default function CitizenDashboard({
         {/* Stat 4 */}
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs flex items-center justify-between">
           <div>
-            <p className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">Action Completed</p>
+            <p className="text-[10px] font-extrabold text-[#64748B] uppercase tracking-wider">
+              {isHi ? 'कार्रवाई पूर्ण' : 'Action Completed'}
+            </p>
             <p className="text-2xl font-extrabold font-mono text-emerald-500 tabular-nums mt-1">{resolvedCount}</p>
           </div>
           <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">
@@ -144,6 +161,12 @@ export default function CitizenDashboard({
           <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-lg self-start">
             {(['All', 'Submitted', 'In Progress', 'Resolved', 'Closed'] as const).map((status) => {
               const isActive = filterStatus === status;
+              const filterLabel =
+                status === 'All'
+                  ? isHi ? 'सभी' : 'All'
+                  : status === 'Submitted'
+                  ? isHi ? 'लंबित' : 'Pending'
+                  : tStatus(status, language);
               return (
                 <button
                   key={status}
@@ -154,7 +177,7 @@ export default function CitizenDashboard({
                       : 'text-[#64748B] hover:text-[#0F172A]'
                   }`}
                 >
-                  {status === 'Submitted' ? 'Pending' : status}
+                  {filterLabel}
                 </button>
               );
             })}
@@ -167,7 +190,7 @@ export default function CitizenDashboard({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by ID, keyword, address..."
+              placeholder={isHi ? 'आईडी, विषय या पता से खोजें...' : 'Search by ID, keyword, address...'}
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-[#E5E7EB] rounded-lg focus:outline-none focus:border-[#F4511E] text-[#0F172A]"
             />
           </div>
@@ -181,20 +204,26 @@ export default function CitizenDashboard({
                 <AlertTriangle className="w-8 h-8 mx-auto" />
               </div>
               <div className="space-y-1">
-                <p className="text-sm font-bold text-[#0F1B2D]">No complaints found</p>
-                <p className="text-xs text-[#64748B]">Try updating your status filters or inputting a different search keyword.</p>
+                <p className="text-sm font-bold text-[#0F1B2D]">
+                  {isHi ? 'कोई शिकायत नहीं मिली' : 'No complaints found'}
+                </p>
+                <p className="text-xs text-[#64748B]">
+                  {isHi
+                    ? 'कृपया स्थिति फ़िल्टर बदलें या कोई दूसरा खोज शब्द दर्ज करें।'
+                    : 'Try updating your status filters or inputting a different search keyword.'}
+                </p>
               </div>
             </div>
           ) : (
             <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-100 text-[10px] uppercase font-bold text-slate-500 tracking-wider">
-                  <th className="py-3 px-5">Complaint ID</th>
-                  <th className="py-3 px-5">Issue Details</th>
-                  <th className="py-3 px-5">Location</th>
-                  <th className="py-3 px-5">Date Filed</th>
-                  <th className="py-3 px-5">Status</th>
-                  <th className="py-3 px-5 text-right">Actions</th>
+                  <th className="py-3 px-5">{isHi ? 'शिकायत आईडी' : 'Complaint ID'}</th>
+                  <th className="py-3 px-5">{isHi ? 'समस्या विवरण' : 'Issue Details'}</th>
+                  <th className="py-3 px-5">{isHi ? 'स्थान' : 'Location'}</th>
+                  <th className="py-3 px-5">{isHi ? 'दर्ज तिथि' : 'Date Filed'}</th>
+                  <th className="py-3 px-5">{isHi ? 'स्थिति' : 'Status'}</th>
+                  <th className="py-3 px-5 text-right">{isHi ? 'कार्रवाई' : 'Actions'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-xs">
@@ -210,7 +239,9 @@ export default function CitizenDashboard({
                     <td className="py-4 px-5 max-w-xs">
                       <div className="space-y-1">
                         <p className="font-semibold text-[#0F172A] truncate">{complaint.title}</p>
-                        <p className="text-[10px] text-slate-400 font-medium">Category: {complaint.subcategory}</p>
+                        <p className="text-[10px] text-slate-400 font-medium">
+                          {isHi ? 'श्रेणी:' : 'Category:'} {tSubcategory(complaint.subcategory, language)}
+                        </p>
                       </div>
                     </td>
 
@@ -224,7 +255,7 @@ export default function CitizenDashboard({
 
                     {/* Submission Date */}
                     <td className="py-4 px-5 font-mono text-[#64748B] tabular-nums">
-                      {new Date(complaint.createdAt).toLocaleDateString(undefined, {
+                      {new Date(complaint.createdAt).toLocaleDateString(isHi ? 'hi-IN' : undefined, {
                         day: 'numeric',
                         month: 'short',
                         year: 'numeric',
@@ -234,7 +265,7 @@ export default function CitizenDashboard({
                     {/* Status badge */}
                     <td className="py-4 px-5 font-semibold">
                       <span className={getStatusStyle(complaint.status)}>
-                        {complaint.status === 'Submitted' ? 'Pending Routing' : complaint.status}
+                        {tStatus(complaint.status, language)}
                       </span>
                     </td>
 
@@ -244,7 +275,7 @@ export default function CitizenDashboard({
                         onClick={() => handleViewDetails(complaint.id)}
                         className="inline-flex items-center gap-1.5 bg-white border border-[#E5E7EB] hover:bg-[#0F1B2D] hover:text-white hover:border-[#0F1B2D] px-3 py-1.5 rounded-lg text-[11px] font-bold text-[#0F172A] transition-all"
                       >
-                        <Eye className="w-3.5 h-3.5" /> View Details
+                        <Eye className="w-3.5 h-3.5" /> {isHi ? 'विवरण देखें' : 'View Details'}
                       </button>
                     </td>
 

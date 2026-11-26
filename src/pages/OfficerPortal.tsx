@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Complaint, Officer, OFFICERS, ComplaintUpdate } from '../data/mockData';
+import { tSubcategory, tStatus, tDepartment } from '../i18n/translations';
 import {
   CheckCircle2,
   Clock,
@@ -37,7 +38,9 @@ export default function OfficerPortal({
   setPage,
   setSelectedTrackedId,
   setTrackingInput,
+  language = 'en',
 }: OfficerPortalProps) {
+  const isHi = language === 'hi';
   const currentOfficer = OFFICERS.find((o) => o.id === officerId) || OFFICERS[0];
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   
@@ -54,7 +57,11 @@ export default function OfficerPortal({
     if (!navigator.geolocation) {
       setIsCheckingGps(false);
       setGeofenceStatus({ verified: true, distanceMeters: 38 });
-      toast.success('📍 On-Site Geofence Verified: 38m from repair coordinates.');
+      toast.success(
+        isHi
+          ? '📍 ऑन-साइट जियोफेंस सत्यापित: मरम्मत स्थल से 38 मीटर दूर।'
+          : '📍 On-Site Geofence Verified: 38m from repair coordinates.',
+      );
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -78,15 +85,27 @@ export default function OfficerPortal({
         setGeofenceStatus({ verified, distanceMeters });
 
         if (verified) {
-          toast.success(`📍 Geofence Verified: ${distanceMeters}m from site (within 250m perimeter)`);
+          toast.success(
+            isHi
+              ? `📍 जियोफेंस सत्यापित: स्थल से ${distanceMeters} मी (250 मी सीमा के भीतर)`
+              : `📍 Geofence Verified: ${distanceMeters}m from site (within 250m perimeter)`,
+          );
         } else {
-          toast(`⚠️ Geofence Warning: Officer is ${distanceMeters}m from the recorded complaint location.`);
+          toast(
+            isHi
+              ? `⚠️ जियोफेंस चेतावनी: अधिकारी दर्ज स्थान से ${distanceMeters} मी दूर हैं।`
+              : `⚠️ Geofence Warning: Officer is ${distanceMeters}m from the recorded complaint location.`,
+          );
         }
       },
       () => {
         setIsCheckingGps(false);
         setGeofenceStatus({ verified: true, distanceMeters: 42 });
-        toast.success('📍 On-Site Geofence Verified: 42m from repair coordinates.');
+        toast.success(
+          isHi
+            ? '📍 ऑन-साइट जियोफेंस सत्यापित: मरम्मत स्थल से 42 मी दूर।'
+            : '📍 On-Site Geofence Verified: 42m from repair coordinates.',
+        );
       },
       { timeout: 6000 }
     );
@@ -112,8 +131,10 @@ export default function OfficerPortal({
     const newLog: ComplaintUpdate = {
       id: `up_${Date.now()}`,
       complaintId: complaint.id,
-      title: 'Work Order Accepted & In Progress',
-      description: `Field Officer ${currentOfficer.name} has accepted the assignment and started repairs.`,
+      title: isHi ? 'कार्य आदेश स्वीकृत एवं प्रगति पर' : 'Work Order Accepted & In Progress',
+      description: isHi
+        ? `फील्ड अधिकारी ${currentOfficer.name} ने कार्य स्वीकार कर लिया है और मरम्मत शुरू कर दी है।`
+        : `Field Officer ${currentOfficer.name} has accepted the assignment and started repairs.`,
       timestamp: new Date().toISOString(),
       authorName: currentOfficer.name,
       authorRole: 'officer',
@@ -121,13 +142,17 @@ export default function OfficerPortal({
 
     onUpdateComplaint(updated);
     onAddUpdateLog(newLog);
-    toast(`💼 Job ${complaint.id} accepted! Status changed to "In Progress".`);
+    toast(
+      isHi
+        ? `💼 कार्य ${complaint.id} स्वीकार किया गया! स्थिति "कार्य प्रगति पर" सेट की गई।`
+        : `💼 Job ${complaint.id} accepted! Status changed to "In Progress".`,
+    );
   };
 
   const handleResolveJobSubmit = (e: React.FormEvent, complaint: Complaint) => {
     e.preventDefault();
     if (!resolutionNote.trim()) {
-      toast('Please provide a resolution note detailing the repairs done!');
+      toast(isHi ? 'कृपया की गई मरम्मत का विवरण दर्ज करें!' : 'Please provide a resolution note detailing the repairs done!');
       return;
     }
 
@@ -145,8 +170,10 @@ export default function OfficerPortal({
     const newLog: ComplaintUpdate = {
       id: `up_${Date.now()}`,
       complaintId: complaint.id,
-      title: 'Complaint Marked Resolved',
-      description: `Grievance has been fixed. Resolution details: "${resolutionNote}". Awaiting citizen verification.`,
+      title: isHi ? 'शिकायत का समाधान दर्ज किया गया' : 'Complaint Marked Resolved',
+      description: isHi
+        ? `समस्या ठीक कर दी गई है। विवरण: "${resolutionNote}"। नागरिक सत्यापन प्रतीक्षित है।`
+        : `Grievance has been fixed. Resolution details: "${resolutionNote}". Awaiting citizen verification.`,
       timestamp: new Date().toISOString(),
       authorName: currentOfficer.name,
       authorRole: 'officer',
@@ -157,7 +184,11 @@ export default function OfficerPortal({
     setSelectedJobId(null);
     setResolutionNote('');
     setResolutionProofPhotoSimulated(false);
-    toast(`✓ Job ${complaint.id} marked as RESOLVED. Citizen has been notified to verify.`);
+    toast(
+      isHi
+        ? `✓ कार्य ${complaint.id} हल चिह्नित किया गया। नागरिक को सत्यापन के लिए सूचित कर दिया गया है।`
+        : `✓ Job ${complaint.id} marked as RESOLVED. Citizen has been notified to verify.`,
+    );
   };
 
   const handleTrackDirect = (id: string) => {
@@ -175,32 +206,35 @@ export default function OfficerPortal({
       <div className="border-b border-slate-200 pb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <span className="text-[10px] font-extrabold tracking-widest text-[#F4511E] bg-orange-50 px-2.5 py-1 rounded-md border border-orange-100 uppercase">
-            MUNICIPAL OPERATIONS BOARD
+            {isHi ? 'नगर निगम संचालन बोर्ड' : 'MUNICIPAL OPERATIONS BOARD'}
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F1B2D] mt-2">
-            Welcome back, {currentOfficer.name}
+            {isHi ? `स्वागत है, ${currentOfficer.name}` : `Welcome back, ${currentOfficer.name}`}
           </h1>
           <p className="text-xs text-[#64748B] mt-1">
-            Department: <strong className="text-[#0F1B2D]">Roads & Infrastructure</strong> · Field Engineer ID: <strong className="text-slate-700 font-mono">{currentOfficer.id}</strong>
+            {isHi ? 'विभाग:' : 'Department:'}{' '}
+            <strong className="text-[#0F1B2D]">{tDepartment('dept_roads', language, 'Roads & Infrastructure')}</strong> ·{' '}
+            {isHi ? 'फील्ड इंजीनियर आईडी:' : 'Field Engineer ID:'}{' '}
+            <strong className="text-slate-700 font-mono">{currentOfficer.id}</strong>
           </p>
         </div>
 
         {/* Short stats summary strip */}
         <div className="flex gap-4 text-xs flex-wrap">
           <div className="bg-white border border-slate-200 rounded-lg px-4 py-2 text-center">
-            <p className="text-[10px] font-bold text-slate-400 uppercase">My Workload</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase">{isHi ? 'मेरा कार्यभार' : 'My Workload'}</p>
             <p className="text-lg font-extrabold font-mono text-[#0F1B2D] mt-0.5">{totalJobs}</p>
           </div>
           <div className="bg-amber-50 border border-amber-100 rounded-lg px-4 py-2 text-center">
-            <p className="text-[10px] font-bold text-amber-500 uppercase">New</p>
+            <p className="text-[10px] font-bold text-amber-500 uppercase">{isHi ? 'नए कार्य' : 'New'}</p>
             <p className="text-lg font-extrabold font-mono text-amber-600 mt-0.5">{pendingAcceptance}</p>
           </div>
           <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-2 text-center">
-            <p className="text-[10px] font-bold text-red-500 uppercase">Near SLA / Escalated</p>
+            <p className="text-[10px] font-bold text-red-500 uppercase">{isHi ? 'SLA निकट / एस्केलेटेड' : 'Near SLA / Escalated'}</p>
             <p className="text-lg font-extrabold font-mono text-red-600 mt-0.5">{nearSlaJobs}</p>
           </div>
           <div className="bg-emerald-50 border border-emerald-100 rounded-lg px-4 py-2 text-center">
-            <p className="text-[10px] font-bold text-emerald-500 uppercase">Resolved</p>
+            <p className="text-[10px] font-bold text-emerald-500 uppercase">{isHi ? 'समाधान पूर्ण' : 'Resolved'}</p>
             <p className="text-lg font-extrabold font-mono text-emerald-600 mt-0.5">{resolvedJobs}</p>
           </div>
         </div>
@@ -211,14 +245,21 @@ export default function OfficerPortal({
         {/* Left Column: Work Orders List (6 columns) */}
         <div className="lg:col-span-7 space-y-4">
           <h2 className="text-base font-extrabold uppercase tracking-widest text-[#0F1B2D] flex items-center gap-2">
-            <Layers className="w-4 h-4 text-[#F4511E]" /> Active Field Work Orders ({assignedJobs.filter(j => j.status !== 'Closed').length})
+            <Layers className="w-4 h-4 text-[#F4511E]" />
+            {isHi
+              ? `सक्रिय फील्ड कार्य आदेश (${assignedJobs.filter(j => j.status !== 'Closed').length})`
+              : `Active Field Work Orders (${assignedJobs.filter(j => j.status !== 'Closed').length})`}
           </h2>
 
           {assignedJobs.length === 0 ? (
             <div className="bg-white border border-[#E5E7EB] rounded-xl p-12 text-center space-y-2">
               <Clock className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="font-bold text-[#0F1B2D] text-sm">No active jobs assigned</p>
-              <p className="text-xs text-[#64748B]">You are currently caught up with all maintenance requests.</p>
+              <p className="font-bold text-[#0F1B2D] text-sm">
+                {isHi ? 'कोई सक्रिय कार्य लंबित नहीं है' : 'No active jobs assigned'}
+              </p>
+              <p className="text-xs text-[#64748B]">
+                {isHi ? 'वर्तमान में सभी रखरखाव अनुरोध पूरे हो चुके हैं।' : 'You are currently caught up with all maintenance requests.'}
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -234,7 +275,7 @@ export default function OfficerPortal({
                     <div className="flex justify-between items-start gap-4 mb-3">
                       <div>
                         <span className="text-[10px] font-mono text-slate-400 font-bold block tracking-wider uppercase">
-                          {job.id} · {job.subcategory}
+                          {job.id} · {tSubcategory(job.subcategory, language)}
                         </span>
                         <h3 className="font-bold text-sm text-[#0F1B2D] mt-1 leading-snug">
                           {job.title}
@@ -249,7 +290,9 @@ export default function OfficerPortal({
                             : 'bg-emerald-50 text-emerald-700 border-emerald-100'
                         }`}
                       >
-                        {job.status === 'Assigned' ? 'Awaiting Acceptance' : job.status}
+                        {job.status === 'Assigned'
+                          ? isHi ? 'स्वीकृति लंबित' : 'Awaiting Acceptance'
+                          : tStatus(job.status, language)}
                       </span>
                     </div>
 
@@ -267,7 +310,7 @@ export default function OfficerPortal({
                           onClick={() => handleTrackDirect(job.id)}
                           className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 rounded-lg text-[11px] font-bold text-slate-700 transition-colors"
                         >
-                          Details
+                          {isHi ? 'विवरण' : 'Details'}
                         </button>
 
                         {job.status === 'Assigned' && (
@@ -275,7 +318,7 @@ export default function OfficerPortal({
                             onClick={() => handleAcceptJob(job)}
                             className="bg-[#0F1B2D] hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-colors"
                           >
-                            Accept Work Order
+                            {isHi ? 'कार्य आदेश स्वीकार करें' : 'Accept Work Order'}
                           </button>
                         )}
 
@@ -288,7 +331,7 @@ export default function OfficerPortal({
                             }}
                             className="bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-3.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-colors"
                           >
-                            Resolve Job
+                            {isHi ? 'समाधान दर्ज करें' : 'Resolve Job'}
                           </button>
                         )}
                       </div>
@@ -306,12 +349,12 @@ export default function OfficerPortal({
             <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-xs space-y-6">
               <div className="border-b border-slate-100 pb-4">
                 <span className="text-[9px] font-mono font-bold text-slate-400 block uppercase tracking-wider">
-                  SUBMIT RESOLUTION PROOF
+                  {isHi ? 'समाधान प्रमाण जमा करें' : 'SUBMIT RESOLUTION PROOF'}
                 </span>
                 <h2 className="text-base font-extrabold text-[#0F1B2D] mt-1 truncate">
-                  Job {selectedJobObj.id}
+                  {isHi ? `कार्य ${selectedJobObj.id}` : `Job ${selectedJobObj.id}`}
                 </h2>
-                <p className="text-xs text-slate-500 mt-1">{selectedJobObj.subcategory}</p>
+                <p className="text-xs text-slate-500 mt-1">{tSubcategory(selectedJobObj.subcategory, language)}</p>
               </div>
 
               <form onSubmit={(e) => handleResolveJobSubmit(e, selectedJobObj)} className="space-y-4 text-xs">
@@ -321,7 +364,7 @@ export default function OfficerPortal({
                   <div className="flex items-center justify-between">
                     <span className="font-bold text-[#0F1B2D] uppercase tracking-wider text-[11px] flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-[#F4511E]" />
-                      Field Geofence Check (250m)
+                      {isHi ? 'स्थल जियोफेंस जांच (250 मी)' : 'Field Geofence Check (250m)'}
                     </span>
                     <button
                       type="button"
@@ -332,12 +375,12 @@ export default function OfficerPortal({
                       {isCheckingGps ? (
                         <>
                           <Loader2 className="w-3 h-3 animate-spin text-[#F4511E]" />
-                          <span>Checking GPS...</span>
+                          <span>{isHi ? 'GPS जांचा जा रहा है...' : 'Checking GPS...'}</span>
                         </>
                       ) : (
                         <>
                           <Crosshair className="w-3 h-3 text-[#F4511E]" />
-                          <span>Verify My Location</span>
+                          <span>{isHi ? 'मेरा स्थान सत्यापित करें' : 'Verify My Location'}</span>
                         </>
                       )}
                     </button>
@@ -347,28 +390,44 @@ export default function OfficerPortal({
                     geofenceStatus.verified ? (
                       <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
                         <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                        <span>✓ Geofence Verified: {geofenceStatus.distanceMeters}m from site. Official on-site inspection confirmed.</span>
+                        <span>
+                          {isHi
+                            ? `✓ जियोफेंस सत्यापित: स्थल से ${geofenceStatus.distanceMeters} मी दूर। ऑन-साइट उपस्थिति प्रमाणित।`
+                            : `✓ Geofence Verified: ${geofenceStatus.distanceMeters}m from site. Official on-site inspection confirmed.`}
+                        </span>
                       </div>
                     ) : (
                       <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 text-[11px] font-bold">
                         <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
-                        <span>⚠️ Distance Warning: Device is {geofenceStatus.distanceMeters}m from site. Resolution will be flagged for review.</span>
+                        <span>
+                          {isHi
+                            ? `⚠️ दूरी चेतावनी: डिवाइस स्थल से ${geofenceStatus.distanceMeters} मी दूर है। समीक्षा के लिए चिह्नित किया जाएगा।`
+                            : `⚠️ Distance Warning: Device is ${geofenceStatus.distanceMeters}m from site. Resolution will be flagged for review.`}
+                        </span>
                       </div>
                     )
                   ) : (
                     <p className="text-[10px] text-slate-500">
-                      Tap "Verify My Location" to certify that you are physically present at the repair site.
+                      {isHi
+                        ? 'यह प्रमाणित करने के लिए "मेरा स्थान सत्यापित करें" पर टैप करें कि आप मरम्मत स्थल पर मौजूद हैं।'
+                        : 'Tap "Verify My Location" to certify that you are physically present at the repair site.'}
                     </p>
                   )}
                 </div>
 
                 {/* Simulated resolution text proof */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Resolution Work Summary *</label>
+                  <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                    {isHi ? 'समाधान कार्य सारांश *' : 'Resolution Work Summary *'}
+                  </label>
                   <textarea
                     value={resolutionNote}
                     onChange={(e) => setResolutionNote(e.target.value)}
-                    placeholder="Write a clear report of repairs made (e.g. Swapped two relays, patched potholes using 3 bags of asphalt mix, verified light poles active)."
+                    placeholder={
+                      isHi
+                        ? 'की गई मरम्मत का स्पष्ट विवरण लिखें (जैसे: दो रिले बदले गए, 3 बैग डामर मिश्रण से गड्ढा भरा गया, स्ट्रीट लाइट चालू की गई)।'
+                        : 'Write a clear report of repairs made (e.g. Swapped two relays, patched potholes using 3 bags of asphalt mix, verified light poles active).'
+                    }
                     rows={4}
                     className="w-full px-3 py-2.5 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs focus:outline-none focus:border-[#F4511E] text-[#0F172A]"
                     required
@@ -377,16 +436,18 @@ export default function OfficerPortal({
 
                 {/* Simulated photo proof uploader */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Upload Verification Photo *</label>
+                  <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                    {isHi ? 'सत्यापन फ़ोटो अपलोड करें *' : 'Upload Verification Photo *'}
+                  </label>
                   {resolutionProofPhotoSimulated ? (
                     <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-between font-bold text-emerald-800">
-                      <span>✓ repair_proof_photo.jpg uploaded</span>
+                      <span>✓ {isHi ? 'repair_proof_photo.jpg अपलोड हो गई' : 'repair_proof_photo.jpg uploaded'}</span>
                       <button
                         type="button"
                         onClick={() => setResolutionProofPhotoSimulated(false)}
                         className="text-red-500 hover:underline font-normal text-xs"
                       >
-                        Remove
+                        {isHi ? 'हटाएँ' : 'Remove'}
                       </button>
                     </div>
                   ) : (
@@ -394,13 +455,21 @@ export default function OfficerPortal({
                       type="button"
                       onClick={() => {
                         setResolutionProofPhotoSimulated(true);
-                        toast('📸 Photo proof simulated! A high-resolution post-repair photo is attached.');
+                        toast(
+                          isHi
+                            ? '📸 फ़ोटो प्रमाण संलग्न किया गया! मरम्मत के बाद की उच्च-गुणवत्ता फ़ोटो जोड़ दी गई है।'
+                            : '📸 Photo proof simulated! A high-resolution post-repair photo is attached.',
+                        );
                       }}
                       className="border-2 border-dashed border-slate-200 hover:border-[#F4511E] bg-slate-50 rounded-xl p-6 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-[#64748B]"
                     >
                       <Upload className="w-5 h-5 text-[#F4511E]" />
-                      <span className="font-bold text-slate-700">Attach Post-Repair Photo</span>
-                      <span className="text-[10px] text-slate-400">Click to attach high-quality visual evidence of completion.</span>
+                      <span className="font-bold text-slate-700">
+                        {isHi ? 'मरम्मत के बाद की फ़ोटो संलग्न करें' : 'Attach Post-Repair Photo'}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        {isHi ? 'कार्य पूर्ण होने का स्पष्ट दृश्य प्रमाण अपलोड करने के लिए क्लिक करें।' : 'Click to attach high-quality visual evidence of completion.'}
+                      </span>
                     </button>
                   )}
                 </div>
@@ -409,8 +478,12 @@ export default function OfficerPortal({
                 <div className="p-3.5 bg-amber-50/50 border border-amber-100 rounded-xl flex gap-3 text-[#B45309]">
                   <AlertTriangle className="w-5 h-5 shrink-0 text-amber-500" />
                   <div className="space-y-0.5 leading-snug">
-                    <p className="font-bold text-xs text-amber-800">Operational Notice</p>
-                    <p className="text-[10px] text-amber-700 font-medium">Resolving this job triggers an instant notification to the citizen to verify. If the citizen is not satisfied, the complaint can be reopened within 48 hours.</p>
+                    <p className="font-bold text-xs text-amber-800">{isHi ? 'परिचालन सूचना' : 'Operational Notice'}</p>
+                    <p className="text-[10px] text-amber-700 font-medium">
+                      {isHi
+                        ? 'इस कार्य को हल करने पर नागरिक को तुरंत सत्यापन सूचना भेजी जाएगी। असंतुष्ट होने पर नागरिक 48 घंटे में शिकायत पुनः खोल सकते हैं।'
+                        : 'Resolving this job triggers an instant notification to the citizen to verify. If the citizen is not satisfied, the complaint can be reopened within 48 hours.'}
+                    </p>
                   </div>
                 </div>
 
@@ -421,13 +494,13 @@ export default function OfficerPortal({
                     onClick={() => setSelectedJobId(null)}
                     className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 py-2.5 rounded-lg font-bold uppercase tracking-wider text-[10px]"
                   >
-                    Cancel
+                    {isHi ? 'रद्द करें' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
                     className="flex-1 bg-[#16A34A] hover:bg-emerald-600 text-white py-2.5 rounded-lg font-bold uppercase tracking-wider text-[10px] transition-colors"
                   >
-                    Submit Proof & Resolve
+                    {isHi ? 'प्रमाण जमा करें और हल करें' : 'Submit Proof & Resolve'}
                   </button>
                 </div>
 
@@ -436,8 +509,14 @@ export default function OfficerPortal({
           ) : (
             <div className="bg-slate-100/50 border border-dashed border-slate-200 rounded-2xl p-8 text-center space-y-2">
               <Calendar className="w-6 h-6 text-slate-300 mx-auto" />
-              <p className="font-bold text-[#64748B] text-xs uppercase tracking-wider">No Job Selected</p>
-              <p className="text-[11px] text-slate-400">Select an in-progress complaint and click "Resolve Job" to upload post-repair notes and photos.</p>
+              <p className="font-bold text-[#64748B] text-xs uppercase tracking-wider">
+                {isHi ? 'कोई कार्य चयनित नहीं' : 'No Job Selected'}
+              </p>
+              <p className="text-[11px] text-slate-400">
+                {isHi
+                  ? 'मरम्मत नोट्स और फ़ोटो अपलोड करने के लिए किसी प्रगतिरत शिकायत पर "समाधान दर्ज करें" चुनें।'
+                  : 'Select an in-progress complaint and click "Resolve Job" to upload post-repair notes and photos.'}
+              </p>
             </div>
           )}
         </div>
