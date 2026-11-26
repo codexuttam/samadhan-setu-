@@ -33,7 +33,27 @@ app.set('trust proxy', config.TRUST_PROXY);
 // Security Headers & Middlewares
 app.use(
   helmet({
-    contentSecurityPolicy: config.isProd ? undefined : false,
+    contentSecurityPolicy: config.isProd
+      ? {
+          directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+            fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+            imgSrc: [
+              "'self'",
+              'data:',
+              'blob:',
+              'https://*.tile.openstreetmap.org',
+              'https://images.unsplash.com',
+              'https://api.qrserver.com',
+            ],
+            connectSrc: ["'self'", 'https://nominatim.openstreetmap.org'],
+            objectSrc: ["'none'"],
+            frameAncestors: ["'none'"],
+          },
+        }
+      : false,
   }),
 );
 app.use(cookieParser());

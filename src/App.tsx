@@ -6,6 +6,7 @@ import Footer from './components/Footer';
 import CivicConciergeChat, { ConciergePrefill } from './components/CivicConciergeChat';
 import LanguagePreferenceModal from './components/LanguagePreferenceModal';
 import { authorityLogout, authorityMe, type AuthorityProfile } from './lib/api';
+import { flushOfflineQueue, getPendingCount } from './lib/offlineQueue';
 
 // Pages (HomePage eager for immediate first paint, secondary routes lazy-loaded)
 import HomePage from './pages/HomePage';
@@ -173,8 +174,37 @@ export default function App() {
 
   // Network Connectivity State (PWA Offline Resilience)
   const [isOnline, setIsOnline] = useState<boolean>(navigator.onLine);
+  const [pendingOfflineCount, setPendingOfflineCount] = useState<number>(0);
+
+  const refreshOfflineCount = () => {
+    getPendingCount().then(setPendingOfflineCount).catch(() => {});
+  };
+
+  const syncOfflineSubmissions = async () => {
+    const result = await flushOfflineQueue();
+    refreshOfflineCount();
+    if (result.synced.length > 0) {
+      const refMap = new Map(result.synced.map((s) => [s.localId, s.publicReference]));
+      setComplaints((prev) =>
+        prev.map((c) => {
+          const syncedRef = refMap.get(c.id);
+          return syncedRef ? { ...c, id: syncedRef } : c;
+        }),
+      );
+      toast.success(
+        language === 'hi'
+          ? `✓ ${result.synced.length} ऑफ़लाइन शिकायत(ें) सफलतापूर्वक सिंक हो गईं!`
+          : `✓ Synced ${result.synced.length} queued offline complaint(s)!`,
+      );
+    }
+  };
 
   useEffect(() => {
+    refreshOfflineCount();
+    if (navigator.onLine) {
+      void syncOfflineSubmissions();
+    }
+
     const handleOnline = () => {
       setIsOnline(true);
       toast.success(
@@ -182,6 +212,7 @@ export default function App() {
           ? '🌐 इंटरनेट पुनः कनेक्ट हो गया! लाइव सिंक सक्रिय है।'
           : '🌐 Reconnected to internet! Real-time sync active.',
       );
+      void syncOfflineSubmissions();
     };
     const handleOffline = () => {
       setIsOnline(false);
@@ -339,14 +370,36 @@ export default function App() {
       </div>
 
       {/* OFFLINE STATUS PWA BANNER */}
-      {!isOnline && (
-        <div className="bg-amber-600 text-white text-xs font-bold py-1.5 px-4 text-center flex items-center justify-center gap-2 shadow-inner">
+      {(!isOnline || pendingOfflineCount > 0) && (
+        <div
+          className={`${
+            !isOnline ? 'bg-amber-600' : 'bg-blue-700'
+          } text-white text-xs font-bold py-1.5 px-4 text-center flex items-center justify-center gap-3 shadow-inner flex-wrap`}
+        >
           <span className="w-2 h-2 rounded-full bg-white animate-ping" />
           <span>
-            {language === 'hi'
-              ? 'ऑफ़लाइन मोड: आप अभी इंटरनेट से डिस्कनेक्ट हैं। शिकायतें और ड्राफ़्ट स्थानीय रूप से सुरक्षित हैं और नेटवर्क आने पर सिंक हो जाएंगे।'
-              : 'OFFLINE MODE: You are currently disconnected. Grievances and drafts are safely stored locally and will sync when network is restored.'}
+            {!isOnline
+              ? language === 'hi'
+                ? 'ऑफ़लाइन मोड: आप अभी इंटरनेट से डिस्कनेक्ट हैं। शिकायतें और ड्राफ़्ट स्थानीय रूप से सुरक्षित हैं और नेटवर्क आने पर सिंक हो जाएंगे।'
+                : 'OFFLINE MODE: You are currently disconnected. Grievances and drafts are safely stored locally and will sync when network is restored.'
+              : language === 'hi'
+              ? `${pendingOfflineCount} ऑफ़लाइन शिकायत(ें) सिंक के लिए लंबित हैं।`
+              : `${pendingOfflineCount} queued offline complaint(s) waiting to sync.`}
           </span>
+          {pendingOfflineCount > 0 && (
+            <span className="bg-white/20 px-2 py-0.5 rounded-full text-[10px] font-mono">
+              {language === 'hi' ? `कतार: ${pendingOfflineCount}` : `Queued: ${pendingOfflineCount}`}
+            </span>
+          )}
+          {isOnline && pendingOfflineCount > 0 && (
+            <button
+              type="button"
+              onClick={() => void syncOfflineSubmissions()}
+              className="bg-white text-[#0F1B2D] px-2.5 py-0.5 rounded text-[10px] font-extrabold uppercase tracking-wider hover:bg-slate-100"
+            >
+              {language === 'hi' ? 'अभी सिंक करें' : 'Sync Now'}
+            </button>
+          )}
         </div>
       )}
 
@@ -453,6 +506,7 @@ export default function App() {
                   setPage={navigateTo}
                   setSelectedTrackedId={setSelectedTrackedId}
                   setTrackingInput={setTrackingInput}
+                  onOfflineQueueChange={refreshOfflineCount}
                   prefillData={conciergePrefill}
                   language={language}
                 />

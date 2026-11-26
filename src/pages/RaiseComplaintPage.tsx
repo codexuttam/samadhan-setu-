@@ -4,6 +4,7 @@ import InteractiveMap from '../components/InteractiveMap';
 import OfficialReceiptModal from '../components/OfficialReceiptModal';
 import { CATEGORIES, DEPARTMENTS, WARDS, Complaint, getDepartmentForCategory, computeSLADeadline, getSLADurationHours } from '../data/mockData';
 import { tCategoryName, tCategoryDesc, tSubcategory, tWard, tPriority, tStatus } from '../i18n/translations';
+import { enqueueOfflineComplaint } from '../lib/offlineQueue';
 import {
   ArrowLeft,
   ArrowRight,
@@ -28,6 +29,7 @@ interface RaiseComplaintPageProps {
   setPage: (page: string) => void;
   setSelectedTrackedId: (id: string) => void;
   setTrackingInput: (id: string) => void;
+  onOfflineQueueChange?: () => void;
   prefillData?: {
     title?: string;
     description?: string;
@@ -43,6 +45,7 @@ export default function RaiseComplaintPage({
   setPage,
   setSelectedTrackedId,
   setTrackingInput,
+  onOfflineQueueChange,
   prefillData,
   language = 'en',
 }: RaiseComplaintPageProps) {
@@ -364,42 +367,72 @@ export default function RaiseComplaintPage({
     let generatedId = `SS-2026-${Math.floor(100000 + Math.random() * 900000)}`;
     const matchedDept = getDepartmentForCategory(categoryId);
 
-    try {
-      const formData = new FormData();
-      formData.append('categoryId', categoryId || 'roads_potholes');
-      if (subcategory) formData.append('subcategory', subcategory);
-      formData.append('title', title || 'Civic infrastructure repair required');
-      formData.append('description', description || 'Citizen reported civic infrastructure issue.');
-      formData.append('address', address || 'Main Road Intersection');
-      formData.append('area', address || 'Dwarka');
-      if (wardId) formData.append('wardId', wardId);
-      formData.append('city', city || 'Dwarka, Delhi');
-      formData.append('pincode', pincode || '110075');
-      if (lat) formData.append('latitude', lat.toString());
-      if (lng) formData.append('longitude', lng.toString());
-      formData.append('phone', citizenPhone || '+919876543210');
-      formData.append('otpVerificationToken', 'DEMO_VERIFIED_TOKEN');
-      for (const item of evidenceFiles) {
-        if (item.file) {
-          formData.append('evidence', item.file);
-        }
-      }
+    const fieldsPayload: Record<string, string> = {
+      categoryId: categoryId || 'roads_potholes',
+      ...(subcategory ? { subcategory } : {}),
+      title: title || 'Civic infrastructure repair required',
+      description: description || 'Citizen reported civic infrastructure issue.',
+      address: address || 'Main Road Intersection',
+      area: address || 'Dwarka',
+      ...(wardId ? { wardId } : {}),
+      city: city || 'Dwarka, Delhi',
+      pincode: pincode || '110075',
+      ...(lat ? { latitude: lat.toString() } : {}),
+      ...(lng ? { longitude: lng.toString() } : {}),
+      phone: citizenPhone || '+919876543210',
+      otpVerificationToken: 'DEMO_VERIFIED_TOKEN',
+    };
 
-      const res = await fetch('/api/public/complaints', {
-        method: 'POST',
-        body: formData,
+    const queueOffline = async () => {
+      await enqueueOfflineComplaint({
+        localId: generatedId,
+        createdAt: new Date().toISOString(),
+        fields: fieldsPayload,
+        files: evidenceFiles
+          .filter((item): item is typeof item & { file: File } => Boolean(item.file))
+          .map((item) => ({ name: item.file.name, type: item.file.type || 'image/jpeg', blob: item.file })),
       });
+      onOfflineQueueChange?.();
+      toast(
+        isHi
+          ? `📶 ऑफ़लाइन कतार में सुरक्षित (${generatedId}) — इंटरनेट आते ही स्वतः अपलोड हो जाएगी!`
+          : `📶 Saved to offline queue (${generatedId}) — will auto-sync when online!`,
+      );
+    };
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.publicReference) {
-          generatedId = data.publicReference;
-        } else if (data.ticket?.publicReference) {
-          generatedId = data.ticket.publicReference;
+    try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        await queueOffline();
+      } else {
+        const formData = new FormData();
+        for (const [k, v] of Object.entries(fieldsPayload)) {
+          formData.append(k, v);
+        }
+        for (const item of evidenceFiles) {
+          if (item.file) {
+            formData.append('evidence', item.file);
+          }
+        }
+
+        const res = await fetch('/api/public/complaints', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.publicReference) {
+            generatedId = data.publicReference;
+          } else if (data.ticket?.publicReference) {
+            generatedId = data.ticket.publicReference;
+          }
         }
       }
     } catch (err) {
       console.warn('Backend complaint sync fallback:', err);
+      if (typeof navigator === 'undefined' || !navigator.onLine || err instanceof TypeError) {
+        await queueOffline().catch(() => {});
+      }
     }
 
     const createdComplaint: Complaint = {
