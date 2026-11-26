@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MapPin, Crosshair, Loader2, Flame, Layers } from 'lucide-react';
+import { tWard } from '../i18n/translations';
 
 interface MapMarker {
   id: string;
@@ -20,6 +21,7 @@ interface InteractiveMapProps {
   selectedWardId?: string;
   interactive?: boolean;
   highlightWardId?: string;
+  language?: 'en' | 'hi';
 }
 
 export default function InteractiveMap({
@@ -28,12 +30,14 @@ export default function InteractiveMap({
   selectedWardId,
   interactive = false,
   highlightWardId,
+  language = 'en',
 }: InteractiveMapProps) {
+  const isHi = language === 'hi';
   // Dwarka, Delhi civic markers
   const initialMarkers: MapMarker[] = [
     {
       id: 'SS2026012343',
-      title: 'Pothole reported',
+      title: isHi ? 'सड़क पर गड्ढा' : 'Pothole reported',
       wardName: 'Ward 12 - Dwarka Sector 12',
       wardId: 'ward_12',
       category: 'Roads & Potholes',
@@ -45,7 +49,7 @@ export default function InteractiveMap({
     },
     {
       id: 'SS2026012281',
-      title: 'Street light issue',
+      title: isHi ? 'स्ट्रीट लाइट समस्या' : 'Street light issue',
       wardName: 'Ward 8 - Dwarka Sector 8',
       wardId: 'ward_8',
       category: 'Street Lights',
@@ -57,7 +61,7 @@ export default function InteractiveMap({
     },
     {
       id: 'SS2026012174',
-      title: 'Garbage collection',
+      title: isHi ? 'कचरा संग्रहण' : 'Garbage collection',
       wardName: 'Ward 5 - Dwarka Sector 5',
       wardId: 'ward_5',
       category: 'Garbage & Sanitation',
@@ -69,7 +73,7 @@ export default function InteractiveMap({
     },
     {
       id: 'SS2026011987',
-      title: 'Drainage problem',
+      title: isHi ? 'जल निकासी समस्या' : 'Drainage problem',
       wardName: 'Ward 14 - Dwarka Sector 14',
       wardId: 'ward_14',
       category: 'Water & Drainage',
@@ -115,7 +119,7 @@ export default function InteractiveMap({
   // Fetch real-time GPS directly from the map
   const handleMapLiveGps = () => {
     if (!navigator.geolocation) {
-      alert('Geolocation is not supported by your browser.');
+      alert(isHi ? 'आपका ब्राउज़र जियोलोकेशन का समर्थन नहीं करता।' : 'Geolocation is not supported by your browser.');
       return;
     }
 
@@ -129,13 +133,15 @@ export default function InteractiveMap({
 
         if (onSelectLocation) {
           // Attempt reverse geocode
-          let resolvedAddress = `Live GPS (${lat}, ${lng}), Dwarka, Delhi`;
+          let resolvedAddress = isHi
+            ? `लाइव GPS (${lat}, ${lng}), द्वारका, दिल्ली`
+            : `Live GPS (${lat}, ${lng}), Dwarka, Delhi`;
           try {
             const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}`);
             if (res.ok) {
               const data = await res.json();
               const addr = data.address || {};
-              const street = addr.road || addr.suburb || addr.neighbourhood || 'Current Location';
+              const street = addr.road || addr.suburb || addr.neighbourhood || (isHi ? 'वर्तमान स्थान' : 'Current Location');
               resolvedAddress = `${street}, Dwarka, Delhi`;
             }
           } catch {
@@ -152,7 +158,11 @@ export default function InteractiveMap({
       },
       (err) => {
         setIsLocating(false);
-        alert(`Location access error: ${err.message}. Please enable location permissions.`);
+        alert(
+          isHi
+            ? `लोकेशन त्रुटि: ${err.message}। कृपया लोकेशन अनुमति चालू करें।`
+            : `Location access error: ${err.message}. Please enable location permissions.`,
+        );
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
@@ -164,7 +174,11 @@ export default function InteractiveMap({
       <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10 gap-2 flex-wrap">
         <div className="bg-white/95 backdrop-blur-xs px-3 py-1.5 rounded-lg border border-[#E5E7EB] shadow-xs text-xs font-semibold text-[#0F1B2D] pointer-events-auto flex items-center gap-1.5">
           <MapPin className="w-3.5 h-3.5 text-[#F4511E]" />
-          <span>{interactive ? 'Live GPS Civic Map · Dwarka, Delhi' : '🗺️ Interactive Ward Map'}</span>
+          <span>
+            {interactive
+              ? isHi ? 'लाइव GPS नागरिक मानचित्र · द्वारका, दिल्ली' : 'Live GPS Civic Map · Dwarka, Delhi'
+              : isHi ? '🗺️ इंटरैक्टिव वार्ड मानचित्र' : '🗺️ Interactive Ward Map'}
+          </span>
         </div>
 
         <div className="flex items-center gap-2 pointer-events-auto">
@@ -178,7 +192,7 @@ export default function InteractiveMap({
               }`}
             >
               <Layers className="w-3 h-3" />
-              <span>Standard</span>
+              <span>{isHi ? 'सामान्य' : 'Standard'}</span>
             </button>
             <button
               type="button"
@@ -188,7 +202,7 @@ export default function InteractiveMap({
               }`}
             >
               <Flame className="w-3 h-3 text-amber-300" />
-              <span>Civic Heatmap</span>
+              <span>{isHi ? 'हीटमैप' : 'Civic Heatmap'}</span>
             </button>
           </div>
 
@@ -198,17 +212,17 @@ export default function InteractiveMap({
               onClick={handleMapLiveGps}
               disabled={isLocating}
               className="bg-[#0F1B2D] hover:bg-slate-800 text-white px-3 py-1.5 rounded-lg shadow-xs text-xs font-bold pointer-events-auto flex items-center gap-1.5 transition-all"
-              title="Fetch live location using device GPS"
+              title={isHi ? 'डिवाइस GPS से लाइव स्थान प्राप्त करें' : 'Fetch live location using device GPS'}
             >
               {isLocating ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-[#F4511E]" />
-                  <span className="text-[11px]">Locating...</span>
+                  <span className="text-[11px]">{isHi ? 'खोज रहे हैं...' : 'Locating...'}</span>
                 </>
               ) : (
                 <>
                   <Crosshair className="w-3.5 h-3.5 text-[#F4511E]" />
-                  <span className="text-[11px]">Fetch My GPS</span>
+                  <span className="text-[11px]">{isHi ? 'मेरा GPS लें' : 'Fetch My GPS'}</span>
                 </>
               )}
             </button>
@@ -239,19 +253,19 @@ export default function InteractiveMap({
           {/* Heatmap Legend Floating Bar */}
           <div className="absolute top-16 right-3 bg-slate-900/90 text-white backdrop-blur-md px-3 py-2 rounded-xl border border-slate-700/80 shadow-lg text-[10px] space-y-1.5 pointer-events-auto">
             <span className="font-extrabold uppercase tracking-wider text-amber-400 block text-[9px]">
-              🔥 Civic Complaint Density
+              {isHi ? '🔥 शिकायत घनत्व क्षेत्र' : '🔥 Civic Complaint Density'}
             </span>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0" />
-              <span>High Density Zone (&gt;15 issues)</span>
+              <span>{isHi ? 'उच्च घनत्व (&gt;15 समस्याएँ)' : 'High Density Zone (>15 issues)'}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0" />
-              <span>Moderate Cluster (5-15)</span>
+              <span>{isHi ? 'मध्यम क्लस्टर (5-15)' : 'Moderate Cluster (5-15)'}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
-              <span>Normal (&lt;5 issues)</span>
+              <span>{isHi ? 'सामान्य (&lt;5 समस्याएँ)' : 'Normal (<5 issues)'}</span>
             </div>
           </div>
         </div>
@@ -274,7 +288,7 @@ export default function InteractiveMap({
                       lat: m.lat,
                       lng: m.lng,
                       wardId: m.wardId,
-                      address: `${m.title}, ${m.wardName}, Dwarka, Delhi`,
+                      address: `${m.title}, ${tWard(m.wardId, language, m.wardName)}, Dwarka, Delhi`,
                     });
                   }
                 }}
@@ -285,7 +299,7 @@ export default function InteractiveMap({
                 }`}
               >
                 <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: m.color }} />
-                <span>{m.title} ({m.wardName.split('-')[1]?.trim() || m.wardName})</span>
+                <span>{m.title} ({tWard(m.wardId, language, m.wardName).split('-')[1]?.trim() || m.wardName})</span>
               </button>
             );
           })}
@@ -300,11 +314,11 @@ export default function InteractiveMap({
             <span>LNG: {clickPin.lng.toFixed(4)}</span>
             <span className="font-sans font-semibold text-[#16A34A] bg-emerald-50 px-1.5 py-0.5 rounded flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-[#16A34A] animate-pulse"></span>
-              LIVE GPS SYNCED
+              {isHi ? 'लाइव GPS सिंक' : 'LIVE GPS SYNCED'}
             </span>
           </div>
           <p className="text-xs font-semibold text-[#0F172A] truncate">
-            📍 Dwarka, Delhi Coordinates Active
+            {isHi ? '📍 द्वारका, दिल्ली निर्देशांक सक्रिय' : '📍 Dwarka, Delhi Coordinates Active'}
           </p>
         </div>
       )}

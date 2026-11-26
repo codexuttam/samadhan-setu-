@@ -13,10 +13,12 @@ import {
   QrCode,
 } from 'lucide-react';
 import { Complaint, CATEGORIES, DEPARTMENTS, WARDS, getSLADurationHours } from '../data/mockData';
+import { tCategoryName, tSubcategory, tDepartment, tWard, tPriority, tStatus } from '../i18n/translations';
 
 interface OfficialReceiptModalProps {
   complaint: Complaint;
   onClose: () => void;
+  language?: 'en' | 'hi';
 }
 
 /**
@@ -93,7 +95,8 @@ function DeterministicSvgQr({ data, size = 120 }: { data: string; size?: number 
   );
 }
 
-export default function OfficialReceiptModal({ complaint, onClose }: OfficialReceiptModalProps) {
+export default function OfficialReceiptModal({ complaint, onClose, language = 'en' }: OfficialReceiptModalProps) {
+  const isHi = language === 'hi';
   const category = CATEGORIES.find((c) => c.id === complaint.categoryId);
   const department = DEPARTMENTS.find((d) => d.id === complaint.departmentId);
   const ward = WARDS.find((w) => w.id === complaint.wardId);
@@ -146,7 +149,7 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
           <div className="flex items-center gap-2">
             <Printer className="w-4 h-4 text-[#FF6A2A]" />
             <span className="text-xs font-bold uppercase tracking-wider">
-              Official Grievance Acknowledgment Slip
+              {isHi ? 'आधिकारिक शिकायत पावती पर्ची' : 'Official Grievance Acknowledgment Slip'}
             </span>
           </div>
           <div className="flex items-center gap-2">
@@ -155,7 +158,7 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
               className="bg-[#FF6A2A] hover:bg-[#E55A1F] text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
             >
               <Printer className="w-3.5 h-3.5" />
-              Print / Save PDF
+              {isHi ? 'प्रिंट / PDF सहेजें' : 'Print / Save PDF'}
             </button>
             <button
               onClick={onClose}
@@ -171,8 +174,8 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
           {/* Subtle Government Watermark */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] select-none">
             <div className="text-center font-serif">
-              <span className="text-8xl font-black block">SAMADHAN SETU</span>
-              <span className="text-4xl font-bold block">GOVERNMENT OF NCT OF DELHI</span>
+              <span className="text-8xl font-black block">{isHi ? 'समाधान सेतु' : 'SAMADHAN SETU'}</span>
+              <span className="text-4xl font-bold block">{isHi ? 'राष्ट्रीय राजधानी क्षेत्र दिल्ली सरकार' : 'GOVERNMENT OF NCT OF DELHI'}</span>
             </div>
           </div>
 
@@ -184,16 +187,16 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
               </div>
               <div>
                 <h1 className="text-base sm:text-lg font-black uppercase tracking-wider text-slate-900 font-serif">
-                  Government of NCT of Delhi / Municipal Redressal Portal
+                  {isHi ? 'राष्ट्रीय राजधानी क्षेत्र दिल्ली सरकार / नगर निगम निवारण पोर्टल' : 'Government of NCT of Delhi / Municipal Redressal Portal'}
                 </h1>
                 <p className="text-[11px] font-semibold text-slate-600">
-                  सत्यमेव जयते • Samadhan Setu Unified Grievance Redressal System
+                  {isHi ? 'सत्यमेव जयते • समाधान सेतु एकीकृत शिकायत निवारण प्रणाली' : 'सत्यमेव जयते • Samadhan Setu Unified Grievance Redressal System'}
                 </p>
               </div>
             </div>
             <div className="pt-2">
               <span className="inline-block bg-slate-900 text-white font-mono font-bold text-[10px] px-3 py-0.5 uppercase tracking-widest rounded-xs">
-                Citizen Grievance Acknowledgment (नागरिक पावती)
+                {isHi ? 'नागरिक शिकायत पावती (आधिकारिक प्रमाण)' : 'Citizen Grievance Acknowledgment (नागरिक पावती)'}
               </span>
             </div>
           </div>
@@ -202,7 +205,7 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-slate-50 border border-slate-200 p-4 rounded-xl">
             <div className="space-y-1 text-center sm:text-left">
               <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">
-                Official Grievance Registration Number
+                {isHi ? 'आधिकारिक शिकायत पंजीकरण संख्या' : 'Official Grievance Registration Number'}
               </span>
               <span className="text-xl sm:text-2xl font-black font-mono tracking-wider text-[#0F1B2D] block">
                 {complaint.id}
@@ -210,8 +213,8 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
               <div className="flex items-center gap-2 text-[10px] text-slate-600">
                 <Calendar className="w-3.5 h-3.5 text-slate-500" />
                 <span>
-                  Date of Lodging:{' '}
-                  <strong>{new Date(complaint.createdAt).toLocaleString('en-IN')}</strong>
+                  {isHi ? 'दर्ज करने की तिथि:' : 'Date of Lodging:'}{' '}
+                  <strong>{new Date(complaint.createdAt).toLocaleString(isHi ? 'hi-IN' : 'en-IN')}</strong>
                 </span>
               </div>
             </div>
@@ -219,7 +222,7 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
             <div className="flex flex-col items-center p-2 bg-white border border-slate-300 rounded-lg shadow-xs">
               <DeterministicSvgQr data={trackingUrl} size={90} />
               <span className="text-[8px] font-mono text-slate-500 mt-1 uppercase tracking-wider font-bold">
-                Scan to Verify
+                {isHi ? 'सत्यापन हेतु स्कैन करें' : 'Scan to Verify'}
               </span>
             </div>
           </div>
@@ -229,34 +232,36 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
             <div className="space-y-3">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Citizen Profile
+                  {isHi ? 'नागरिक विवरण' : 'Citizen Profile'}
                 </span>
                 <p className="font-bold text-slate-900 text-sm">{complaint.citizenName}</p>
                 <p className="text-slate-600 font-mono text-[11px]">
-                  Phone: {maskPhone(complaint.citizenPhone)}
+                  {isHi ? 'फ़ोन:' : 'Phone:'} {maskPhone(complaint.citizenPhone)}
                 </p>
                 {complaint.citizenEmail && (
-                  <p className="text-slate-600 text-[11px]">Email: {complaint.citizenEmail}</p>
+                  <p className="text-slate-600 text-[11px]">{isHi ? 'ईमेल:' : 'Email:'} {complaint.citizenEmail}</p>
                 )}
               </div>
 
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Grievance Category
+                  {isHi ? 'शिकायत श्रेणी' : 'Grievance Category'}
                 </span>
                 <p className="font-bold text-slate-900">
-                  {category?.name || 'General Civic Infrastructure'}
+                  {tCategoryName(complaint.categoryId, language, category?.name || 'General Civic Infrastructure')}
                 </p>
-                <p className="text-slate-600 text-[11px]">Subcategory: {complaint.subcategory}</p>
+                <p className="text-slate-600 text-[11px]">
+                  {isHi ? 'उप-श्रेणी:' : 'Subcategory:'} {tSubcategory(complaint.subcategory, language)}
+                </p>
               </div>
 
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Designated Department
+                  {isHi ? 'नियुक्त विभाग' : 'Designated Department'}
                 </span>
                 <p className="font-bold text-slate-900 flex items-center gap-1">
                   <Building2 className="w-3.5 h-3.5 text-slate-500" />
-                  {department?.name || 'Municipal Corporation Division'}
+                  {tDepartment(complaint.departmentId, language, department?.name || 'Municipal Corporation Division')}
                 </p>
               </div>
             </div>
@@ -264,11 +269,11 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
             <div className="space-y-3">
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Location Jurisdiction
+                  {isHi ? 'स्थान क्षेत्राधिकार' : 'Location Jurisdiction'}
                 </span>
                 <p className="font-bold text-slate-900">{complaint.address}</p>
                 <p className="text-slate-600 text-[11px]">
-                  {ward?.name || 'Ward Area'}, {complaint.city || 'Delhi'} - {complaint.pincode}
+                  {tWard(complaint.wardId, language, ward?.name || 'Ward Area')}, {complaint.city || (isHi ? 'दिल्ली' : 'Delhi')} - {complaint.pincode}
                 </p>
                 <p className="font-mono text-[10px] text-slate-500">
                   GPS: {complaint.latitude?.toFixed(4)}, {complaint.longitude?.toFixed(4)}
@@ -277,7 +282,7 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
 
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Priority & SLA Target
+                  {isHi ? 'प्राथमिकता एवं SLA लक्ष्य' : 'Priority & SLA Target'}
                 </span>
                 <div className="flex items-center gap-2 mt-0.5">
                   <span
@@ -289,24 +294,24 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
                         : 'bg-blue-100 text-blue-800 border border-blue-200'
                     }`}
                   >
-                    {complaint.priority} Priority
+                    {isHi ? `${tPriority(complaint.priority, 'hi')} प्राथमिकता` : `${complaint.priority} Priority`}
                   </span>
                   <span className="font-semibold text-slate-700 text-[11px]">
-                    {slaHours} Hours Maximum SLA
+                    {isHi ? `${slaHours} घंटे अधिकतम SLA` : `${slaHours} Hours Maximum SLA`}
                   </span>
                 </div>
                 <p className="text-slate-500 text-[10px] mt-1">
-                  Target Resolution: {new Date(complaint.slaDeadline).toLocaleString('en-IN')}
+                  {isHi ? 'लक्ष्यित समाधान समय:' : 'Target Resolution:'} {new Date(complaint.slaDeadline).toLocaleString(isHi ? 'hi-IN' : 'en-IN')}
                 </p>
               </div>
 
               <div>
                 <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                  Current Processing State
+                  {isHi ? 'वर्तमान स्थिति' : 'Current Processing State'}
                 </span>
                 <span className="inline-flex items-center gap-1 text-slate-900 font-bold bg-slate-100 px-2 py-0.5 rounded mt-0.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                  {complaint.status}
+                  {tStatus(complaint.status, language)}
                 </span>
               </div>
             </div>
@@ -315,7 +320,7 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
           {/* SUMMARY OF GRIEVANCE */}
           <div className="border border-slate-200 rounded-xl p-4 space-y-1">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-              Grievance Description
+              {isHi ? 'शिकायत का विवरण' : 'Grievance Description'}
             </span>
             <h4 className="font-bold text-slate-900 text-xs">{complaint.title}</h4>
             <p className="text-slate-700 text-xs whitespace-pre-wrap leading-relaxed">
@@ -328,18 +333,22 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
             <div className="space-y-0.5 text-center sm:text-left">
               <p className="font-bold text-slate-700 flex items-center gap-1">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                Valid Citizen Charter Instrument
+                {isHi ? 'मान्यता प्राप्त नागरिक चार्टर दस्तावेज़' : 'Valid Citizen Charter Instrument'}
               </p>
-              <p>Computer generated acknowledgment. No physical signature required.</p>
+              <p>
+                {isHi
+                  ? 'यह कंप्यूटर जनित पावती है। भौतिक हस्ताक्षर की आवश्यकता नहीं है।'
+                  : 'Computer generated acknowledgment. No physical signature required.'}
+              </p>
               <p className="font-mono text-[9px]">URL: {trackingUrl}</p>
             </div>
 
             <div className="border-2 border-dashed border-slate-400 rounded-xl p-3 text-center min-w-[160px] bg-slate-50/50">
               <span className="text-[9px] font-black uppercase tracking-widest text-slate-800 block">
-                SAMADHAN SETU
+                {isHi ? 'समाधान सेतु' : 'SAMADHAN SETU'}
               </span>
               <span className="text-[8px] text-emerald-700 font-bold block">
-                DIGITALLY CERTIFIED
+                {isHi ? 'डिजिटल रूप से प्रमाणित' : 'DIGITALLY CERTIFIED'}
               </span>
               <span className="text-[8px] font-mono text-slate-500 block">
                 PORTAL AUTH: SEC-2026-NCT
@@ -354,14 +363,14 @@ export default function OfficialReceiptModal({ complaint, onClose }: OfficialRec
             onClick={onClose}
             className="px-4 py-2 border border-slate-300 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-100 transition-colors"
           >
-            Close Receipt
+            {isHi ? 'रसीद बंद करें' : 'Close Receipt'}
           </button>
           <button
             onClick={handlePrint}
             className="bg-[#0F1B2D] hover:bg-slate-800 text-white px-5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
           >
             <Printer className="w-4 h-4 text-[#FF6A2A]" />
-            Print Official Receipt
+            {isHi ? 'आधिकारिक रसीद प्रिंट करें' : 'Print Official Receipt'}
           </button>
         </div>
       </div>

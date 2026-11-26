@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import InteractiveMap from '../components/InteractiveMap';
 import OfficialReceiptModal from '../components/OfficialReceiptModal';
 import { CATEGORIES, DEPARTMENTS, WARDS, Complaint, getDepartmentForCategory, computeSLADeadline, getSLADurationHours } from '../data/mockData';
+import { tCategoryName, tCategoryDesc, tSubcategory, tWard, tPriority, tStatus } from '../i18n/translations';
 import {
   ArrowLeft,
   ArrowRight,
@@ -43,7 +44,9 @@ export default function RaiseComplaintPage({
   setSelectedTrackedId,
   setTrackingInput,
   prefillData,
+  language = 'en',
 }: RaiseComplaintPageProps) {
+  const isHi = language === 'hi';
   const [currentStep, setCurrentStep] = useState(1);
   
   // Voice recording states for AI Speech-to-Text
@@ -77,7 +80,7 @@ export default function RaiseComplaintPage({
             const response = await fetch('/api/transcribe', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ audioData: base64Data }),
+              body: JSON.stringify({ audioData: base64Data, language }),
             });
 
             if (!response.ok) throw new Error('Transcription request failed');
@@ -95,20 +98,24 @@ export default function RaiseComplaintPage({
                 );
                 if (match) {
                   setCategoryId(match.id);
-                  toast.success(`✨ Category auto-detected: ${match.name}`);
+                  toast.success(
+                    isHi
+                      ? `✨ श्रेणी स्वतः पहचानी गई: ${tCategoryName(match.id, 'hi', match.name)}`
+                      : `✨ Category auto-detected: ${match.name}`,
+                  );
                 }
               }
               if (data.priority && ['low', 'medium', 'high', 'critical'].includes(data.priority)) {
                 setPriority(data.priority);
               }
-              toast.success('🎙️ Voice grievance analyzed by Gemini AI!');
+              toast.success(isHi ? '🎙️ Gemini AI द्वारा आपकी आवाज़ का विश्लेषण पूरा हुआ!' : '🎙️ Voice grievance analyzed by Gemini AI!');
             } else {
-              toast('Could not transcribe audio. Speak closely into the microphone.');
+              toast(isHi ? 'ऑडियो स्पष्ट नहीं था। कृपया माइक के पास बोलें।' : 'Could not transcribe audio. Speak closely into the microphone.');
             }
           };
         } catch (err) {
           console.error(err);
-          toast('Error during audio transcription.');
+          toast(isHi ? 'ऑडियो ट्रांसक्रिप्शन में त्रुटि हुई।' : 'Error during audio transcription.');
         } finally {
           setIsTranscribing(false);
           stream.getTracks().forEach(track => track.stop());
@@ -119,7 +126,11 @@ export default function RaiseComplaintPage({
       setIsRecording(true);
     } catch (err) {
       console.error(err);
-      toast('Could not access microphone! Grant microphone permissions to Samadhan Setu in your browser.');
+      toast(
+        isHi
+          ? 'माइक्रोफ़ोन एक्सेस नहीं मिल सका! कृपया ब्राउज़र में माइक्रोफ़ोन की अनुमति दें।'
+          : 'Could not access microphone! Grant microphone permissions to Samadhan Setu in your browser.',
+      );
     }
   };
 
@@ -220,12 +231,12 @@ export default function RaiseComplaintPage({
 
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
-      toast.error('Geolocation is not supported by your browser.');
+      toast.error(isHi ? 'आपका ब्राउज़र जियोलोकेशन का समर्थन नहीं करता।' : 'Geolocation is not supported by your browser.');
       return;
     }
 
     setIsLocating(true);
-    toast.loading('📡 Accessing device GPS for real-time location...', { id: 'gps-fetch' });
+    toast.loading(isHi ? '📡 लाइव लोकेशन के लिए डिवाइस GPS प्राप्त किया जा रहा है...' : '📡 Accessing device GPS for real-time location...', { id: 'gps-fetch' });
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
@@ -245,7 +256,7 @@ export default function RaiseComplaintPage({
           if (res.ok) {
             const data = await res.json();
             const addr = data.address || {};
-            const roadOrSuburb = addr.road || addr.suburb || addr.neighbourhood || addr.residential || 'GPS Located Area';
+            const roadOrSuburb = addr.road || addr.suburb || addr.neighbourhood || addr.residential || (isHi ? 'GPS स्थान क्षेत्र' : 'GPS Located Area');
             const sectorOrColony = addr.suburb || addr.city_district || 'Dwarka';
             const cityResolved = addr.city || addr.town || addr.state_district || 'Dwarka, Delhi';
             const post = addr.postcode || '110075';
@@ -259,28 +270,34 @@ export default function RaiseComplaintPage({
               setWardId(WARDS[0].id);
             }
 
-            toast.success(`📍 Live GPS locked: ${roadOrSuburb} (Acc: ±${accuracy}m)`, { id: 'gps-fetch' });
+            toast.success(
+              isHi ? `📍 लाइव GPS लॉक हुआ: ${roadOrSuburb} (सटीकता: ±${accuracy} मी)` : `📍 Live GPS locked: ${roadOrSuburb} (Acc: ±${accuracy}m)`,
+              { id: 'gps-fetch' },
+            );
           } else {
             throw new Error('Reverse geocode failed');
           }
         } catch {
-          setAddress(`Near Sector 10 / Dwarka Live Coordinates`);
+          setAddress(isHi ? 'सेक्टर 10 / द्वारका लाइव निर्देशांक के पास' : `Near Sector 10 / Dwarka Live Coordinates`);
           setPincode('110075');
           if (!wardId && WARDS.length > 0) setWardId(WARDS[0].id);
-          toast.success(`📍 Live GPS coordinates locked: Lat ${latitude}, Lng ${longitude} (±${accuracy}m)`, { id: 'gps-fetch' });
+          toast.success(
+            isHi ? `📍 लाइव GPS निर्देशांक लॉक हुए: अक्षांश ${latitude}, देशांतर ${longitude} (±${accuracy} मी)` : `📍 Live GPS coordinates locked: Lat ${latitude}, Lng ${longitude} (±${accuracy}m)`,
+            { id: 'gps-fetch' },
+          );
         } finally {
           setIsLocating(false);
         }
       },
       (err) => {
         setIsLocating(false);
-        let errorMsg = 'Failed to retrieve GPS location.';
+        let errorMsg = isHi ? 'GPS लोकेशन प्राप्त करने में विफल।' : 'Failed to retrieve GPS location.';
         if (err.code === err.PERMISSION_DENIED) {
-          errorMsg = 'Location permission denied. Please allow location access in your browser.';
+          errorMsg = isHi ? 'लोकेशन अनुमति अस्वीकृत। कृपया ब्राउज़र में लोकेशन एक्सेस चालू करें।' : 'Location permission denied. Please allow location access in your browser.';
         } else if (err.code === err.POSITION_UNAVAILABLE) {
-          errorMsg = 'Location position unavailable. Ensure device GPS is enabled.';
+          errorMsg = isHi ? 'लोकेशन उपलब्ध नहीं है। सुनिश्चित करें कि डिवाइस GPS चालू है।' : 'Location position unavailable. Ensure device GPS is enabled.';
         } else if (err.code === err.TIMEOUT) {
-          errorMsg = 'Location request timed out. Please try again.';
+          errorMsg = isHi ? 'लोकेशन अनुरोध का समय समाप्त हो गया। कृपया पुनः प्रयास करें।' : 'Location request timed out. Please try again.';
         }
         toast.error(`⚠️ ${errorMsg}`, { id: 'gps-fetch' });
       },
@@ -320,7 +337,11 @@ export default function RaiseComplaintPage({
     if (!citizenPhone.trim()) return;
     setOtpSent(true);
     setOtpError('');
-    toast('🔐 Demo OTP Sent! Use verification code: "2026" to complete submission.');
+    toast(
+      isHi
+        ? '🔐 डेमो OTP भेजा गया! सबमिट पूरा करने के लिए सत्यापन कोड "2026" दर्ज करें।'
+        : '🔐 Demo OTP Sent! Use verification code: "2026" to complete submission.',
+    );
   };
 
   const handleVerifyOtpSimulated = () => {
@@ -328,7 +349,11 @@ export default function RaiseComplaintPage({
       setOtpVerified(true);
       setOtpError('');
     } else {
-      setOtpError('Invalid code! Enter "2026" for this demo verification.');
+      setOtpError(
+        isHi
+          ? 'अमान्य कोड! इस डेमो सत्यापन के लिए "2026" दर्ज करें।'
+          : 'Invalid code! Enter "2026" for this demo verification.',
+      );
     }
   };
 
@@ -420,9 +445,9 @@ export default function RaiseComplaintPage({
               }}
               className="flex items-center gap-1.5 hover:text-[#F4511E] transition-colors"
             >
-              <ArrowLeft className="w-4 h-4" /> Back
+              <ArrowLeft className="w-4 h-4" /> {isHi ? 'वापस' : 'Back'}
             </button>
-            <span>Step {currentStep} of 6</span>
+            <span>{isHi ? `चरण ${currentStep} / 6` : `Step ${currentStep} of 6`}</span>
           </div>
 
           <div className="grid grid-cols-6 gap-2 h-1.5 bg-slate-200 rounded-full overflow-hidden">
@@ -442,8 +467,14 @@ export default function RaiseComplaintPage({
       {currentStep === 1 && (
         <div className="space-y-6">
           <div className="text-center space-y-2">
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F1B2D]">What is the issue?</h1>
-            <p className="text-xs sm:text-sm text-[#64748B]">Select the category that best matches your civic complaint.</p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0F1B2D]">
+              {isHi ? 'समस्या क्या है?' : 'What is the issue?'}
+            </h1>
+            <p className="text-xs sm:text-sm text-[#64748B]">
+              {isHi
+                ? 'वह श्रेणी चुनें जो आपकी नागरिक शिकायत से सबसे अच्छी तरह मेल खाती हो।'
+                : 'Select the category that best matches your civic complaint.'}
+            </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
@@ -460,8 +491,12 @@ export default function RaiseComplaintPage({
                   {category.id !== 'roads_potholes' && <Sparkles className="w-6 h-6 shrink-0" />}
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-[#0F1B2D] group-hover:text-[#F4511E]">{category.name}</h3>
-                  <p className="text-xs text-[#64748B] mt-0.5">{category.description}</p>
+                  <h3 className="font-extrabold text-sm text-[#0F1B2D] group-hover:text-[#F4511E]">
+                    {tCategoryName(category.id, language, category.name)}
+                  </h3>
+                  <p className="text-xs text-[#64748B] mt-0.5">
+                    {tCategoryDesc(category.id, language, category.description)}
+                  </p>
                 </div>
               </button>
             ))}
@@ -473,42 +508,58 @@ export default function RaiseComplaintPage({
       {currentStep === 2 && (
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
           <div>
-            <h2 className="text-xl font-extrabold text-[#0F1B2D]">Issue Details</h2>
-            <p className="text-xs text-[#64748B] mt-1">Provide a clear title, category sub-type, and write a detailed description.</p>
+            <h2 className="text-xl font-extrabold text-[#0F1B2D]">
+              {isHi ? 'समस्या का विवरण' : 'Issue Details'}
+            </h2>
+            <p className="text-xs text-[#64748B] mt-1">
+              {isHi
+                ? 'स्पष्ट शीर्षक, उप-श्रेणी चुनें और समस्या का पूरा विवरण लिखें।'
+                : 'Provide a clear title, category sub-type, and write a detailed description.'}
+            </p>
           </div>
 
           <div className="space-y-4 text-xs">
             {/* Category summary banner */}
             <div className="p-3.5 bg-slate-50 border border-slate-100 rounded-lg flex justify-between items-center">
               <div>
-                <span className="text-[10px] text-[#64748B] uppercase tracking-wider block font-bold">Category selected</span>
-                <span className="font-bold text-[#0F1B2D]">{selectedCategoryObj?.name}</span>
+                <span className="text-[10px] text-[#64748B] uppercase tracking-wider block font-bold">
+                  {isHi ? 'चयनित श्रेणी' : 'Category selected'}
+                </span>
+                <span className="font-bold text-[#0F1B2D]">
+                  {selectedCategoryObj ? tCategoryName(selectedCategoryObj.id, language, selectedCategoryObj.name) : ''}
+                </span>
               </div>
-              <button onClick={() => setCurrentStep(1)} className="text-[#F4511E] font-bold hover:underline">Change</button>
+              <button onClick={() => setCurrentStep(1)} className="text-[#F4511E] font-bold hover:underline">
+                {isHi ? 'बदलें' : 'Change'}
+              </button>
             </div>
 
             {/* Subcategory */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Specific Sub-Category *</label>
+              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                {isHi ? 'विशिष्ट उप-श्रेणी *' : 'Specific Sub-Category *'}
+              </label>
               <select
                 value={subcategory}
                 onChange={(e) => setSubcategory(e.target.value)}
                 className="w-full px-3 py-2.5 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs focus:outline-none focus:border-[#F4511E]"
               >
                 {selectedCategoryObj?.subcategories.map(sub => (
-                  <option key={sub} value={sub}>{sub}</option>
+                  <option key={sub} value={sub}>{tSubcategory(sub, language)}</option>
                 ))}
               </select>
             </div>
 
             {/* Complaint Title */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Complaint Title *</label>
+              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                {isHi ? 'शिकायत का शीर्षक *' : 'Complaint Title *'}
+              </label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Huge open pothole opposite DPS school entrance"
+                placeholder={isHi ? 'जैसे: DPS स्कूल के मुख्य द्वार के सामने बड़ा खुला गड्ढा' : 'e.g. Huge open pothole opposite DPS school entrance'}
                 className="w-full px-3 py-2.5 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs focus:outline-none focus:border-[#F4511E] text-[#0F172A]"
                 required
               />
@@ -517,13 +568,16 @@ export default function RaiseComplaintPage({
             {/* Description */}
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center">
-                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Detailed Description *</label>
+                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                  {isHi ? 'विस्तृत विवरण *' : 'Detailed Description *'}
+                </label>
                 
                 {/* Voice Dictation AI Interface */}
                 <div className="flex items-center gap-2">
                   {isTranscribing ? (
                     <span className="flex items-center gap-1.5 text-[10px] text-orange-500 font-extrabold animate-pulse">
-                      <span className="w-1.5 h-1.5 rounded-full bg-orange-600 animate-ping" /> Transcribing Audio...
+                      <span className="w-1.5 h-1.5 rounded-full bg-orange-600 animate-ping" />
+                      {isHi ? 'ऑडियो लिखा जा रहा है...' : 'Transcribing Audio...'}
                     </span>
                   ) : isRecording ? (
                     <button
@@ -531,7 +585,7 @@ export default function RaiseComplaintPage({
                       onClick={stopRecording}
                       className="flex items-center gap-1 bg-red-600 hover:bg-red-700 text-white px-2.5 py-1 rounded text-[10px] font-extrabold uppercase tracking-wider shadow-xs animate-pulse"
                     >
-                      <Square className="w-2.5 h-2.5 fill-white shrink-0" /> Stop Recording
+                      <Square className="w-2.5 h-2.5 fill-white shrink-0" /> {isHi ? 'रिकॉर्डिंग रोकें' : 'Stop Recording'}
                     </button>
                   ) : (
                     <button
@@ -539,7 +593,7 @@ export default function RaiseComplaintPage({
                       onClick={startRecording}
                       className="flex items-center gap-1 bg-orange-50 hover:bg-orange-100 border border-orange-100 text-[#F4511E] px-2.5 py-1 rounded text-[10px] font-extrabold uppercase tracking-wider shadow-xs transition-all"
                     >
-                      <Mic className="w-2.5 h-2.5 text-[#F4511E] shrink-0" /> Dictate with Voice (AI)
+                      <Mic className="w-2.5 h-2.5 text-[#F4511E] shrink-0" /> {isHi ? 'आवाज़ से बोलें (AI)' : 'Dictate with Voice (AI)'}
                     </button>
                   )}
                 </div>
@@ -547,7 +601,11 @@ export default function RaiseComplaintPage({
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="Please describe the exact issue, safety risks, and specify landmark guides if any to help ward officers find the site immediately."
+                placeholder={
+                  isHi
+                    ? 'कृपया समस्या का सटीक विवरण, सुरक्षा जोखिम और नज़दीकी लैंडमार्क लिखें ताकि वार्ड अधिकारी स्थान तुरंत ढूंढ सकें।'
+                    : 'Please describe the exact issue, safety risks, and specify landmark guides if any to help ward officers find the site immediately.'
+                }
                 rows={5}
                 className="w-full px-3 py-2.5 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs focus:outline-none focus:border-[#F4511E] text-[#0F172A]"
                 required
@@ -556,7 +614,9 @@ export default function RaiseComplaintPage({
 
             {/* Priority Selector */}
             <div className="flex flex-col gap-1.5">
-              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Urgency Level *</label>
+              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                {isHi ? 'तात्कालिकता स्तर (प्राथमिकता) *' : 'Urgency Level *'}
+              </label>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                 {(['low', 'medium', 'high', 'critical'] as const).map((pri) => (
                   <button
@@ -569,15 +629,15 @@ export default function RaiseComplaintPage({
                         : 'border-[#E5E7EB] bg-slate-50 text-slate-700 hover:bg-slate-100'
                     }`}
                   >
-                    {pri}
+                    {tPriority(pri, language)}
                   </button>
                 ))}
               </div>
               <p className="text-[10px] text-slate-400 mt-1">
-                {priority === 'low' && 'SLA Deadline: 72 hours response time.'}
-                {priority === 'medium' && 'SLA Deadline: 48 hours response time.'}
-                {priority === 'high' && 'SLA Deadline: 24 hours response time.'}
-                {priority === 'critical' && 'SLA Deadline: 6 hours emergency response.'}
+                {priority === 'low' && (isHi ? 'SLA समय-सीमा: 72 घंटे समाधान समय।' : 'SLA Deadline: 72 hours response time.')}
+                {priority === 'medium' && (isHi ? 'SLA समय-सीमा: 48 घंटे समाधान समय।' : 'SLA Deadline: 48 hours response time.')}
+                {priority === 'high' && (isHi ? 'SLA समय-सीमा: 24 घंटे समाधान समय।' : 'SLA Deadline: 24 hours response time.')}
+                {priority === 'critical' && (isHi ? 'SLA समय-सीमा: 6 घंटे आपातकालीन कार्रवाई।' : 'SLA Deadline: 6 hours emergency response.')}
               </p>
             </div>
           </div>
@@ -587,11 +647,11 @@ export default function RaiseComplaintPage({
             <button
               onClick={() => {
                 if (title.trim() && description.trim()) setCurrentStep(3);
-                else toast('Please fill in all required fields!');
+                else toast(isHi ? 'कृपया सभी अनिवार्य फ़ील्ड भरें!' : 'Please fill in all required fields!');
               }}
               className="flex items-center gap-1.5 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
             >
-              Next: Location <ArrowRight className="w-4 h-4" />
+              {isHi ? 'अगला: स्थान चुनें' : 'Next: Location'} <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -602,8 +662,14 @@ export default function RaiseComplaintPage({
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div>
-              <h2 className="text-xl font-extrabold text-[#0F1B2D]">Where is the issue?</h2>
-              <p className="text-xs text-[#64748B] mt-1">Pin the location on the map, auto-detect with live GPS, or enter address manually.</p>
+              <h2 className="text-xl font-extrabold text-[#0F1B2D]">
+                {isHi ? 'समस्या कहाँ है?' : 'Where is the issue?'}
+              </h2>
+              <p className="text-xs text-[#64748B] mt-1">
+                {isHi
+                  ? 'नक्शे पर स्थान पिन करें, लाइव GPS से पता चुनें, या पता स्वयं दर्ज करें।'
+                  : 'Pin the location on the map, auto-detect with live GPS, or enter address manually.'}
+              </p>
             </div>
             <button
               type="button"
@@ -614,12 +680,12 @@ export default function RaiseComplaintPage({
               {isLocating ? (
                 <>
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  <span>Accessing Device GPS...</span>
+                  <span>{isHi ? 'डिवाइस GPS प्राप्त हो रहा है...' : 'Accessing Device GPS...'}</span>
                 </>
               ) : (
                 <>
                   <Crosshair className="w-3.5 h-3.5 text-blue-200" />
-                  <span>Use My Real-Time Location</span>
+                  <span>{isHi ? 'मेरा लाइव लोकेशन उपयोग करें' : 'Use My Real-Time Location'}</span>
                 </>
               )}
             </button>
@@ -629,9 +695,19 @@ export default function RaiseComplaintPage({
           <div className="bg-blue-50/70 border border-blue-100 rounded-xl p-3 flex items-start gap-2.5 text-xs text-[#1E3A8A]">
             <span className="text-base shrink-0 mt-0.5">💡</span>
             <div>
-              <p className="font-semibold text-blue-900">How Real-Time GPS Detection Works:</p>
+              <p className="font-semibold text-blue-900">
+                {isHi ? 'लाइव GPS पहचान कैसे काम करती है:' : 'How Real-Time GPS Detection Works:'}
+              </p>
               <p className="text-[11px] text-blue-700 mt-0.5">
-                When you click <strong>"Use My Real-Time Location"</strong>, your browser or mobile phone will request permission. Click <strong>"Allow"</strong> to auto-lock your exact street address, pincode, and ward coordinates via satellite GPS.
+                {isHi ? (
+                  <>
+                    जब आप <strong>"मेरा लाइव लोकेशन उपयोग करें"</strong> पर क्लिक करते हैं, तो आपका ब्राउज़र या फ़ोन अनुमति मांगेगा। सैटेलाइट GPS द्वारा आपका सटीक पता, पिनकोड और वार्ड लॉक करने के लिए <strong>"Allow / अनुमति दें"</strong> पर क्लिक करें।
+                  </>
+                ) : (
+                  <>
+                    When you click <strong>"Use My Real-Time Location"</strong>, your browser or mobile phone will request permission. Click <strong>"Allow"</strong> to auto-lock your exact street address, pincode, and ward coordinates via satellite GPS.
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -641,10 +717,16 @@ export default function RaiseComplaintPage({
             <div className="bg-amber-50/90 border border-amber-200 rounded-xl p-4 text-amber-900 shadow-xs">
               <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-wider text-amber-800 mb-1.5">
                 <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
-                <span>Nearby Active Civic Issues Detected ({nearbyIssues.length})</span>
+                <span>
+                  {isHi
+                    ? `आस-पास सक्रिय नागरिक समस्याएँ मिलीं (${nearbyIssues.length})`
+                    : `Nearby Active Civic Issues Detected (${nearbyIssues.length})`}
+                </span>
               </div>
               <p className="text-[11px] text-amber-700 mb-3">
-                Other citizens have already reported similar civic issues within 500m of your coordinates. You can review them to check if your issue is already being addressed:
+                {isHi
+                  ? 'अन्य नागरिकों ने आपके स्थान से 500 मीटर के भीतर इसी तरह की समस्याएँ पहले ही दर्ज की हैं। आप देख सकते हैं कि क्या आपकी समस्या पर पहले से कार्य हो रहा है:'
+                  : 'Other citizens have already reported similar civic issues within 500m of your coordinates. You can review them to check if your issue is already being addressed:'}
               </p>
               <div className="space-y-2">
                 {nearbyIssues.map((issue) => (
@@ -654,18 +736,22 @@ export default function RaiseComplaintPage({
                   >
                     <div className="truncate flex-1">
                       <span className="font-bold text-slate-800">{issue.title}</span>
-                      <span className="text-[10px] text-slate-500 ml-2">({issue.distanceMeters}m away)</span>
+                      <span className="text-[10px] text-slate-500 ml-2">
+                        ({issue.distanceMeters}{isHi ? 'मी दूर' : 'm away'})
+                      </span>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">
-                        {issue.status}
+                        {tStatus(issue.status, language)}
                       </span>
                       <button
                         type="button"
                         onClick={() => {
                           setSubscribedIssueIds((prev) => [...prev, issue.id]);
                           toast.success(
-                            `👍 Subscribed to updates for ${issue.publicReference || issue.title}! WhatsApp notifications active.`,
+                            isHi
+                              ? `👍 ${issue.publicReference || issue.title} के अपडेट सक्रिय किए गए! WhatsApp सूचनाएँ चालू हैं।`
+                              : `👍 Subscribed to updates for ${issue.publicReference || issue.title}! WhatsApp notifications active.`,
                           );
                         }}
                         disabled={subscribedIssueIds.includes(issue.id)}
@@ -675,7 +761,9 @@ export default function RaiseComplaintPage({
                             : 'bg-[#0F1B2D] hover:bg-slate-800 text-white'
                         }`}
                       >
-                        {subscribedIssueIds.includes(issue.id) ? '✓ Subscribed' : "+1 I'm Affected"}
+                        {subscribedIssueIds.includes(issue.id)
+                          ? isHi ? '✓ अपडेट सक्रिय' : '✓ Subscribed'
+                          : isHi ? '+1 मैं भी प्रभावित हूँ' : "+1 I'm Affected"}
                       </button>
                     </div>
                   </div>
@@ -688,27 +776,31 @@ export default function RaiseComplaintPage({
             {/* Left: Fields */}
             <div className="lg:col-span-5 space-y-4 text-xs">
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Ward *</label>
+                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                  {isHi ? 'वार्ड *' : 'Ward *'}
+                </label>
                 <select
                   value={wardId}
                   onChange={(e) => setWardId(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs focus:outline-none focus:border-[#F4511E]"
                   required
                 >
-                  <option value="">-- Choose Ward Area --</option>
+                  <option value="">{isHi ? '-- वार्ड क्षेत्र चुनें --' : '-- Choose Ward Area --'}</option>
                   {WARDS.map(w => (
-                    <option key={w.id} value={w.id}>{w.name}</option>
+                    <option key={w.id} value={w.id}>{tWard(w.id, language, w.name)}</option>
                   ))}
                 </select>
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Specific Block/House/Street Address *</label>
+                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                  {isHi ? 'ब्लॉक / मकान / गली का सटीक पता *' : 'Specific Block/House/Street Address *'}
+                </label>
                 <input
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. Sector 10, Pocket 2, Near City Centre"
+                  placeholder={isHi ? 'जैसे: सेक्टर 10, पॉकेट 2, सिटी सेंटर के पास' : 'e.g. Sector 10, Pocket 2, Near City Centre'}
                   className="w-full px-3 py-2.5 bg-slate-50 border border-[#E5E7EB] rounded-lg text-xs focus:outline-none focus:border-[#F4511E] text-[#0F172A]"
                   required
                 />
@@ -716,7 +808,9 @@ export default function RaiseComplaintPage({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">City</label>
+                  <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                    {isHi ? 'शहर' : 'City'}
+                  </label>
                   <input
                     type="text"
                     value={city}
@@ -725,7 +819,9 @@ export default function RaiseComplaintPage({
                   />
                 </div>
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Pincode *</label>
+                  <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                    {isHi ? 'पिनकोड *' : 'Pincode *'}
+                  </label>
                   <input
                     type="text"
                     value={pincode}
@@ -739,22 +835,28 @@ export default function RaiseComplaintPage({
 
               <div className="p-3 bg-slate-50 border border-slate-100 rounded-lg space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-mono text-[#64748B] block uppercase tracking-wider">Pinned GPS Coordinates</span>
+                  <span className="text-[10px] font-mono text-[#64748B] block uppercase tracking-wider">
+                    {isHi ? 'पिन किए गए GPS निर्देशांक' : 'Pinned GPS Coordinates'}
+                  </span>
                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-                    Live GPS
+                    {isHi ? 'लाइव GPS' : 'Live GPS'}
                   </span>
                 </div>
-                <p className="font-mono text-[11px] font-bold text-[#0F1B2D]">Lat: {lat.toFixed(5)} · Lng: {lng.toFixed(5)}</p>
+                <p className="font-mono text-[11px] font-bold text-[#0F1B2D]">
+                  {isHi ? `अक्षांश: ${lat.toFixed(5)} · देशांतर: ${lng.toFixed(5)}` : `Lat: ${lat.toFixed(5)} · Lng: ${lng.toFixed(5)}`}
+                </p>
                 {locationAccuracy && (
-                  <p className="text-[10px] text-slate-500 font-mono">Accuracy: ±{locationAccuracy} meters</p>
+                  <p className="text-[10px] text-slate-500 font-mono">
+                    {isHi ? `सटीकता: ±${locationAccuracy} मीटर` : `Accuracy: ±${locationAccuracy} meters`}
+                  </p>
                 )}
               </div>
             </div>
 
             {/* Right: Map Vector */}
             <div className="lg:col-span-7 h-[280px] sm:h-full min-h-[250px] rounded-xl overflow-hidden border border-[#E5E7EB]">
-              <InteractiveMap interactive={true} onSelectLocation={handleMapPin} selectedCoords={{ lat, lng }} selectedWardId={wardId} />
+              <InteractiveMap interactive={true} onSelectLocation={handleMapPin} selectedCoords={{ lat, lng }} selectedWardId={wardId} language={language} />
             </div>
           </div>
 
@@ -764,16 +866,16 @@ export default function RaiseComplaintPage({
               onClick={() => setCurrentStep(2)}
               className="text-slate-500 font-bold text-xs hover:underline uppercase"
             >
-              Previous Step
+              {isHi ? 'पिछला चरण' : 'Previous Step'}
             </button>
             <button
               onClick={() => {
                 if (wardId && address.trim() && pincode.trim()) setCurrentStep(4);
-                else toast('Please specify the ward, address and pincode to proceed!');
+                else toast(isHi ? 'आगे बढ़ने के लिए कृपया वार्ड, पता और पिनकोड दर्ज करें!' : 'Please specify the ward, address and pincode to proceed!');
               }}
               className="flex items-center gap-1.5 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
             >
-              Next: Evidence <ArrowRight className="w-4 h-4" />
+              {isHi ? 'अगला: साक्ष्य अपलोड' : 'Next: Evidence'} <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -783,8 +885,14 @@ export default function RaiseComplaintPage({
       {currentStep === 4 && (
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
           <div>
-            <h2 className="text-xl font-extrabold text-[#0F1B2D]">Upload Evidence</h2>
-            <p className="text-xs text-[#64748B] mt-1">Upload clear photos, video, or documents to substantiate your grievance.</p>
+            <h2 className="text-xl font-extrabold text-[#0F1B2D]">
+              {isHi ? 'साक्ष्य अपलोड करें' : 'Upload Evidence'}
+            </h2>
+            <p className="text-xs text-[#64748B] mt-1">
+              {isHi
+                ? 'अपनी शिकायत की पुष्टि के लिए स्पष्ट फ़ोटो, वीडियो या दस्तावेज़ अपलोड करें।'
+                : 'Upload clear photos, video, or documents to substantiate your grievance.'}
+            </p>
           </div>
 
           {/* File Drag and Drop Box */}
@@ -800,8 +908,12 @@ export default function RaiseComplaintPage({
                 <UploadCloud className="w-8 h-8" />
               </div>
               <div className="space-y-1">
-                <p className="text-xs font-bold text-[#0F1B2D]">Drag & Drop or Click to browse</p>
-                <p className="text-[10px] text-[#64748B]">Supports JPEG, PNG, MP4 up to 25MB total. (Simulated Uploader)</p>
+                <p className="text-xs font-bold text-[#0F1B2D]">
+                  {isHi ? 'फ़ाइल चुनने के लिए क्लिक करें या यहाँ खींचकर छोड़ें' : 'Drag & Drop or Click to browse'}
+                </p>
+                <p className="text-[10px] text-[#64748B]">
+                  {isHi ? 'कुल 25MB तक JPEG, PNG, MP4 फ़ाइलें समर्थित हैं।' : 'Supports JPEG, PNG, MP4 up to 25MB total. (Simulated Uploader)'}
+                </p>
               </div>
             </div>
           </div>
@@ -809,7 +921,9 @@ export default function RaiseComplaintPage({
           {/* Uploaded File list */}
           {evidenceFiles.length > 0 && (
             <div className="space-y-2 text-xs">
-              <p className="font-bold text-[#0F1B2D] uppercase tracking-wider">Uploaded Files ({evidenceFiles.length})</p>
+              <p className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                {isHi ? `अपलोड की गई फ़ाइलें (${evidenceFiles.length})` : `Uploaded Files (${evidenceFiles.length})`}
+              </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {evidenceFiles.map((file, idx) => (
                   <div key={idx} className="flex items-center justify-between p-2 bg-slate-50 border border-slate-100 rounded-lg">
@@ -823,7 +937,7 @@ export default function RaiseComplaintPage({
                         onClick={() => setEvidenceFiles(prev => prev.filter((_, i) => i !== idx))}
                         className="text-red-500 hover:underline font-sans font-bold"
                       >
-                        Remove
+                        {isHi ? 'हटाएँ' : 'Remove'}
                       </button>
                     </div>
                   </div>
@@ -838,13 +952,13 @@ export default function RaiseComplaintPage({
               onClick={() => setCurrentStep(3)}
               className="text-slate-500 font-bold text-xs hover:underline uppercase"
             >
-              Previous Step
+              {isHi ? 'पिछला चरण' : 'Previous Step'}
             </button>
             <button
               onClick={() => setCurrentStep(5)}
               className="flex items-center gap-1.5 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
             >
-              Next: Contact Info <ArrowRight className="w-4 h-4" />
+              {isHi ? 'अगला: संपर्क विवरण' : 'Next: Contact Info'} <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -854,14 +968,22 @@ export default function RaiseComplaintPage({
       {currentStep === 5 && (
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs">
           <div>
-            <h2 className="text-xl font-extrabold text-[#0F1B2D]">Contact Verification</h2>
-            <p className="text-xs text-[#64748B] mt-1">We require verified contact details to prevent fraudulent reporting and send live status updates via SMS / Email.</p>
+            <h2 className="text-xl font-extrabold text-[#0F1B2D]">
+              {isHi ? 'संपर्क सत्यापन' : 'Contact Verification'}
+            </h2>
+            <p className="text-xs text-[#64748B] mt-1">
+              {isHi
+                ? 'फ़र्ज़ी शिकायतों को रोकने और SMS / WhatsApp पर लाइव अपडेट भेजने के लिए सत्यापित संपर्क आवश्यक है।'
+                : 'We require verified contact details to prevent fraudulent reporting and send live status updates via SMS / Email.'}
+            </p>
           </div>
 
           <div className="space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Full Name *</label>
+                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                  {isHi ? 'पूरा नाम *' : 'Full Name *'}
+                </label>
                 <input
                   type="text"
                   value={citizenName}
@@ -871,7 +993,9 @@ export default function RaiseComplaintPage({
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Email Address</label>
+                <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                  {isHi ? 'ईमेल पता' : 'Email Address'}
+                </label>
                 <input
                   type="email"
                   value={citizenEmail}
@@ -882,7 +1006,9 @@ export default function RaiseComplaintPage({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">Mobile Phone Number (WhatsApp / SMS updates) *</label>
+              <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
+                {isHi ? 'मोबाइल नंबर (WhatsApp / SMS अपडेट हेतु) *' : 'Mobile Phone Number (WhatsApp / SMS updates) *'}
+              </label>
               <div className="flex gap-2">
                 <input
                   type="tel"
@@ -898,7 +1024,7 @@ export default function RaiseComplaintPage({
                     onClick={handleSendOtpSimulated}
                     className="bg-[#0F1B2D] hover:bg-slate-800 text-white px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors shrink-0"
                   >
-                    {otpSent ? 'Resend OTP' : 'Send OTP'}
+                    {otpSent ? (isHi ? 'OTP पुनः भेजें' : 'Resend OTP') : (isHi ? 'OTP भेजें' : 'Send OTP')}
                   </button>
                 )}
               </div>
@@ -909,15 +1035,25 @@ export default function RaiseComplaintPage({
               <div className="p-4 bg-orange-50/50 border border-orange-100 rounded-xl space-y-3">
                 <div className="flex items-center gap-1.5">
                   <Lock className="w-4 h-4 text-[#F4511E]" />
-                  <span className="font-bold text-[#0F1B2D]">Verify Code</span>
+                  <span className="font-bold text-[#0F1B2D]">{isHi ? 'OTP कोड सत्यापित करें' : 'Verify Code'}</span>
                 </div>
-                <p className="text-[11px] text-slate-500">Enter the verification code sent to {citizenPhone}. For this demo, type <strong className="text-[#0F1B2D]">2026</strong>.</p>
+                <p className="text-[11px] text-slate-500">
+                  {isHi ? (
+                    <>
+                      {citizenPhone} पर भेजा गया सत्यापन कोड दर्ज करें। इस डेमो के लिए <strong className="text-[#0F1B2D]">2026</strong> दर्ज करें।
+                    </>
+                  ) : (
+                    <>
+                      Enter the verification code sent to {citizenPhone}. For this demo, type <strong className="text-[#0F1B2D]">2026</strong>.
+                    </>
+                  )}
+                </p>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={otpCode}
                     onChange={(e) => setOtpCode(e.target.value)}
-                    placeholder="e.g. 2026"
+                    placeholder={isHi ? 'जैसे 2026' : 'e.g. 2026'}
                     className="max-w-[120px] px-3 py-2 bg-white border border-[#E5E7EB] rounded-lg text-center text-xs font-bold font-mono tracking-widest text-[#0F172A]"
                   />
                   <button
@@ -925,7 +1061,7 @@ export default function RaiseComplaintPage({
                     onClick={handleVerifyOtpSimulated}
                     className="bg-[#16A34A] hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
                   >
-                    Verify OTP
+                    {isHi ? 'OTP सत्यापित करें' : 'Verify OTP'}
                   </button>
                 </div>
                 {otpError && <p className="text-red-500 text-[10px] font-bold mt-1">{otpError}</p>}
@@ -934,7 +1070,7 @@ export default function RaiseComplaintPage({
 
             {otpVerified && (
               <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl flex items-center gap-2 text-emerald-800 font-bold">
-                <Check className="w-4 h-4 text-emerald-500 stroke-[3]" /> Mobile verification complete!
+                <Check className="w-4 h-4 text-emerald-500 stroke-[3]" /> {isHi ? 'मोबाइल सत्यापन पूर्ण हुआ!' : 'Mobile verification complete!'}
               </div>
             )}
           </div>
@@ -945,16 +1081,16 @@ export default function RaiseComplaintPage({
               onClick={() => setCurrentStep(4)}
               className="text-slate-500 font-bold text-xs hover:underline uppercase"
             >
-              Previous Step
+              {isHi ? 'पिछला चरण' : 'Previous Step'}
             </button>
             <button
               onClick={() => {
                 if (otpVerified) setCurrentStep(6);
-                else toast('Please verify your mobile number with the OTP code first! Enter "2026" inside the OTP block.');
+                else toast(isHi ? 'कृपया पहले OTP से अपना मोबाइल नंबर सत्यापित करें! बॉक्स में "2026" दर्ज करें।' : 'Please verify your mobile number with the OTP code first! Enter "2026" inside the OTP block.');
               }}
               className="flex items-center gap-1.5 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors"
             >
-              Next: Review <ArrowRight className="w-4 h-4" />
+              {isHi ? 'अगला: समीक्षा करें' : 'Next: Review'} <ArrowRight className="w-4 h-4" />
             </button>
           </div>
         </div>
@@ -964,43 +1100,78 @@ export default function RaiseComplaintPage({
       {currentStep === 6 && (
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 sm:p-8 space-y-6 shadow-xs text-xs">
           <div>
-            <h2 className="text-xl font-extrabold text-[#0F1B2D]">Review & Submit</h2>
-            <p className="text-xs text-[#64748B] mt-1">Please confirm that all information is complete and accurate before submission.</p>
+            <h2 className="text-xl font-extrabold text-[#0F1B2D]">
+              {isHi ? 'समीक्षा करें और सबमिट करें' : 'Review & Submit'}
+            </h2>
+            <p className="text-xs text-[#64748B] mt-1">
+              {isHi
+                ? 'कृपया सबमिट करने से पहले सुनिश्चित करें कि सभी जानकारी सही और पूर्ण है।'
+                : 'Please confirm that all information is complete and accurate before submission.'}
+            </p>
           </div>
 
           <div className="divide-y divide-slate-100 space-y-4">
             {/* Category & Title */}
             <div className="space-y-1 pb-4">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">COMPLAINT PROFILE</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                {isHi ? 'शिकायत विवरण' : 'COMPLAINT PROFILE'}
+              </p>
               <h3 className="text-base font-extrabold text-[#0F172A]">{title}</h3>
-              <p className="text-[#64748B]">Category: <strong className="text-[#0F1B2D]">{selectedCategoryObj?.name}</strong> · Priority: <strong className="text-red-500 uppercase">{priority}</strong></p>
+              <p className="text-[#64748B]">
+                {isHi ? 'श्रेणी:' : 'Category:'}{' '}
+                <strong className="text-[#0F1B2D]">
+                  {selectedCategoryObj ? tCategoryName(selectedCategoryObj.id, language, selectedCategoryObj.name) : ''}
+                </strong>{' '}
+                · {isHi ? 'प्राथमिकता:' : 'Priority:'}{' '}
+                <strong className="text-red-500 uppercase">{tPriority(priority, language)}</strong>
+              </p>
             </div>
 
             {/* Description */}
             <div className="py-4 space-y-1">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">DESCRIPTION</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                {isHi ? 'विवरण' : 'DESCRIPTION'}
+              </p>
               <p className="text-[#475569] leading-relaxed whitespace-pre-wrap font-medium">{description}</p>
             </div>
 
             {/* Location */}
             <div className="py-4 space-y-2">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">LOCATION</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                {isHi ? 'स्थान' : 'LOCATION'}
+              </p>
               <p className="text-[#0F172A] font-bold">📍 {address}, Dwarka, Delhi - {pincode}</p>
-              <p className="text-[10px] text-[#64748B]">Ward No: <strong className="text-[#0F1B2D] uppercase">{WARDS.find(w => w.id === wardId)?.name}</strong> · Coords: Lat {lat.toFixed(4)}, Lng {lng.toFixed(4)}</p>
+              <p className="text-[10px] text-[#64748B]">
+                {isHi ? 'वार्ड:' : 'Ward No:'}{' '}
+                <strong className="text-[#0F1B2D] uppercase">
+                  {tWard(wardId, language, WARDS.find(w => w.id === wardId)?.name || '')}
+                </strong>{' '}
+                · {isHi ? `निर्देशांक: अक्षांश ${lat.toFixed(4)}, देशांतर ${lng.toFixed(4)}` : `Coords: Lat ${lat.toFixed(4)}, Lng ${lng.toFixed(4)}`}
+              </p>
             </div>
 
             {/* Contact details */}
             <div className="py-4 space-y-1">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">REPORTER DETAILS (VERIFIED)</p>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                {isHi ? 'शिकायतकर्ता विवरण (सत्यापित)' : 'REPORTER DETAILS (VERIFIED)'}
+              </p>
               <p className="font-bold text-[#0F172A]">{citizenName}</p>
-              <p className="text-slate-500">Phone: {citizenPhone} · Email: {citizenEmail}</p>
+              <p className="text-slate-500">
+                {isHi ? `फ़ोन: ${citizenPhone} · ईमेल: ${citizenEmail}` : `Phone: ${citizenPhone} · Email: ${citizenEmail}`}
+              </p>
             </div>
 
             {/* Files */}
             {evidenceFiles.length > 0 && (
               <div className="py-4 space-y-1">
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">ATTACHED EVIDENCE</p>
-                <p className="font-medium text-slate-600">{evidenceFiles.length} files successfully staged for upload.</p>
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                  {isHi ? 'संलग्न साक्ष्य' : 'ATTACHED EVIDENCE'}
+                </p>
+                <p className="font-medium text-slate-600">
+                  {isHi
+                    ? `${evidenceFiles.length} फ़ाइलें अपलोड के लिए तैयार हैं।`
+                    : `${evidenceFiles.length} files successfully staged for upload.`}
+                </p>
               </div>
             )}
           </div>
@@ -1011,14 +1182,16 @@ export default function RaiseComplaintPage({
               onClick={() => setCurrentStep(5)}
               className="text-slate-500 font-bold text-xs hover:underline uppercase"
             >
-              Edit Details
+              {isHi ? 'विवरण संपादित करें' : 'Edit Details'}
             </button>
             <button
               onClick={handleFormSubmission}
               disabled={isSubmitting}
               className="flex items-center gap-1.5 bg-[#16A34A] hover:bg-emerald-600 text-white px-6 py-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-colors shadow-xs"
             >
-              {isSubmitting ? 'Submitting Complaint...' : 'Submit Complaint ✓'}
+              {isSubmitting
+                ? isHi ? 'शिकायत दर्ज की जा रही है...' : 'Submitting Complaint...'
+                : isHi ? 'शिकायत दर्ज करें ✓' : 'Submit Complaint ✓'}
             </button>
           </div>
         </div>
@@ -1031,24 +1204,42 @@ export default function RaiseComplaintPage({
             <div className="p-4 bg-emerald-50 rounded-full border border-emerald-100 text-emerald-500">
               <CheckCircle2 className="w-12 h-12 stroke-[2.5]" />
             </div>
-            <h2 className="text-2xl font-extrabold text-[#0F1B2D]">Complaint Filed!</h2>
-            <p className="text-xs text-[#64748B]">Your grievance has been successfully submitted and logged inside the Samadhan Setu directory.</p>
+            <h2 className="text-2xl font-extrabold text-[#0F1B2D]">
+              {isHi ? 'शिकायत दर्ज हो गई!' : 'Complaint Filed!'}
+            </h2>
+            <p className="text-xs text-[#64748B]">
+              {isHi
+                ? 'आपकी शिकायत सफलतापूर्वक दर्ज हो गई है और समाधान सेतु निर्देशिका में लॉग की जा चुकी है।'
+                : 'Your grievance has been successfully submitted and logged inside the Samadhan Setu directory.'}
+            </p>
           </div>
 
           {/* Receipt display block */}
           <div className="bg-slate-50 border border-slate-100 rounded-xl p-5 text-left space-y-3 font-sans">
             <div className="flex justify-between items-center text-[10px] font-mono text-slate-400 border-b border-slate-100 pb-2">
-              <span>SAMADHAN SETU RECEIPT</span>
-              <span>DATE: {new Date().toLocaleDateString()}</span>
+              <span>{isHi ? 'समाधान सेतु रसीद' : 'SAMADHAN SETU RECEIPT'}</span>
+              <span>{isHi ? 'दिनांक:' : 'DATE:'} {new Date().toLocaleDateString(isHi ? 'hi-IN' : undefined)}</span>
             </div>
             <div className="space-y-1.5">
-              <p className="text-[#64748B]">Complaint Tracking ID:</p>
+              <p className="text-[#64748B]">{isHi ? 'शिकायत ट्रैकिंग आईडी:' : 'Complaint Tracking ID:'}</p>
               <p className="text-sm font-extrabold text-[#0F172A] font-mono tracking-widest">{successComplaintId}</p>
             </div>
             <div className="space-y-1 pt-1 text-[11px] text-[#475569]">
-              <p>Category: <strong className="text-[#0F172A]">{selectedCategoryObj?.name}</strong></p>
-              <p>Address: <strong className="text-[#0F172A]">{address}</strong></p>
-              <p>SLA Target: <strong className="text-red-500 uppercase">{priority} priority ({getSLADurationHours(priority)} hours)</strong></p>
+              <p>
+                {isHi ? 'श्रेणी:' : 'Category:'}{' '}
+                <strong className="text-[#0F172A]">
+                  {selectedCategoryObj ? tCategoryName(selectedCategoryObj.id, language, selectedCategoryObj.name) : ''}
+                </strong>
+              </p>
+              <p>{isHi ? 'पता:' : 'Address:'} <strong className="text-[#0F172A]">{address}</strong></p>
+              <p>
+                {isHi ? 'SLA लक्ष्य:' : 'SLA Target:'}{' '}
+                <strong className="text-red-500 uppercase">
+                  {isHi
+                    ? `${tPriority(priority, 'hi')} प्राथमिकता (${getSLADurationHours(priority)} घंटे)`
+                    : `${priority} priority (${getSLADurationHours(priority)} hours)`}
+                </strong>
+              </p>
             </div>
           </div>
 
@@ -1062,7 +1253,7 @@ export default function RaiseComplaintPage({
               }}
               className="flex-1 bg-[#0F1B2D] hover:bg-slate-800 text-white py-3 rounded-lg font-bold uppercase tracking-wider transition-colors text-[10px]"
             >
-              Track Complaint
+              {isHi ? 'शिकायत ट्रैक करें' : 'Track Complaint'}
             </button>
             <button
               onClick={() => {
@@ -1070,7 +1261,7 @@ export default function RaiseComplaintPage({
               }}
               className="flex-1 border-2 border-slate-200 hover:bg-slate-50 text-slate-700 py-3 rounded-lg font-bold uppercase tracking-wider transition-colors text-[10px] flex items-center justify-center gap-1.5"
             >
-              <span>View & Print Receipt 🖨️</span>
+              <span>{isHi ? 'रसीद देखें और प्रिंट करें 🖨️' : 'View & Print Receipt 🖨️'}</span>
             </button>
           </div>
           
@@ -1078,7 +1269,7 @@ export default function RaiseComplaintPage({
             onClick={() => setPage('home')}
             className="text-[#F4511E] font-bold hover:underline block mx-auto text-[10px] uppercase tracking-wider pt-2"
           >
-            Back to Home Page
+            {isHi ? 'मुख्य पृष्ठ पर वापस जाएँ' : 'Back to Home Page'}
           </button>
         </div>
       )}
@@ -1087,6 +1278,7 @@ export default function RaiseComplaintPage({
         <OfficialReceiptModal
           complaint={submittedComplaint}
           onClose={() => setShowReceiptModal(false)}
+          language={language}
         />
       )}
 
