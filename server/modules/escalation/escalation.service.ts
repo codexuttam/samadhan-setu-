@@ -1,5 +1,6 @@
 import { prisma, withTx } from '../../lib/prisma';
 import { logger } from '../../lib/logger';
+import { createDbWorkerGuard } from '../../lib/dbGuard';
 import { AppError, Errors } from '../../lib/errors';
 import { broadcastSse } from '../../lib/sse';
 import { broadcastTicketNotification, createNotification, dispatch } from '../notifications/notifications.service';
@@ -13,58 +14,64 @@ const WARNING_JOB = 'escalation-sla-warning-check';
 const AUTO_RESOLVE_JOB = 'escalation-auto-resolve-check';
 export const MAX_ESCALATION_LEVEL = 4;
 
+const slaWarningGuard = createDbWorkerGuard('sla-warnings');
+const slaEscalationGuard = createDbWorkerGuard('sla-escalations');
+const autoResolveGuard = createDbWorkerGuard('auto-resolutions');
+
 /**
  * SLA Warning Processor: Sends proactive warnings for tickets approaching SLA deadline.
  */
 export async function checkSlaWarnings() {
   try {
-    const upcomingTickets = await prisma.ticket.findMany({
-      where: {
-        status: { in: ['SUBMITTED', 'ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS', 'REOPENED', 'ESCALATED'] },
-        slaWarningSent: false,
-        slaDeadline: { gte: new Date(), lte: new Date(Date.now() + 12 * 3600_000) },
-      },
-      take: 50,
-    });
+    await slaWarningGuard.run(async () => {
+      const upcomingTickets = await prisma.ticket.findMany({
+        where: {
+          status: { in: ['SUBMITTED', 'ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS', 'REOPENED', 'ESCALATED'] },
+          slaWarningSent: false,
+          slaDeadline: { gte: new Date(), lte: new Date(Date.now() + 12 * 3600_000) },
+        },
+        take: 50,
+      });
 
-    for (const t of upcomingTickets) {
-      try {
-        const notifIds = await withTx(async (tx) => {
-          await tx.ticket.update({
-            where: { id: t.id },
-            data: { slaWarningSent: true },
+      for (const t of upcomingTickets) {
+        try {
+          const notifIds = await withTx(async (tx) => {
+            await tx.ticket.update({
+              where: { id: t.id },
+              data: { slaWarningSent: true },
+            });
+
+            await tx.ticketStatusHistory.create({
+              data: {
+                ticketId: t.id,
+                fromStatus: t.status,
+                toStatus: t.status,
+                actorType: 'SYSTEM',
+                publicNote: `SLA Warning: SLA deadline is approaching in less than 12 hours (${t.slaDeadline?.toLocaleString('en-IN')}).`,
+              },
+            });
+
+            const notifIds = await broadcastTicketNotification(tx, t.id, 'SLA_WARNING', `warn_${t.version}`, { notifyOfficer: true });
+
+            await audit(
+              {
+                actor: { type: 'SYSTEM' },
+                action: 'SLA_WARNING_TRIGGERED',
+                ticketId: t.id,
+                metadata: { slaDeadline: t.slaDeadline },
+              },
+              tx,
+            );
+
+            return notifIds;
           });
 
-          await tx.ticketStatusHistory.create({
-            data: {
-              ticketId: t.id,
-              fromStatus: t.status,
-              toStatus: t.status,
-              actorType: 'SYSTEM',
-              publicNote: `SLA Warning: SLA deadline is approaching in less than 12 hours (${t.slaDeadline?.toLocaleString('en-IN')}).`,
-            },
-          });
-
-          const notifIds = await broadcastTicketNotification(tx, t.id, 'SLA_WARNING', `warn_${t.version}`, { notifyOfficer: true });
-
-          await audit(
-            {
-              actor: { type: 'SYSTEM' },
-              action: 'SLA_WARNING_TRIGGERED',
-              ticketId: t.id,
-              metadata: { slaDeadline: t.slaDeadline },
-            },
-            tx,
-          );
-
-          return notifIds;
-        });
-
-        if (notifIds?.length) dispatch(notifIds);
-      } catch (err) {
-        logger.error('Failed processing SLA warning for ticket', { ticketId: t.id, err: err as Error });
+          if (notifIds?.length) dispatch(notifIds);
+        } catch (err) {
+          logger.error('Failed processing SLA warning for ticket', { ticketId: t.id, err: err as Error });
+        }
       }
-    }
+    });
   } catch (err) {
     logger.error('SLA Warning worker iteration error', { err: err as Error });
   }
@@ -76,133 +83,135 @@ export async function checkSlaWarnings() {
  */
 export async function checkSlaEscalations() {
   try {
-    const overdueTickets = await prisma.ticket.findMany({
-      where: {
-        status: { in: ['SUBMITTED', 'ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS', 'REOPENED'] },
-        slaDeadline: { lte: new Date() },
-      },
-      include: {
-        department: true,
-        assignedOfficer: { include: { role: { include: { level: true } } } },
-      },
-      take: 50,
-    });
+    await slaEscalationGuard.run(async () => {
+      const overdueTickets = await prisma.ticket.findMany({
+        where: {
+          status: { in: ['SUBMITTED', 'ASSIGNED', 'ACCEPTED', 'INSPECTION', 'IN_PROGRESS', 'REOPENED'] },
+          slaDeadline: { lte: new Date() },
+        },
+        include: {
+          department: true,
+          assignedOfficer: { include: { role: { include: { level: true } } } },
+        },
+        take: 50,
+      });
 
-    for (const t of overdueTickets) {
-      const fromLevelOrder = t.currentLevelOrder;
-      const targetLevel = fromLevelOrder + 1;
-      const isMaxLevelReached = targetLevel > MAX_ESCALATION_LEVEL;
+      for (const t of overdueTickets) {
+        const fromLevelOrder = t.currentLevelOrder;
+        const targetLevel = fromLevelOrder + 1;
+        const isMaxLevelReached = targetLevel > MAX_ESCALATION_LEVEL;
 
-      // Find next authority officer at next level
-      let nextOfficer = null;
-      if (!isMaxLevelReached) {
-        nextOfficer = await prisma.authorityUser.findFirst({
-          where: {
-            departmentId: t.departmentId,
-            role: { level: { levelOrder: targetLevel } },
-            status: 'ACTIVE',
-          },
-          include: { role: { include: { level: true } } },
-        });
-      }
-
-      // If no department officer at next level, search for admin user fallback
-      if (!nextOfficer) {
-        nextOfficer = await prisma.authorityUser.findFirst({
-          where: {
-            role: { code: 'SUPER_ADMIN' },
-            status: 'ACTIVE',
-          },
-          include: { role: { include: { level: true } } },
-        });
-      }
-
-      const toLevelOrder = nextOfficer?.role?.level?.levelOrder ? Math.min(nextOfficer.role.level.levelOrder, MAX_ESCALATION_LEVEL) : fromLevelOrder;
-      const idempotencyKey = `sla_breach:${t.id}:${fromLevelOrder}->${toLevelOrder}:${t.escalationLevel + 1}`;
-
-      try {
-        const { notifIds, escalatedTicket } = await withTx(async (tx) => {
-          // Prevent duplicate escalation records if already processed
-          const existingEsc = await tx.escalation.findUnique({ where: { idempotencyKey } });
-          if (existingEsc) return { notifIds: [] as string[], escalatedTicket: null };
-
-          // Next SLA rule calculation
-          const nextSlaHours = await resolveSlaHours(tx, t.departmentId, t.priority, toLevelOrder);
-          const newDeadline = new Date(Date.now() + nextSlaHours * 3600_000);
-
-          const updated = await tx.ticket.update({
-            where: { id: t.id, version: t.version },
-            data: {
-              status: 'ESCALATED',
-              currentLevelOrder: toLevelOrder,
-              escalationLevel: { increment: 1 },
-              assignedOfficerId: nextOfficer ? nextOfficer.id : t.assignedOfficerId,
-              slaDeadline: newDeadline,
-              slaWarningSent: false, // Reset SLA warning for the new level
-              version: { increment: 1 },
+        // Find next authority officer at next level
+        let nextOfficer = null;
+        if (!isMaxLevelReached) {
+          nextOfficer = await prisma.authorityUser.findFirst({
+            where: {
+              departmentId: t.departmentId,
+              role: { level: { levelOrder: targetLevel } },
+              status: 'ACTIVE',
             },
-          });
-
-          await tx.escalation.create({
-            data: {
-              ticketId: t.id,
-              sequence: updated.escalationLevel,
-              reason: 'SLA_BREACHED',
-              fromLevelOrder,
-              toLevelOrder,
-              fromAuthorityId: t.assignedOfficerId,
-              toAuthorityId: nextOfficer ? nextOfficer.id : null,
-              breachedDeadline: t.slaDeadline,
-              note: isMaxLevelReached
-                ? `Maximum escalation level (${MAX_ESCALATION_LEVEL}) reached. Escalated to District Administration.`
-                : `Automatic SLA breach escalation from Level ${fromLevelOrder} to Level ${toLevelOrder}.`,
-              idempotencyKey,
-            },
-          });
-
-          await tx.ticketStatusHistory.create({
-            data: {
-              ticketId: t.id,
-              fromStatus: t.status,
-              toStatus: 'ESCALATED',
-              actorType: 'SYSTEM',
-              publicNote: isMaxLevelReached
-                ? `SLA Breached. Escalated to District Administration (Max level reached).`
-                : `SLA Breached. Escalated automatically to Level ${toLevelOrder} authority.`,
-            },
-          });
-
-          const notifIds = await broadcastTicketNotification(tx, t.id, 'COMPLAINT_ESCALATED', `esc_${updated.version}`, { notifyOfficer: true });
-
-          await audit(
-            {
-              actor: { type: 'SYSTEM' },
-              action: 'ESCALATED',
-              ticketId: t.id,
-              metadata: { fromLevel: fromLevelOrder, toLevel: toLevelOrder, reason: 'SLA_BREACH', maxReached: isMaxLevelReached },
-            },
-            tx,
-          );
-
-          return { notifIds, escalatedTicket: updated };
-        });
-
-        if (notifIds?.length) dispatch(notifIds);
-        if (escalatedTicket) {
-          broadcastSse({
-            type: 'TICKET_ESCALATED',
-            payload: {
-              ticketId: escalatedTicket.id,
-              publicReference: escalatedTicket.publicReference,
-              status: escalatedTicket.status,
-              escalationLevel: escalatedTicket.escalationLevel,
-            },
+            include: { role: { include: { level: true } } },
           });
         }
-      } catch (err) {
-        logger.error('Failed to escalate ticket SLA', { ticketId: t.id, err: err as Error });
+
+        // If no department officer at next level, search for admin user fallback
+        if (!nextOfficer) {
+          nextOfficer = await prisma.authorityUser.findFirst({
+            where: {
+              role: { code: 'SUPER_ADMIN' },
+              status: 'ACTIVE',
+            },
+            include: { role: { include: { level: true } } },
+          });
+        }
+
+        const toLevelOrder = nextOfficer?.role?.level?.levelOrder ? Math.min(nextOfficer.role.level.levelOrder, MAX_ESCALATION_LEVEL) : fromLevelOrder;
+        const idempotencyKey = `sla_breach:${t.id}:${fromLevelOrder}->${toLevelOrder}:${t.escalationLevel + 1}`;
+
+        try {
+          const { notifIds, escalatedTicket } = await withTx(async (tx) => {
+            // Prevent duplicate escalation records if already processed
+            const existingEsc = await tx.escalation.findUnique({ where: { idempotencyKey } });
+            if (existingEsc) return { notifIds: [] as string[], escalatedTicket: null };
+
+            // Next SLA rule calculation
+            const nextSlaHours = await resolveSlaHours(tx, t.departmentId, t.priority, toLevelOrder);
+            const newDeadline = new Date(Date.now() + nextSlaHours * 3600_000);
+
+            const updated = await tx.ticket.update({
+              where: { id: t.id, version: t.version },
+              data: {
+                status: 'ESCALATED',
+                currentLevelOrder: toLevelOrder,
+                escalationLevel: { increment: 1 },
+                assignedOfficerId: nextOfficer ? nextOfficer.id : t.assignedOfficerId,
+                slaDeadline: newDeadline,
+                slaWarningSent: false, // Reset SLA warning for the new level
+                version: { increment: 1 },
+              },
+            });
+
+            await tx.escalation.create({
+              data: {
+                ticketId: t.id,
+                sequence: updated.escalationLevel,
+                reason: 'SLA_BREACHED',
+                fromLevelOrder,
+                toLevelOrder,
+                fromAuthorityId: t.assignedOfficerId,
+                toAuthorityId: nextOfficer ? nextOfficer.id : null,
+                breachedDeadline: t.slaDeadline,
+                note: isMaxLevelReached
+                  ? `Maximum escalation level (${MAX_ESCALATION_LEVEL}) reached. Escalated to District Administration.`
+                  : `Automatic SLA breach escalation from Level ${fromLevelOrder} to Level ${toLevelOrder}.`,
+                idempotencyKey,
+              },
+            });
+
+            await tx.ticketStatusHistory.create({
+              data: {
+                ticketId: t.id,
+                fromStatus: t.status,
+                toStatus: 'ESCALATED',
+                actorType: 'SYSTEM',
+                publicNote: isMaxLevelReached
+                  ? `SLA Breached. Escalated to District Administration (Max level reached).`
+                  : `SLA Breached. Escalated automatically to Level ${toLevelOrder} authority.`,
+              },
+            });
+
+            const notifIds = await broadcastTicketNotification(tx, t.id, 'COMPLAINT_ESCALATED', `esc_${updated.version}`, { notifyOfficer: true });
+
+            await audit(
+              {
+                actor: { type: 'SYSTEM' },
+                action: 'ESCALATED',
+                ticketId: t.id,
+                metadata: { fromLevel: fromLevelOrder, toLevel: toLevelOrder, reason: 'SLA_BREACH', maxReached: isMaxLevelReached },
+              },
+              tx,
+            );
+
+            return { notifIds, escalatedTicket: updated };
+          });
+
+          if (notifIds?.length) dispatch(notifIds);
+          if (escalatedTicket) {
+            broadcastSse({
+              type: 'TICKET_ESCALATED',
+              payload: {
+                ticketId: escalatedTicket.id,
+                publicReference: escalatedTicket.publicReference,
+                status: escalatedTicket.status,
+                escalationLevel: escalatedTicket.escalationLevel,
+              },
+            });
+          }
+        } catch (err) {
+          logger.error('Failed to escalate ticket SLA', { ticketId: t.id, err: err as Error });
+        }
       }
-    }
+    });
   } catch (err) {
     logger.error('SLA Escalation worker iteration error', { err: err as Error });
   }
@@ -334,78 +343,80 @@ export async function manualEscalateTicket(params: {
  */
 export async function checkAutoResolutions() {
   try {
-    const thresholdDate = new Date(Date.now() - 72 * 3600_000);
-    const staleTickets = await prisma.ticket.findMany({
-      where: {
-        status: 'AWAITING_CITIZEN_VERIFICATION',
-        updatedAt: { lte: thresholdDate },
-      },
-      take: 50,
-    });
+    await autoResolveGuard.run(async () => {
+      const thresholdDate = new Date(Date.now() - 72 * 3600_000);
+      const staleTickets = await prisma.ticket.findMany({
+        where: {
+          status: 'AWAITING_CITIZEN_VERIFICATION',
+          updatedAt: { lte: thresholdDate },
+        },
+        take: 50,
+      });
 
-    for (const t of staleTickets) {
-      try {
-        const notifIds = await withTx(async (tx) => {
-          const updated = await tx.ticket.update({
-            where: { id: t.id, version: t.version },
-            data: {
+      for (const t of staleTickets) {
+        try {
+          const notifIds = await withTx(async (tx) => {
+            const updated = await tx.ticket.update({
+              where: { id: t.id, version: t.version },
+              data: {
+                status: 'RESOLVED',
+                resolvedAt: new Date(),
+                version: { increment: 1 },
+              },
+            });
+
+            await tx.ticketStatusHistory.create({
+              data: {
+                ticketId: t.id,
+                fromStatus: 'AWAITING_CITIZEN_VERIFICATION',
+                toStatus: 'RESOLVED',
+                actorType: 'SYSTEM',
+                publicNote: 'Complaint auto-resolved: No citizen dispute was logged within 72 hours.',
+              },
+            });
+
+            await tx.citizenVerification.create({
+              data: {
+                ticketId: t.id,
+                outcome: 'RESOLVED',
+                comment: 'System auto-verified: 72h dispute window elapsed without citizen objection.',
+              },
+            });
+
+            const notifIds = await broadcastTicketNotification(
+              tx,
+              t.id,
+              'STATUS_UPDATED',
+              `autores_${updated.version}`,
+            );
+
+            await audit(
+              {
+                actor: { type: 'SYSTEM' },
+                action: 'STATUS_CHANGED',
+                ticketId: t.id,
+                metadata: { from: 'AWAITING_CITIZEN_VERIFICATION', to: 'RESOLVED', reason: '72H_NO_DISPUTE' },
+              },
+              tx,
+            );
+
+            return notifIds;
+          });
+
+          if (notifIds?.length) dispatch(notifIds);
+          broadcastSse({
+            type: 'TICKET_AUTO_RESOLVED',
+            payload: {
+              ticketId: t.id,
+              publicReference: t.publicReference,
               status: 'RESOLVED',
-              resolvedAt: new Date(),
-              version: { increment: 1 },
             },
           });
-
-          await tx.ticketStatusHistory.create({
-            data: {
-              ticketId: t.id,
-              fromStatus: 'AWAITING_CITIZEN_VERIFICATION',
-              toStatus: 'RESOLVED',
-              actorType: 'SYSTEM',
-              publicNote: 'Complaint auto-resolved: No citizen dispute was logged within 72 hours.',
-            },
-          });
-
-          await tx.citizenVerification.create({
-            data: {
-              ticketId: t.id,
-              outcome: 'RESOLVED',
-              comment: 'System auto-verified: 72h dispute window elapsed without citizen objection.',
-            },
-          });
-
-          const notifIds = await broadcastTicketNotification(
-            tx,
-            t.id,
-            'STATUS_UPDATED',
-            `autores_${updated.version}`,
-          );
-
-          await audit(
-            {
-              actor: { type: 'SYSTEM' },
-              action: 'STATUS_CHANGED',
-              ticketId: t.id,
-              metadata: { from: 'AWAITING_CITIZEN_VERIFICATION', to: 'RESOLVED', reason: '72H_NO_DISPUTE' },
-            },
-            tx,
-          );
-
-          return notifIds;
-        });
-
-        if (notifIds?.length) dispatch(notifIds);
-        broadcastSse({
-          type: 'TICKET_AUTO_RESOLVED',
-          payload: {
-            ticketId: t.id,
-            publicReference: t.publicReference,
-            status: 'RESOLVED',
-          },
-        });
-      } catch (err) {
-        logger.error('Failed processing auto-resolution for ticket', { ticketId: t.id, err: err as Error });
+        } catch (err) {
+          logger.error('Failed processing auto-resolution for ticket', { ticketId: t.id, err: err as Error });
+        }
       }
-    }
+    });
   } catch (err) {
     logger.error('Auto-resolution worker iteration error', { err: err as Error });
   }

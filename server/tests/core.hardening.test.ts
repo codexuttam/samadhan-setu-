@@ -4,6 +4,7 @@ import { triageComplaint, verifyResolutionEvidence } from '../modules/ai/ai.serv
 import { inScope, ticketScopeWhere, canWorkOn, type AuthUser } from '../modules/authority/rbac';
 import { findTransition, manualTransitions } from '../modules/tickets/stateMachine';
 import { passwordPolicy } from '../modules/authority/auth.service';
+import { isDbConnectivityError, createDbWorkerGuard } from '../lib/dbGuard';
 
 function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
@@ -120,8 +121,67 @@ async function runTests() {
   assert.doesNotThrow(() => passwordPolicy('SamadhanSetu2026'));
   console.log('✓ Test 6 Passed: Weak passwords rejected and compliant passwords accepted.\n');
 
+  // 7. DB outage worker backoff guard
+  console.log('Test 7: DB outage worker backoff guard...');
+  const connErr = Object.assign(new Error("Can't reach database server at `host:6543`"), {
+    name: 'PrismaClientInitializationError',
+  });
+  assert.equal(isDbConnectivityError(connErr), true);
+  assert.equal(isDbConnectivityError(new Error('Validation error')), false);
+
+  let fakeNow = 10_000;
+  let calls = 0;
+  const guard = createDbWorkerGuard('test-worker', {
+    baseBackoffMs: 1000,
+    maxBackoffMs: 4000,
+    now: () => fakeNow,
+  });
+
+  await guard.run(async () => {
+    calls += 1;
+    throw connErr;
+  });
+  assert.equal(calls, 1);
+  assert.equal(guard.getState().consecutiveFailures, 1);
+  assert.equal(guard.getState().nextAttemptAt, 11_000);
+
+  // Within backoff window: should skip without invoking fn
+  fakeNow = 10_500;
+  await guard.run(async () => {
+    calls += 1;
+  });
+  assert.equal(calls, 1);
+
+  // After backoff expires, fail again -> 2x backoff (2000ms)
+  fakeNow = 11_000;
+  await guard.run(async () => {
+    calls += 1;
+    throw connErr;
+  });
+  assert.equal(calls, 2);
+  assert.equal(guard.getState().consecutiveFailures, 2);
+  assert.equal(guard.getState().nextAttemptAt, 13_000);
+
+  // Recover cleanly on success after backoff
+  fakeNow = 13_000;
+  const recovered = await guard.run(async () => {
+    calls += 1;
+    return 'ok';
+  });
+  assert.equal(recovered, 'ok');
+  assert.equal(guard.getState().consecutiveFailures, 0);
+
+  // Non-connectivity error must still propagate
+  await assert.rejects(
+    guard.run(async () => {
+      throw new Error('Unexpected bug');
+    }),
+    /Unexpected bug/,
+  );
+  console.log('✓ Test 7 Passed: DB backoff guard skips during outages, recovers cleanly, and re-throws logic bugs.\n');
+
   console.log('====================================================');
-  console.log('CORE HARDENING SUMMARY: 6/6 TESTS PASSED CLEANLY.');
+  console.log('CORE HARDENING SUMMARY: 7/7 TESTS PASSED CLEANLY.');
   console.log('====================================================');
 }
 

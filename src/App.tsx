@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CivicConciergeChat, { ConciergePrefill } from './components/CivicConciergeChat';
 import LanguagePreferenceModal from './components/LanguagePreferenceModal';
 
-// Pages
+// Pages (HomePage eager for immediate first paint, secondary routes lazy-loaded)
 import HomePage from './pages/HomePage';
-import RaiseComplaintPage from './pages/RaiseComplaintPage';
-import CitizenDashboard from './pages/CitizenDashboard';
-import OfficerPortal from './pages/OfficerPortal';
-import AdminDashboard from './pages/AdminDashboard';
-import ComplaintDetailsPage from './pages/ComplaintDetailsPage';
-import HowItWorksPage from './pages/HowItWorksPage';
-import HelpPage from './pages/HelpPage';
+const RaiseComplaintPage = lazy(() => import('./pages/RaiseComplaintPage'));
+const CitizenDashboard = lazy(() => import('./pages/CitizenDashboard'));
+const OfficerPortal = lazy(() => import('./pages/OfficerPortal'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const ComplaintDetailsPage = lazy(() => import('./pages/ComplaintDetailsPage'));
+const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
+const HelpPage = lazy(() => import('./pages/HelpPage'));
 
 // Data Layer
 import {
@@ -33,7 +33,12 @@ import { Bell, ShieldAlert, Sparkles, X } from 'lucide-react';
 
 export default function App() {
   // Navigation & Role Configuration States
-  const [page, setPage] = useState<string>('home');
+  const initialTrackRef = (() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('track')?.trim() || '';
+  })();
+
+  const [page, setPage] = useState<string>(() => (initialTrackRef ? 'track' : 'home'));
   const [role, setRole] = useState<'citizen' | 'officer' | 'dept_admin' | 'super_admin'>('citizen');
   const [language, setLanguage] = useState<'en' | 'hi'>(() => {
     const saved = localStorage.getItem('preferred_language');
@@ -69,8 +74,8 @@ export default function App() {
   );
 
   // Search context
-  const [trackingInput, setTrackingInput] = useState<string>('');
-  const [selectedTrackedId, setSelectedTrackedId] = useState<string>('');
+  const [trackingInput, setTrackingInput] = useState<string>(initialTrackRef);
+  const [selectedTrackedId, setSelectedTrackedId] = useState<string>(initialTrackRef);
   const [conciergePrefill, setConciergePrefill] = useState<ConciergePrefill | null>(null);
 
   // Notification center overlay toggle
@@ -315,6 +320,16 @@ export default function App() {
 
       {/* MAIN LAYOUT CANVAS VIEWPORT */}
       <main className="flex-grow">
+        <Suspense
+          fallback={
+            <div className="max-w-4xl mx-auto px-4 py-24 text-center space-y-3 select-none">
+              <div className="w-9 h-9 border-4 border-[#F4511E] border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs font-bold text-[#64748B]">
+                {language === 'hi' ? 'पृष्ठ लोड हो रहा है...' : 'Loading view...'}
+              </p>
+            </div>
+          }
+        >
         {page === 'home' && (
           <HomePage
             setPage={navigateTo}
@@ -393,6 +408,7 @@ export default function App() {
             language={language}
           />
         )}
+        </Suspense>
       </main>
 
       {/* GLOBAL FOOTER CONTRACT */}

@@ -2,6 +2,7 @@ import type { NotificationEvent } from '@prisma/client';
 import { prisma, type Tx } from '../../lib/prisma';
 import { decrypt, signPayload } from '../../lib/crypto';
 import { logger } from '../../lib/logger';
+import { createDbWorkerGuard } from '../../lib/dbGuard';
 import { getSettings } from '../../lib/settings';
 import { queue } from '../queue/queue';
 import { whatsapp, type TemplateMessage } from '../whatsapp/provider';
@@ -238,18 +239,22 @@ async function send({ id }: { id: string }) {
   }
 }
 
+const sweepGuard = createDbWorkerGuard('notification-sweep');
+
 /** Recovers anything missed (process crash, Redis outage). */
 async function sweep() {
-  await prisma.notification.updateMany({
-    where: { status: 'SENDING', updatedAt: { lt: new Date(Date.now() - 5 * 60_000) } },
-    data: { status: 'FAILED' },
+  await sweepGuard.run(async () => {
+    await prisma.notification.updateMany({
+      where: { status: 'SENDING', updatedAt: { lt: new Date(Date.now() - 5 * 60_000) } },
+      data: { status: 'FAILED' },
+    });
+    const due = await prisma.notification.findMany({
+      where: { status: { in: ['QUEUED', 'FAILED'] }, nextAttemptAt: { lte: new Date() }, updatedAt: { lt: new Date(Date.now() - 30_000) } },
+      select: { id: true },
+      take: 100,
+    });
+    for (const d of due) await queue.enqueue(JOB, { id: d.id }, { jobId: `${d.id}-s${Date.now()}` });
   });
-  const due = await prisma.notification.findMany({
-    where: { status: { in: ['QUEUED', 'FAILED'] }, nextAttemptAt: { lte: new Date() }, updatedAt: { lt: new Date(Date.now() - 30_000) } },
-    select: { id: true },
-    take: 100,
-  });
-  for (const d of due) await queue.enqueue(JOB, { id: d.id }, { jobId: `${d.id}-s${Date.now()}` });
 }
 
 export async function registerNotificationWorkers() {

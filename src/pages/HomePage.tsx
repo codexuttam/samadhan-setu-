@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import DynamicCarousel from '../components/DynamicCarousel';
 import RealtimeWorkflowShowcase from '../components/RealtimeWorkflowShowcase';
 import { CATEGORIES, Complaint } from '../data/mockData';
@@ -36,6 +36,34 @@ export default function HomePage({
 }: HomePageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [trackIdInput, setTrackIdInput] = useState('');
+  const [liveStats, setLiveStats] = useState<{
+    available: boolean;
+    total: number;
+    resolved: number;
+    inProgress: number;
+    resolutionRate: number;
+    departmentsCount: number;
+  } | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch('/api/public/stats', { signal: controller.signal })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.available && typeof data.total === 'number' && data.total > 0) {
+          setLiveStats({
+            available: true,
+            total: data.total,
+            resolved: data.resolved ?? 0,
+            inProgress: data.inProgress ?? 0,
+            resolutionRate: data.resolutionRate ?? 0,
+            departmentsCount: Array.isArray(data.departments) ? data.departments.length : 18,
+          });
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   // Localization strings
   const content = {
@@ -480,6 +508,14 @@ export default function HomePage({
       {/* 5. STATISTICS STRIP */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white border border-[#E5E7EB] rounded-xl p-5 shadow-xs">
+          {liveStats?.available && (
+            <div className="flex justify-end mb-2">
+              <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                {language === 'hi' ? 'लाइव डेटाबेस आँकड़े' : 'Live Registry Stats'}
+              </span>
+            </div>
+          )}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 divide-y md:divide-y-0 md:divide-x divide-slate-100">
             
             {/* Stat Item 1 */}
@@ -488,7 +524,9 @@ export default function HomePage({
                 <FileText className="w-5 h-5 shrink-0" />
               </div>
               <div>
-                <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">12,482</p>
+                <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">
+                  {liveStats?.available ? liveStats.total.toLocaleString('en-IN') : '12,482'}
+                </p>
                 <p className="text-[11px] text-[#64748B] font-semibold mt-1">{content.statRegistered}</p>
               </div>
             </div>
@@ -499,7 +537,9 @@ export default function HomePage({
                 <CheckCircle2 className="w-5 h-5 shrink-0" />
               </div>
               <div>
-                <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">9,215</p>
+                <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">
+                  {liveStats?.available ? liveStats.resolved.toLocaleString('en-IN') : '9,215'}
+                </p>
                 <p className="text-[11px] text-[#64748B] font-semibold mt-1">{content.statResolved}</p>
               </div>
             </div>
@@ -510,7 +550,9 @@ export default function HomePage({
                 <Building2 className="w-5 h-5 shrink-0" />
               </div>
               <div>
-                <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">18</p>
+                <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">
+                  {liveStats?.available ? liveStats.departmentsCount : 18}
+                </p>
                 <p className="text-[11px] text-[#64748B] font-semibold mt-1">{content.statDepts}</p>
               </div>
             </div>
@@ -522,9 +564,19 @@ export default function HomePage({
               </div>
               <div>
                 <p className="text-xl font-extrabold font-mono text-[#0F172A] tabular-nums leading-none">
-                  {language === 'hi' ? '2.4 दिन' : '2.4 days'}
+                  {liveStats?.available
+                    ? `${liveStats.resolutionRate}%`
+                    : language === 'hi'
+                    ? '2.4 दिन'
+                    : '2.4 days'}
                 </p>
-                <p className="text-[11px] text-[#64748B] font-semibold mt-1">{content.statAvgTime}</p>
+                <p className="text-[11px] text-[#64748B] font-semibold mt-1">
+                  {liveStats?.available
+                    ? language === 'hi'
+                      ? 'निपटान दर'
+                      : 'Resolution rate'
+                    : content.statAvgTime}
+                </p>
               </div>
             </div>
 
