@@ -5,6 +5,7 @@ import { inScope, ticketScopeWhere, canWorkOn, type AuthUser } from '../modules/
 import { findTransition, manualTransitions } from '../modules/tickets/stateMachine';
 import { passwordPolicy } from '../modules/authority/auth.service';
 import { isDbConnectivityError, createDbWorkerGuard } from '../lib/dbGuard';
+import { haversineMeters, evaluateGeofence } from '../lib/geo';
 
 function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
@@ -180,8 +181,24 @@ async function runTests() {
   );
   console.log('✓ Test 7 Passed: DB backoff guard skips during outages, recovers cleanly, and re-throws logic bugs.\n');
 
+  // 8. Server-side geofence Haversine distance & audit threshold check
+  console.log('Test 8: Server-side geofence evaluation...');
+  assert.equal(haversineMeters(28.5912, 77.0423, 28.5912, 77.0423), 0);
+  const hundredMeterShift = haversineMeters(28.5912, 77.0423, 28.5921, 77.0423);
+  assert.ok(hundredMeterShift > 90 && hundredMeterShift < 120, `Expected ~100m, got ${hundredMeterShift}`);
+
+  const inside = evaluateGeofence(28.5912, 77.0423, 28.5921, 77.0423, 250);
+  assert.ok(inside && inside.withinGeofence === true && inside.maxMeters === 250);
+
+  const outside = evaluateGeofence(28.5912, 77.0423, 28.6012, 77.0423, 250);
+  assert.ok(outside && outside.withinGeofence === false && outside.distanceMeters > 1000);
+
+  assert.equal(evaluateGeofence(null, 77.0423, 28.5912, 77.0423), null);
+  assert.equal(evaluateGeofence(28.5912, 77.0423, undefined, 77.0423), null);
+  console.log('✓ Test 8 Passed: Haversine geofence verification computes meter distances accurately.\n');
+
   console.log('====================================================');
-  console.log('CORE HARDENING SUMMARY: 7/7 TESTS PASSED CLEANLY.');
+  console.log('CORE HARDENING SUMMARY: 8/8 TESTS PASSED CLEANLY.');
   console.log('====================================================');
 }
 

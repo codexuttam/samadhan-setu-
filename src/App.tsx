@@ -584,6 +584,7 @@ export default function App() {
                   setPage={navigateTo}
                   setSelectedTrackedId={setSelectedTrackedId}
                   setTrackingInput={setTrackingInput}
+                  authUser={authUser}
                   language={language}
                 />
               }
@@ -599,6 +600,7 @@ export default function App() {
                   setPage={navigateTo}
                   setSelectedTrackedId={setSelectedTrackedId}
                   setTrackingInput={setTrackingInput}
+                  authUser={authUser}
                   language={language}
                 />
               }

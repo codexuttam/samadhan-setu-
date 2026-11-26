@@ -10,6 +10,7 @@ import { resolveSlaHours } from '../escalation/sla';
 import { broadcastTicketNotification, createNotification, dispatch } from '../notifications/notifications.service';
 import { deleteStoredFiles, enqueueScans, recordAttachments, storeFiles, type ValidatedFile } from '../files/files.service';
 import { canWorkOn, inScope, type AuthUser } from '../authority/rbac';
+import { evaluateGeofence } from '../../lib/geo';
 
 export interface CreateTicketInput {
   categoryId: string;
@@ -164,6 +165,8 @@ export interface TransitionInput {
   newAssigneeId?: string;
   newDepartmentId?: string;
   newWardId?: string;
+  officerLat?: number;
+  officerLng?: number;
   ip?: string;
 }
 
@@ -269,12 +272,26 @@ export async function transitionTicket(input: TransitionInput) {
         notifyOfficer: !!input.newAssigneeId || updated.status === 'ASSIGNED',
       });
 
+      const geofence = evaluateGeofence(t.latitude, t.longitude, input.officerLat, input.officerLng);
+
       await audit(
         {
           actor: { type: input.actor.type, id: input.actor.user?.id, role: input.actor.user?.roleCode },
           action: input.toStatus === 'WORK_COMPLETED' ? 'WORK_COMPLETED' : 'STATUS_CHANGED',
           ticketId: t.id,
-          metadata: { from: t.status, to: updated.status },
+          metadata: {
+            from: t.status,
+            to: updated.status,
+            ...(geofence
+              ? {
+                  geofence: {
+                    distanceMeters: geofence.distanceMeters,
+                    withinGeofence: geofence.withinGeofence,
+                    maxMeters: geofence.maxMeters,
+                  },
+                }
+              : {}),
+          },
           ip: input.ip,
         },
         tx,

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import ChartCard from '../components/ChartCard';
+import AdminGovernancePanel from '../components/admin/AdminGovernancePanel';
+import type { AuthorityProfile } from '../lib/api';
 import {
   Complaint,
   DEPARTMENTS,
@@ -45,6 +47,7 @@ interface AdminDashboardProps {
   setPage: (page: string) => void;
   setSelectedTrackedId: (id: string) => void;
   setTrackingInput: (id: string) => void;
+  authUser?: AuthorityProfile | null;
   language?: 'en' | 'hi';
 }
 
@@ -56,11 +59,12 @@ export default function AdminDashboard({
   setPage,
   setSelectedTrackedId,
   setTrackingInput,
+  authUser,
   language = 'en',
 }: AdminDashboardProps) {
   const isHi = language === 'hi';
   // Navigation subtabs inside admin
-  const [activeTab, setActiveTab] = useState<'overview' | 'complaints' | 'escalated' | 'broadcast' | 'scorecard'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'complaints' | 'escalated' | 'broadcast' | 'scorecard' | 'governance'>('overview');
 
   // Broadcast state
   const [broadcastWardId, setBroadcastWardId] = useState('');
@@ -467,6 +471,15 @@ export default function AdminDashboard({
           >
             <Award className="w-3.5 h-3.5" />
             {isHi ? 'स्कोरकार्ड और रैंकिंग' : 'Scorecard & Leaderboard'}
+          </button>
+          <button
+            onClick={() => setActiveTab('governance')}
+            className={`px-3 py-1.5 font-bold rounded-md transition-all flex items-center gap-1.5 ${
+              activeTab === 'governance' ? 'bg-[#0F1B2D] text-white shadow-xs' : 'text-slate-700 hover:bg-slate-200/70'
+            }`}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            {isHi ? 'शासन और सेटिंग्स' : 'Governance & Audit'}
           </button>
         </div>
       </div>
@@ -1372,6 +1385,15 @@ export default function AdminDashboard({
             </div>
           </div>
         </div>
+      )}
+
+      {/* GOVERNANCE & AUDIT CONTROL CENTER */}
+      {activeTab === 'governance' && (
+        <AdminGovernancePanel
+          language={language}
+          authUser={authUser}
+          onNavigateLogin={() => setPage('authority-login')}
+        />
       )}
 
       {/* ADMINISTRATIVE OVERRIDES DIALOG DIALOG OVERLAY */}

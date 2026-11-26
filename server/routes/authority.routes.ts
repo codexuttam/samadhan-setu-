@@ -329,13 +329,15 @@ authorityRouter.post(
   upload.array('evidence', 5),
   asyncHandler(async (req, res) => {
     const files = await validateFiles(req.files as any);
-    const { toStatus, publicNote, internalNote, resolutionNote, newAssigneeId } = parse(
+    const { toStatus, publicNote, internalNote, resolutionNote, newAssigneeId, officerLat, officerLng } = parse(
       z.object({
         toStatus: z.string(),
         publicNote: z.string().optional(),
         internalNote: z.string().optional(),
         resolutionNote: z.string().optional(),
         newAssigneeId: z.string().uuid().optional(),
+        officerLat: z.coerce.number().min(-90).max(90).optional(),
+        officerLng: z.coerce.number().min(-180).max(180).optional(),
       }),
       req.body,
     );
@@ -348,6 +350,8 @@ authorityRouter.post(
       internalNote,
       resolutionNote,
       newAssigneeId,
+      officerLat,
+      officerLng,
       evidence: files,
       ip: req.ip,
     });
