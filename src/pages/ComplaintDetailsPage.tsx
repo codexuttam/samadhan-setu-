@@ -19,6 +19,7 @@ import {
   Sparkles,
   ShieldCheck,
   Printer,
+  Search,
 } from 'lucide-react';
 
 interface ComplaintDetailsPageProps {
@@ -29,6 +30,7 @@ interface ComplaintDetailsPageProps {
   onAddUpdateLog: (log: ComplaintUpdate) => void;
   onAddFeedback: (feedback: Feedback) => void;
   onBack: () => void;
+  onSelectComplaintId?: (id: string) => void;
   language?: 'en' | 'hi';
 }
 
@@ -40,10 +42,12 @@ export default function ComplaintDetailsPage({
   onAddUpdateLog,
   onAddFeedback,
   onBack,
+  onSelectComplaintId,
   language = 'en',
 }: ComplaintDetailsPageProps) {
   const isHi = language === 'hi';
   const [commentInput, setCommentInput] = useState('');
+  const [lookupInput, setLookupInput] = useState(complaintId || '');
   
   // Feedback rating states
   const [rating, setRating] = useState(5);
@@ -134,6 +138,19 @@ export default function ComplaintDetailsPage({
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
+  useEffect(() => {
+    setLookupInput(complaintId || '');
+  }, [complaintId]);
+
+  const handleLookupSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = lookupInput.trim();
+    if (!cleaned) return;
+    if (onSelectComplaintId) {
+      onSelectComplaintId(cleaned);
+    }
+  };
+
   if (remoteLoading) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
@@ -148,18 +165,106 @@ export default function ComplaintDetailsPage({
     );
   }
 
+  if (!complaintId.trim()) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-12 space-y-8 select-none">
+        <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="space-y-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-50 text-[#F4511E] text-[10px] font-extrabold uppercase tracking-wider border border-orange-100">
+              <Search className="w-3 h-3" /> {isHi ? 'लाइव ट्रैकिंग' : 'Live Tracking'}
+            </span>
+            <h1 className="text-2xl font-extrabold text-[#0F1B2D]">
+              {isHi ? 'अपनी शिकायत की स्थिति ट्रैक करें' : 'Track Your Grievance'}
+            </h1>
+            <p className="text-xs text-[#64748B]">
+              {isHi
+                ? 'रियल-टाइम SLA टाइमर, अधिकारी नियुक्ति और समाधान प्रमाण देखने के लिए अपनी शिकायत संदर्भ आईडी दर्ज करें।'
+                : 'Enter your official grievance reference ID to view real-time SLA timers, assigned officer details, and resolution proof.'}
+            </p>
+          </div>
+
+          <form onSubmit={handleLookupSubmit} className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              value={lookupInput}
+              onChange={(e) => setLookupInput(e.target.value)}
+              placeholder={isHi ? 'उदाहरण: SS-2026-000184 या SS2025012343' : 'e.g. SS-2026-000184 or SS2025012343'}
+              className="flex-1 px-4 py-3 bg-slate-50 border border-[#E5E7EB] rounded-xl text-sm font-mono text-[#0F172A] focus:outline-none focus:border-[#F4511E]"
+            />
+            <button
+              type="submit"
+              disabled={!lookupInput.trim() || !onSelectComplaintId}
+              className="inline-flex items-center justify-center gap-2 bg-[#F4511E] hover:bg-[#FF6A2A] disabled:opacity-50 text-white px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-colors"
+            >
+              <Search className="w-4 h-4" />
+              <span>{isHi ? 'स्थिति खोजें' : 'Track Now'}</span>
+            </button>
+          </form>
+        </div>
+
+        {complaints.length > 0 && (
+          <div className="bg-white border border-[#E5E7EB] rounded-2xl p-6 shadow-xs space-y-4">
+            <h2 className="text-xs font-extrabold uppercase tracking-widest text-[#0F1B2D]">
+              {isHi ? 'त्वरित चयन: हाल की शिकायतें' : 'Quick Lookup: Recent Grievances'}
+            </h2>
+            <div className="divide-y divide-slate-100">
+              {complaints.slice(0, 5).map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => onSelectComplaintId?.(item.id)}
+                  className="w-full py-3 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-left hover:bg-slate-50 rounded-lg transition-colors"
+                >
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-bold text-[#F4511E]">{item.id}</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                        {tStatus(item.status, language)}
+                      </span>
+                    </div>
+                    <p className="text-xs font-semibold text-[#0F172A] truncate mt-1">{item.title}</p>
+                  </div>
+                  <span className="text-[11px] font-bold text-[#0F1B2D] shrink-0">
+                    {isHi ? 'विवरण देखें →' : 'View Timeline →'}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   if (!complaint) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-16 text-center space-y-4 select-none">
+      <div className="max-w-4xl mx-auto px-4 py-16 text-center space-y-5 select-none">
         <AlertTriangle className="w-12 h-12 text-red-500 mx-auto" />
         <h2 className="text-xl font-extrabold text-[#0F1B2D]">
           {isHi ? 'शिकायत आईडी नहीं मिली' : 'Complaint ID Not Found'}
         </h2>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 max-w-lg mx-auto">
           {isHi
             ? `शिकायत आईडी "${complaintId}" समाधान सेतु डेटाबेस में मौजूद नहीं है। कृपया सही प्रारूप (जैसे SS2025012343) जांचें और पुनः प्रयास करें।`
             : `The Complaint ID "${complaintId}" does not exist in the Samadhan Setu database. Please verify the ID format (e.g. SS2025012343) and try again.`}
         </p>
+        {onSelectComplaintId && (
+          <form onSubmit={handleLookupSubmit} className="max-w-md mx-auto flex gap-2">
+            <input
+              type="text"
+              value={lookupInput}
+              onChange={(e) => setLookupInput(e.target.value)}
+              placeholder={isHi ? 'दूसरी शिकायत आईडी दर्ज करें...' : 'Try another Complaint ID...'}
+              className="flex-1 px-3 py-2 bg-white border border-[#E5E7EB] rounded-lg text-xs font-mono text-[#0F172A] focus:outline-none focus:border-[#F4511E]"
+            />
+            <button
+              type="submit"
+              className="bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-4 py-2 rounded-lg text-xs font-bold uppercase transition-colors"
+            >
+              {isHi ? 'खोजें' : 'Search'}
+            </button>
+          </form>
+        )}
         <button onClick={onBack} className="bg-[#0F1B2D] text-white px-5 py-2 rounded-lg text-xs font-bold uppercase transition-colors">
           {isHi ? 'वापस जाएँ' : 'Back'}
         </button>

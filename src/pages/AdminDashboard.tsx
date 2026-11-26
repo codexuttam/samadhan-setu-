@@ -190,6 +190,30 @@ export default function AdminDashboard({
     return { label: tWard(w.id, language, w.name), value: count, color: '#3B82F6' };
   });
 
+  // Dynamic chronological complaint trend (last 6 date buckets)
+  const trendData = (() => {
+    const byDay = new Map<string, { label: string; value: number; ts: number }>();
+    for (const c of complaints) {
+      const dt = new Date(c.createdAt);
+      if (Number.isNaN(dt.getTime())) continue;
+      const key = dt.toISOString().slice(0, 10);
+      const existing = byDay.get(key);
+      if (existing) {
+        existing.value += 1;
+      } else {
+        byDay.set(key, {
+          label: dt.toLocaleDateString(isHi ? 'hi-IN' : 'en-IN', { day: '2-digit', month: 'short' }),
+          value: 1,
+          ts: new Date(key).getTime(),
+        });
+      }
+    }
+    return Array.from(byDay.values())
+      .sort((a, b) => a.ts - b.ts)
+      .slice(-6)
+      .map(({ label, value }) => ({ label, value }));
+  })();
+
   // Filter logic
   const filteredComplaints = complaints.filter((c) => {
     const matchCat = !filterCategory || c.categoryId === filterCategory;
@@ -514,9 +538,9 @@ export default function AdminDashboard({
 
           {/* Visual representations charts panel */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <ChartCard title={isHi ? 'समय के साथ शिकायत प्रवृत्ति' : 'Complaints Over Time Trend'} type="line" data={[]} />
-            <ChartCard title={isHi ? 'वार्ड के अनुसार शिकायत भार' : 'Complaints by Ward Load'} type="bar" data={wardCounts} />
-            <ChartCard title={isHi ? 'विभागवार वितरण हिस्सेदारी' : 'Distribution Share by Bureau'} type="donut" data={categoryCounts} />
+            <ChartCard title={isHi ? 'समय के साथ शिकायत प्रवृत्ति' : 'Complaints Over Time Trend'} type="line" data={trendData} language={language} />
+            <ChartCard title={isHi ? 'वार्ड के अनुसार शिकायत भार' : 'Complaints by Ward Load'} type="bar" data={wardCounts} language={language} />
+            <ChartCard title={isHi ? 'विभागवार वितरण हिस्सेदारी' : 'Distribution Share by Bureau'} type="donut" data={categoryCounts} language={language} />
           </div>
 
           {/* SLA Escalation rules card info */}
@@ -808,11 +832,16 @@ export default function AdminDashboard({
                   {complaints
                     .filter((c) => c.status === 'Escalated' || (c as any).escalationLevel > 0 || (c as any).reopenCount > 0)
                     .filter((c) => !filterCategory || c.categoryId === filterCategory)
+                    .filter((c) => {
+                      if (!filterEscalationReason) return true;
+                      const escReason = (c as any).escalationReason || ((c as any).reopenCount > 0 ? 'CITIZEN_REOPENED' : 'SLA_BREACHED');
+                      return escReason === filterEscalationReason;
+                    })
                     .map((c) => {
                       const escLevel = (c as any).escalationLevel || ((c as any).reopenCount ? (c as any).reopenCount + 1 : 1);
                       const escReason = (c as any).escalationReason || ((c as any).reopenCount > 0 ? 'CITIZEN_REOPENED' : 'SLA_BREACHED');
                       const currentOfficer = OFFICERS.find((o) => o.id === c.assignedOfficerId)?.name || (isHi ? 'वार्ड अधिकारी / एडमिन' : 'Ward Officer / Admin');
-                      const isBreached = new Date('2026-10-06T00:45:00Z').getTime() > new Date(c.slaDeadline).getTime();
+                      const isBreached = c.slaBreached || Date.now() > new Date(c.slaDeadline).getTime();
 
                       return (
                         <tr key={c.id} className="hover:bg-slate-50/70 transition-colors">

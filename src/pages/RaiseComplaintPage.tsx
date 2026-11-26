@@ -192,7 +192,7 @@ export default function RaiseComplaintPage({
     }
   }, [lat, lng, categoryId]);
 
-  const [evidenceFiles, setEvidenceFiles] = useState<Array<{ name: string; size: string; type: string }>>([]);
+  const [evidenceFiles, setEvidenceFiles] = useState<Array<{ name: string; size: string; type: string; url: string; file?: File }>>([]);
   
   const [citizenName, setCitizenName] = useState('Uttamraj Singh');
   const [citizenPhone, setCitizenPhone] = useState('+91 79881 44248');
@@ -328,6 +328,7 @@ export default function RaiseComplaintPage({
         size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
         type: file.type || 'image/jpeg',
         url: URL.createObjectURL(file),
+        file,
       }));
       setEvidenceFiles((prev) => [...prev, ...fileList]);
     }
@@ -378,6 +379,11 @@ export default function RaiseComplaintPage({
       if (lng) formData.append('longitude', lng.toString());
       formData.append('phone', citizenPhone || '+919876543210');
       formData.append('otpVerificationToken', 'DEMO_VERIFIED_TOKEN');
+      for (const item of evidenceFiles) {
+        if (item.file) {
+          formData.append('evidence', item.file);
+        }
+      }
 
       const res = await fetch('/api/public/complaints', {
         method: 'POST',
@@ -934,7 +940,16 @@ export default function RaiseComplaintPage({
                     <div className="flex items-center gap-2 font-mono text-[10px] text-slate-400">
                       <span>{file.size}</span>
                       <button
-                        onClick={() => setEvidenceFiles(prev => prev.filter((_, i) => i !== idx))}
+                        type="button"
+                        onClick={() =>
+                          setEvidenceFiles((prev) => {
+                            const removed = prev[idx];
+                            if (removed?.url?.startsWith('blob:')) {
+                              URL.revokeObjectURL(removed.url);
+                            }
+                            return prev.filter((_, i) => i !== idx);
+                          })
+                        }
                         className="text-red-500 hover:underline font-sans font-bold"
                       >
                         {isHi ? 'हटाएँ' : 'Remove'}

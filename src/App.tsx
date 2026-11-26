@@ -345,6 +345,10 @@ export default function App() {
             onAddUpdateLog={handleAddUpdateLog}
             onAddFeedback={handleAddFeedback}
             onBack={() => navigateTo('home')}
+            onSelectComplaintId={(id) => {
+              setTrackingInput(id);
+              setSelectedTrackedId(id);
+            }}
             language={language}
           />
         )}
