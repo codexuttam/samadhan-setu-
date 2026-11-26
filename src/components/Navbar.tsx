@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Logo from './Logo';
-import { Menu, X, ChevronDown, User, ShieldAlert, Globe } from 'lucide-react';
+import { Menu, X, ChevronDown, User, ShieldAlert, Globe, KeyRound, LogOut } from 'lucide-react';
+import type { AuthorityProfile } from '../lib/api';
 
 interface NavbarProps {
   currentPage: string;
@@ -9,6 +10,8 @@ interface NavbarProps {
   setRole: (role: 'citizen' | 'officer' | 'dept_admin' | 'super_admin') => void;
   language: 'en' | 'hi';
   setLanguage: (lang: 'en' | 'hi') => void;
+  authUser?: AuthorityProfile | null;
+  onLogout?: () => void;
 }
 
 export default function Navbar({
@@ -18,6 +21,8 @@ export default function Navbar({
   setRole,
   language,
   setLanguage,
+  authUser,
+  onLogout,
 }: NavbarProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
@@ -191,6 +196,40 @@ export default function Navbar({
                       {currentRole === r && <span className="w-1.5 h-1.5 rounded-full bg-[#F4511E]" />}
                     </button>
                   ))}
+                  <div className="border-t border-slate-100 mt-1 pt-1 px-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRoleDropdown(false);
+                        setPage('authority-login');
+                      }}
+                      className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-slate-50 text-[#0F1B2D] font-bold flex items-center gap-2"
+                    >
+                      <KeyRound className="w-3.5 h-3.5 text-[#F4511E]" />
+                      <span>
+                        {authUser
+                          ? language === 'hi'
+                            ? `सत्र व 2FA (${authUser.name})`
+                            : `Session & 2FA (${authUser.name})`
+                          : language === 'hi'
+                          ? 'अधिकारी लॉगिन / 2FA'
+                          : 'Authority Sign-In / 2FA'}
+                      </span>
+                    </button>
+                    {authUser && onLogout && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowRoleDropdown(false);
+                          onLogout();
+                        }}
+                        className="w-full text-left px-2.5 py-2 rounded-lg hover:bg-red-50 text-red-600 font-bold flex items-center gap-2"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>{language === 'hi' ? 'सत्र समाप्त करें' : 'Sign Out'}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -261,6 +300,17 @@ export default function Navbar({
                   <span>{roleLabels[r][language]}</span>
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setPage('authority-login');
+                }}
+                className="text-left py-2 px-3 rounded-lg text-xs font-bold bg-orange-50 text-[#F4511E] flex items-center gap-2"
+              >
+                <KeyRound className="w-3.5 h-3.5" />
+                <span>{language === 'hi' ? 'अधिकारी लॉगिन / 2FA' : 'Authority Sign-In / 2FA'}</span>
+              </button>
             </div>
           </div>
 

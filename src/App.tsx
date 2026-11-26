@@ -1,9 +1,11 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CivicConciergeChat, { ConciergePrefill } from './components/CivicConciergeChat';
 import LanguagePreferenceModal from './components/LanguagePreferenceModal';
+import { authorityLogout, authorityMe, type AuthorityProfile } from './lib/api';
 
 // Pages (HomePage eager for immediate first paint, secondary routes lazy-loaded)
 import HomePage from './pages/HomePage';
@@ -14,6 +16,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const ComplaintDetailsPage = lazy(() => import('./pages/ComplaintDetailsPage'));
 const HowItWorksPage = lazy(() => import('./pages/HowItWorksPage'));
 const HelpPage = lazy(() => import('./pages/HelpPage'));
+const AuthorityAuthPage = lazy(() => import('./pages/AuthorityAuthPage'));
 
 // Data Layer
 import {
@@ -31,15 +34,74 @@ import {
 
 import { Bell, ShieldAlert, Sparkles, X } from 'lucide-react';
 
+const PAGE_PATHS: Record<string, string> = {
+  home: '/',
+  raise: '/raise',
+  track: '/track',
+  'how-it-works': '/how-it-works',
+  help: '/help',
+  dashboard: '/dashboard',
+  'officer-portal': '/officer',
+  'dept-portal': '/dept',
+  'admin-portal': '/admin',
+  'authority-login': '/authority/login',
+};
+
+function pathToPage(pathname: string): string {
+  if (pathname === '/' || pathname === '') return 'home';
+  if (pathname.startsWith('/raise')) return 'raise';
+  if (pathname.startsWith('/track')) return 'track';
+  if (pathname.startsWith('/how-it-works')) return 'how-it-works';
+  if (pathname.startsWith('/help')) return 'help';
+  if (pathname.startsWith('/dashboard')) return 'dashboard';
+  if (pathname.startsWith('/officer')) return 'officer-portal';
+  if (pathname.startsWith('/dept')) return 'dept-portal';
+  if (pathname.startsWith('/admin')) return 'admin-portal';
+  if (pathname.startsWith('/authority')) return 'authority-login';
+  return 'home';
+}
+
+function TrackRouteView(props: {
+  selectedTrackedId: string;
+  complaints: Complaint[];
+  updates: ComplaintUpdate[];
+  onUpdateComplaint: (updated: Complaint) => void;
+  onAddUpdateLog: (log: ComplaintUpdate) => void;
+  onAddFeedback: (feedback: Feedback) => void;
+  onBack: () => void;
+  onSelectComplaintId: (id: string) => void;
+  language: 'en' | 'hi';
+}) {
+  const { ref } = useParams<{ ref?: string }>();
+  const activeId = ref ? decodeURIComponent(ref) : props.selectedTrackedId;
+  return (
+    <ComplaintDetailsPage
+      complaintId={activeId}
+      complaints={props.complaints}
+      updates={props.updates}
+      onUpdateComplaint={props.onUpdateComplaint}
+      onAddUpdateLog={props.onAddUpdateLog}
+      onAddFeedback={props.onAddFeedback}
+      onBack={props.onBack}
+      onSelectComplaintId={props.onSelectComplaintId}
+      language={props.language}
+    />
+  );
+}
+
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+
   // Navigation & Role Configuration States
   const initialTrackRef = (() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('track')?.trim() || '';
   })();
 
-  const [page, setPage] = useState<string>(() => (initialTrackRef ? 'track' : 'home'));
+  const page = pathToPage(location.pathname);
   const [role, setRole] = useState<'citizen' | 'officer' | 'dept_admin' | 'super_admin'>('citizen');
+  const [authUser, setAuthUser] = useState<AuthorityProfile | null>(null);
   const [language, setLanguage] = useState<'en' | 'hi'>(() => {
     const saved = localStorage.getItem('preferred_language');
     return saved === 'hi' || saved === 'en' ? saved : 'en';
@@ -77,6 +139,34 @@ export default function App() {
   const [trackingInput, setTrackingInput] = useState<string>(initialTrackRef);
   const [selectedTrackedId, setSelectedTrackedId] = useState<string>(initialTrackRef);
   const [conciergePrefill, setConciergePrefill] = useState<ConciergePrefill | null>(null);
+
+  // Sync `?track=<ID>` deep links into canonical `/track/<ID>` route on first mount
+  useEffect(() => {
+    if (initialTrackRef && !location.pathname.startsWith('/track')) {
+      navigate(`/track/${encodeURIComponent(initialTrackRef)}`, { replace: true });
+    }
+  }, [initialTrackRef, location.pathname, navigate]);
+
+  // Quietly hydrate live authority session if cookie is present
+  useEffect(() => {
+    authorityMe()
+      .then((profile) => {
+        setAuthUser(profile);
+        if (profile.role === 'SUPER_ADMIN') setRole('super_admin');
+        else if (profile.role === 'DEPT_ADMIN') setRole('dept_admin');
+        else setRole('officer');
+      })
+      .catch(() => {
+        // Expected when browsing as citizen or when DB is offline
+      });
+  }, []);
+
+  const handleAuthorityLogout = async () => {
+    await authorityLogout();
+    setAuthUser(null);
+    setRole('citizen');
+    toast.success(language === 'hi' ? 'अधिकारी सत्र समाप्त हो गया।' : 'Signed out from authority session.');
+  };
 
   // Notification center overlay toggle
   const [showNotificationCenter, setShowNotificationCenter] = useState(false);
@@ -187,8 +277,20 @@ export default function App() {
   };
 
   // Helper to trigger active route navigation
-  const navigateTo = (targetPage: string) => {
-    setPage(targetPage);
+  const navigateTo = (targetPage: string, overrideTrackId?: string) => {
+    if (targetPage === 'track') {
+      const targetId = (overrideTrackId ?? selectedTrackedId).trim();
+      navigate(targetId ? `/track/${encodeURIComponent(targetId)}` : '/track');
+    } else {
+      navigate(PAGE_PATHS[targetPage] || '/');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSelectTracked = (id: string) => {
+    setTrackingInput(id);
+    setSelectedTrackedId(id);
+    navigate(id ? `/track/${encodeURIComponent(id)}` : '/track');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -206,6 +308,8 @@ export default function App() {
         setRole={setRole}
         language={language}
         setLanguage={handleSelectLanguage}
+        authUser={authUser}
+        onLogout={handleAuthorityLogout}
       />
 
       {/* FLOATING ACTION ALERTS / SIMULATOR BANNER */}
@@ -273,9 +377,7 @@ export default function App() {
                     key={n.id}
                     onClick={() => {
                       if (n.complaintId) {
-                        setTrackingInput(n.complaintId);
-                        setSelectedTrackedId(n.complaintId);
-                        navigateTo('track');
+                        handleSelectTracked(n.complaintId);
                         setShowNotificationCenter(false);
                       }
                       // Mark as read
@@ -330,84 +432,147 @@ export default function App() {
             </div>
           }
         >
-        {page === 'home' && (
-          <HomePage
-            setPage={navigateTo}
-            language={language}
-            complaints={complaints}
-            setTrackingInput={setTrackingInput}
-            setSelectedTrackedId={setSelectedTrackedId}
-          />
-        )}
-
-        {page === 'raise' && (
-          <RaiseComplaintPage
-            onAddComplaint={handleAddComplaint}
-            setPage={navigateTo}
-            setSelectedTrackedId={setSelectedTrackedId}
-            setTrackingInput={setTrackingInput}
-            prefillData={conciergePrefill}
-            language={language}
-          />
-        )}
-
-        {page === 'track' && (
-          <ComplaintDetailsPage
-            complaintId={selectedTrackedId}
-            complaints={complaints}
-            updates={updates}
-            onUpdateComplaint={handleUpdateComplaint}
-            onAddUpdateLog={handleAddUpdateLog}
-            onAddFeedback={handleAddFeedback}
-            onBack={() => navigateTo('home')}
-            onSelectComplaintId={(id) => {
-              setTrackingInput(id);
-              setSelectedTrackedId(id);
-            }}
-            language={language}
-          />
-        )}
-
-        {page === 'how-it-works' && <HowItWorksPage language={language} setPage={navigateTo} />}
-
-        {page === 'help' && <HelpPage language={language} />}
-
-        {/* Dashboard views by current Role state */}
-        {page === 'dashboard' && (
-          <CitizenDashboard
-            complaints={complaints}
-            setPage={navigateTo}
-            setSelectedTrackedId={setSelectedTrackedId}
-            setTrackingInput={setTrackingInput}
-            language={language}
-          />
-        )}
-
-        {page === 'officer-portal' && (
-          <OfficerPortal
-            complaints={complaints}
-            officerId="off_rajesh" // default simulated officer ID
-            onUpdateComplaint={handleUpdateComplaint}
-            onAddUpdateLog={handleAddUpdateLog}
-            setPage={navigateTo}
-            setSelectedTrackedId={setSelectedTrackedId}
-            setTrackingInput={setTrackingInput}
-            language={language}
-          />
-        )}
-
-        {(page === 'dept-portal' || page === 'admin-portal') && (
-          <AdminDashboard
-            complaints={complaints}
-            updates={updates}
-            onUpdateComplaint={handleUpdateComplaint}
-            onAddUpdateLog={handleAddUpdateLog}
-            setPage={navigateTo}
-            setSelectedTrackedId={setSelectedTrackedId}
-            setTrackingInput={setTrackingInput}
-            language={language}
-          />
-        )}
+          <Routes>
+            <Route
+              path="/"
+              element={
+                <HomePage
+                  setPage={navigateTo}
+                  language={language}
+                  complaints={complaints}
+                  setTrackingInput={setTrackingInput}
+                  setSelectedTrackedId={setSelectedTrackedId}
+                />
+              }
+            />
+            <Route
+              path="/raise"
+              element={
+                <RaiseComplaintPage
+                  onAddComplaint={handleAddComplaint}
+                  setPage={navigateTo}
+                  setSelectedTrackedId={setSelectedTrackedId}
+                  setTrackingInput={setTrackingInput}
+                  prefillData={conciergePrefill}
+                  language={language}
+                />
+              }
+            />
+            <Route
+              path="/track"
+              element={
+                <TrackRouteView
+                  selectedTrackedId={selectedTrackedId}
+                  complaints={complaints}
+                  updates={updates}
+                  onUpdateComplaint={handleUpdateComplaint}
+                  onAddUpdateLog={handleAddUpdateLog}
+                  onAddFeedback={handleAddFeedback}
+                  onBack={() => navigateTo('home')}
+                  onSelectComplaintId={handleSelectTracked}
+                  language={language}
+                />
+              }
+            />
+            <Route
+              path="/track/:ref"
+              element={
+                <TrackRouteView
+                  selectedTrackedId={selectedTrackedId}
+                  complaints={complaints}
+                  updates={updates}
+                  onUpdateComplaint={handleUpdateComplaint}
+                  onAddUpdateLog={handleAddUpdateLog}
+                  onAddFeedback={handleAddFeedback}
+                  onBack={() => navigateTo('home')}
+                  onSelectComplaintId={handleSelectTracked}
+                  language={language}
+                />
+              }
+            />
+            <Route path="/how-it-works" element={<HowItWorksPage language={language} setPage={navigateTo} />} />
+            <Route path="/help" element={<HelpPage language={language} />} />
+            <Route
+              path="/dashboard"
+              element={
+                <CitizenDashboard
+                  complaints={complaints}
+                  setPage={navigateTo}
+                  setSelectedTrackedId={setSelectedTrackedId}
+                  setTrackingInput={setTrackingInput}
+                  language={language}
+                />
+              }
+            />
+            <Route
+              path="/officer"
+              element={
+                <OfficerPortal
+                  complaints={complaints}
+                  officerId="off_rajesh"
+                  onUpdateComplaint={handleUpdateComplaint}
+                  onAddUpdateLog={handleAddUpdateLog}
+                  setPage={navigateTo}
+                  setSelectedTrackedId={setSelectedTrackedId}
+                  setTrackingInput={setTrackingInput}
+                  language={language}
+                />
+              }
+            />
+            <Route
+              path="/dept"
+              element={
+                <AdminDashboard
+                  complaints={complaints}
+                  updates={updates}
+                  onUpdateComplaint={handleUpdateComplaint}
+                  onAddUpdateLog={handleAddUpdateLog}
+                  setPage={navigateTo}
+                  setSelectedTrackedId={setSelectedTrackedId}
+                  setTrackingInput={setTrackingInput}
+                  language={language}
+                />
+              }
+            />
+            <Route
+              path="/admin"
+              element={
+                <AdminDashboard
+                  complaints={complaints}
+                  updates={updates}
+                  onUpdateComplaint={handleUpdateComplaint}
+                  onAddUpdateLog={handleAddUpdateLog}
+                  setPage={navigateTo}
+                  setSelectedTrackedId={setSelectedTrackedId}
+                  setTrackingInput={setTrackingInput}
+                  language={language}
+                />
+              }
+            />
+            <Route
+              path="/authority/login"
+              element={
+                <AuthorityAuthPage
+                  language={language}
+                  authUser={authUser}
+                  onAuthChange={setAuthUser}
+                  setPage={navigateTo}
+                />
+              }
+            />
+            <Route
+              path="/authority/activate/:token"
+              element={
+                <AuthorityAuthPage
+                  language={language}
+                  authUser={authUser}
+                  onAuthChange={setAuthUser}
+                  setPage={navigateTo}
+                />
+              }
+            />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
         </Suspense>
       </main>
 
