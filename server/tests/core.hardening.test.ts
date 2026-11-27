@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { pickBestSlaRule } from '../modules/escalation/sla';
-import { triageComplaint, verifyResolutionEvidence } from '../modules/ai/ai.service';
+import { triageComplaint, verifyResolutionEvidence, chatCivicConcierge } from '../modules/ai/ai.service';
 import { inScope, ticketScopeWhere, canWorkOn, type AuthUser } from '../modules/authority/rbac';
 import { findTransition, manualTransitions } from '../modules/tickets/stateMachine';
 import { passwordPolicy } from '../modules/authority/auth.service';
@@ -197,8 +197,38 @@ async function runTests() {
   assert.equal(evaluateGeofence(28.5912, 77.0423, undefined, 77.0423), null);
   console.log('✓ Test 8 Passed: Haversine geofence verification computes meter distances accurately.\n');
 
+  // 9. Hindi & English Concierge fallback classification
+  console.log('Test 9: Bilingual Civic Concierge fallback...');
+  const prevConciergeKey = process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_API_KEY;
+
+  const hiWaterChat = await chatCivicConcierge({
+    message: 'हमारे वार्ड में खुला मेनहोल और गंदा पानी है',
+    language: 'hi',
+  });
+  assert.ok(/[\u0900-\u097F]/.test(hiWaterChat.reply), 'Expected Hindi reply');
+  assert.equal(hiWaterChat.prefill?.categoryId, 'water_drainage');
+  assert.equal(hiWaterChat.prefill?.priority, 'critical');
+
+  const hiRoadChat = await chatCivicConcierge({
+    message: 'सड़क पर बड़ा गड्ढा है',
+    language: 'hi',
+  });
+  assert.ok(/[\u0900-\u097F]/.test(hiRoadChat.reply), 'Expected Hindi reply for road query');
+  assert.equal(hiRoadChat.prefill?.categoryId, 'roads_potholes');
+
+  const enLightChat = await chatCivicConcierge({
+    message: 'Sparking electric wire near park pole',
+    language: 'en',
+  });
+  assert.equal(enLightChat.prefill?.categoryId, 'street_lights');
+  assert.equal(enLightChat.prefill?.priority, 'critical');
+
+  if (prevConciergeKey) process.env.GEMINI_API_KEY = prevConciergeKey;
+  console.log('✓ Test 9 Passed: Bilingual Concierge fallback produces localized Hindi & English guidance.\n');
+
   console.log('====================================================');
-  console.log('CORE HARDENING SUMMARY: 8/8 TESTS PASSED CLEANLY.');
+  console.log('CORE HARDENING SUMMARY: 9/9 TESTS PASSED CLEANLY.');
   console.log('====================================================');
 }
 

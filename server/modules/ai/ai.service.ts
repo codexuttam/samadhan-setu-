@@ -3,6 +3,18 @@ import { logger } from '../../lib/logger';
 import { prisma } from '../../lib/prisma';
 import { storage } from '../files/files.service';
 
+const GEMINI_TIMEOUT_MS = 12_000;
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs = GEMINI_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export interface TranscribeResult {
   text: string;
   categorySuggestion?: string;
@@ -48,7 +60,7 @@ Respond strictly with valid JSON with these keys:
   "priority": "low" | "medium" | "high" | "critical"
 }`;
 
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -195,7 +207,7 @@ Analyze the complaint (which may be in English, Hindi, or Hinglish) and respond 
 Open manholes, sparking live wires, gas leaks, and structural collapses MUST be CRITICAL.
 Complaint: "${text.slice(0, 1500)}"`;
 
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -305,7 +317,7 @@ Respond strictly as JSON:
         parts.push({ inlineData: { mimeType: afterImg.mimeType.split(';')[0], data: afterImg.data } });
       }
 
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -417,7 +429,7 @@ Respond strictly as JSON:
         },
       ];
 
-      const response = await fetch(endpoint, {
+      const response = await fetchWithTimeout(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -446,74 +458,120 @@ Respond strictly as JSON:
     }
   }
 
-  // High-fidelity rule-based fallback
+  // High-fidelity bilingual rule-based fallback
   const lower = message.toLowerCase();
-  if (lower.includes('pothole') || lower.includes('road') || lower.includes('footpath')) {
+  const isHi = params.language === 'hi' || /[\u0900-\u097F]/.test(message);
+
+  if (/(pothole|road|footpath|flyover|गड्ढ|सड़क|फुटपाथ)/.test(lower)) {
+    const isSevere = /(accident|deep|huge|बड़ा|गहरा|दुर्घटना)/.test(lower);
     return {
-      reply: 'Namaste! Road damage and potholes fall under the Public Works Department (PWD) for main arterial roads or MCD for residential colonies. Under the Citizen Charter, pothole repairs have a mandatory 48-hour SLA deadline. Would you like me to pre-fill your complaint ticket?',
+      reply: isHi
+        ? 'नमस्ते! मुख्य सड़कों के गड्ढों की मरम्मत लोक निर्माण विभाग (PWD) और कॉलोनी सड़कों की जिम्मेदारी नगर निगम (MCD) की होती है। नागरिक चार्टर के अनुसार गड्ढों की मरम्मत 48 घंटे के SLA में अनिवार्य है। क्या मैं आपका शिकायत फ़ॉर्म पहले से भर दूँ?'
+        : 'Namaste! Road damage and potholes fall under the Public Works Department (PWD) for main arterial roads or MCD for residential colonies. Under the Citizen Charter, pothole repairs have a mandatory 48-hour SLA deadline. Would you like me to pre-fill your complaint ticket?',
       prefill: {
-        title: 'Road Damage & Pothole Repair Required',
+        title: isHi ? 'सड़क क्षति एवं गड्ढा मरम्मत आवश्यक' : 'Road Damage & Pothole Repair Required',
         description: message,
         categoryId: 'roads_potholes',
-        priority: lower.includes('accident') || lower.includes('deep') ? 'high' : 'medium',
+        priority: isSevere ? 'high' : 'medium',
         department: 'Public Works Department (PWD) / MCD',
       },
-      suggestions: ['Pre-fill Grievance Form', 'What is the SLA for roads?', 'Report another issue'],
+      suggestions: isHi
+        ? ['शिकायत फ़ॉर्म भरें', 'सड़कों के लिए SLA नियम क्या हैं?', 'दूसरी समस्या दर्ज करें']
+        : ['Pre-fill Grievance Form', 'What is the SLA for roads?', 'Report another issue'],
     };
   }
 
-  if (lower.includes('water') || lower.includes('drain') || lower.includes('sewage') || lower.includes('manhole')) {
-    const isCritical = lower.includes('manhole') || lower.includes('contamination') || lower.includes('dirty');
+  if (/(water|drain|sewage|sewer|manhole|पानी|जल|नाली|सीवर|मेनहोल|जलभराव)/.test(lower)) {
+    const isCritical = /(manhole|contamination|dirty|खुला मेनहोल|मेनहोल|गंदा पानी|दूषित)/.test(lower);
     return {
-      reply: 'Namaste! Water pipeline leaks, sewer overflows, and contaminated tap water are managed by the Delhi Jal Board (DJB). Open manholes are treated as critical public safety hazards with emergency 24h SLA. I can pre-fill your complaint right away.',
+      reply: isHi
+        ? 'नमस्ते! पानी की पाइपलाइन लीकेज, सीवर ओवरफ्लो और दूषित पेयजल की समस्याएं दिल्ली जल बोर्ड (DJB) देखता है। खुले मेनहोल को 24 घंटे की आपात SLA प्राथमिकता दी जाती है। मैं अभी आपका शिकायत फ़ॉर्म तैयार कर सकता हूँ।'
+        : 'Namaste! Water pipeline leaks, sewer overflows, and contaminated tap water are managed by the Delhi Jal Board (DJB). Open manholes are treated as critical public safety hazards with emergency 24h SLA. I can pre-fill your complaint right away.',
       prefill: {
-        title: isCritical ? 'Critical Water & Sewage Hazard' : 'Water Supply & Drainage Issue',
+        title: isCritical
+          ? isHi
+            ? 'अति आवश्यक: जल एवं सीवर सुरक्षा खतरा'
+            : 'Critical Water & Sewage Hazard'
+          : isHi
+          ? 'पेयजल आपूर्ति एवं जल निकासी समस्या'
+          : 'Water Supply & Drainage Issue',
         description: message,
         categoryId: 'water_drainage',
         priority: isCritical ? 'critical' : 'high',
         department: 'Delhi Jal Board (DJB)',
       },
-      suggestions: ['Pre-fill Grievance Form', 'How does emergency escalation work?', 'Check my ward jurisdiction'],
+      suggestions: isHi
+        ? ['शिकायत फ़ॉर्म भरें', 'आपात एस्केलेशन कैसे काम करता है?', 'मेरा वार्ड जांचें']
+        : ['Pre-fill Grievance Form', 'How does emergency escalation work?', 'Check my ward jurisdiction'],
     };
   }
 
-  if (lower.includes('light') || lower.includes('wire') || lower.includes('electric') || lower.includes('pole')) {
-    const isHazard = lower.includes('spark') || lower.includes('wire') || lower.includes('shock');
+  if (/(light|wire|electric|pole|lamp|स्ट्रीट लाइट|लाइट|बिजली|तार|खंभा|करंट)/.test(lower)) {
+    const isHazard = /(spark|wire|shock|करंट|तार|चिंगारी)/.test(lower);
     return {
-      reply: 'Namaste! Street lighting infrastructure is maintained jointly by MCD and power distribution utilities (BSES / Tata Power). ' + (isHazard ? '⚠️ Sparking wires are classified as an emergency safety issue dispatched immediately.' : 'Standard streetlight outages are resolved within 48 to 72 hours.'),
+      reply: isHi
+        ? 'नमस्ते! स्ट्रीट लाइट की देखभाल MCD और बिजली वितरण कंपनियाँ (BSES / Tata Power) करती हैं। ' +
+          (isHazard
+            ? '⚠️ बिजली के तार या चिंगारी को आपात सुरक्षा संकट मानकर तुरंत भेजा जाता है।'
+            : 'सामान्य स्ट्रीट लाइट खराबी 48 से 72 घंटे में ठीक की जाती है।')
+        : 'Namaste! Street lighting infrastructure is maintained jointly by MCD and power distribution utilities (BSES / Tata Power). ' +
+          (isHazard
+            ? '⚠️ Sparking wires are classified as an emergency safety issue dispatched immediately.'
+            : 'Standard streetlight outages are resolved within 48 to 72 hours.'),
       prefill: {
-        title: isHazard ? 'Emergency: Sparking Electrical Hazard' : 'Non-functional Street Light Report',
+        title: isHazard
+          ? isHi
+            ? 'आपातकालीन: बिजली तार / करंट का खतरा'
+            : 'Emergency: Sparking Electrical Hazard'
+          : isHi
+          ? 'खराब स्ट्रीट लाइट की रिपोर्ट'
+          : 'Non-functional Street Light Report',
         description: message,
         categoryId: 'street_lights',
         priority: isHazard ? 'critical' : 'medium',
         department: 'BSES / Municipal Power Division',
       },
-      suggestions: ['Pre-fill Grievance Form', 'Emergency Discom Helpline', 'Check Ward Status'],
+      suggestions: isHi
+        ? ['शिकायत फ़ॉर्म भरें', 'आपातकालीन बिजली हेल्पलाइन', 'वार्ड स्थिति देखें']
+        : ['Pre-fill Grievance Form', 'Emergency Discom Helpline', 'Check Ward Status'],
     };
   }
 
-  if (lower.includes('garbage') || lower.includes('waste') || lower.includes('trash') || lower.includes('cleaning')) {
+  if (/(garbage|waste|trash|cleaning|sanitation|कूड़ा|कचरा|गंदगी|सफाई)/.test(lower)) {
     return {
-      reply: 'Namaste! Municipal sanitation and daily solid waste collection are handled by your Municipal Corporation (MCD). Under the Swachhata guidelines, unattended garbage dumps have a 24-hour clearance target. Click below to file this directly with your ward sanitary inspector.',
+      reply: isHi
+        ? 'नमस्ते! कचरा संग्रहण और सार्वजनिक स्वच्छता नगर निगम (MCD) के अधीन आती है। स्वच्छता दिशानिर्देशों के तहत कचरा ढेर हटाने का लक्ष्य 24 घंटे है। नीचे टैप करके अपने वार्ड स्वच्छता निरीक्षक को सीधे रिपोर्ट करें।'
+        : 'Namaste! Municipal sanitation and daily solid waste collection are handled by your Municipal Corporation (MCD). Under the Swachhata guidelines, unattended garbage dumps have a 24-hour clearance target. Click below to file this directly with your ward sanitary inspector.',
       prefill: {
-        title: 'Garbage Pileup & Sanitation Clearance Request',
+        title: isHi ? 'कचरा जमाव एवं सफाई अनुरोध' : 'Garbage Pileup & Sanitation Clearance Request',
         description: message,
         categoryId: 'garbage_sanitation',
         priority: 'medium',
         department: 'Municipal Corporation Sanitation Division',
       },
-      suggestions: ['Pre-fill Grievance Form', 'View Ward Sanitation Schedule', 'Report nearby illegal dump'],
+      suggestions: isHi
+        ? ['शिकायत फ़ॉर्म भरें', 'वार्ड सफाई समय देखें', 'अवैध कचरा ढेर की रिपोर्ट करें']
+        : ['Pre-fill Grievance Form', 'View Ward Sanitation Schedule', 'Report nearby illegal dump'],
     };
   }
 
   return {
-    reply: 'Namaste! I am Samadhan Sahayak (समाधान सहायक), your AI civic concierge. You can describe any civic problem (e.g. broken roads, dark streets, leaking pipes, garbage heaps) in Hindi, English, or Hinglish, and I will identify the responsible authority, check the SLA, and pre-fill your grievance form for you.',
-    suggestions: [
-      'Report large pothole near metro station',
-      'Water supply is dirty / contaminated',
-      'Streetlights not working on 5th cross',
-      'Uncollected garbage dump outside society',
-    ],
+    reply: isHi
+      ? 'नमस्ते! मैं समाधान सहायक हूँ, आपका AI नागरिक मार्गदर्शक। आप टूटी सड़क, खराब स्ट्रीट लाइट, गंदा पानी या कचरे जैसी कोई भी समस्या हिंदी या अंग्रेज़ी में बता सकते हैं—मैं सही विभाग, SLA समय और शिकायत फ़ॉर्म तुरंत तैयार कर दूँगा।'
+      : 'Namaste! I am Samadhan Sahayak (समाधान सहायक), your AI civic concierge. You can describe any civic problem (e.g. broken roads, dark streets, leaking pipes, garbage heaps) in Hindi, English, or Hinglish, and I will identify the responsible authority, check the SLA, and pre-fill your grievance form for you.',
+    suggestions: isHi
+      ? [
+          'मेट्रो स्टेशन के पास बड़ा गड्ढा है',
+          'नल में गंदा पानी आ रहा है',
+          'गली की स्ट्रीट लाइट बंद है',
+          'सोसायटी के बाहर कचरा जमा है',
+        ]
+      : [
+          'Report large pothole near metro station',
+          'Water supply is dirty / contaminated',
+          'Streetlights not working on 5th cross',
+          'Uncollected garbage dump outside society',
+        ],
   };
 }
 
