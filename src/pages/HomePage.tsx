@@ -167,13 +167,28 @@ export default function HomePage({
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!searchQuery.trim()) return;
-    const query = searchQuery.toLowerCase();
-    const matched = CATEGORIES.find(
-      (c) =>
-        c.name.toLowerCase().includes(query) ||
-        c.description.toLowerCase().includes(query) ||
-        c.subcategories.some((s) => s.toLowerCase().includes(query))
-    );
+    const query = searchQuery.toLowerCase().trim();
+
+    const keywordMap: Array<{ id: string; pattern: RegExp }> = [
+      { id: 'roads_potholes', pattern: /(pothole|road|footpath|asphalt|गड्ढ|सड़क|फुटपाथ)/ },
+      { id: 'street_lights', pattern: /(light|lamp|electric|wire|pole|spark|स्ट्रीट|लाइट|बत्ती|बिजली|तार|खंभ)/ },
+      { id: 'water_drainage', pattern: /(water|drain|sewage|sewer|manhole|leak|पानी|जल|नाली|सीवर|मेनहोल|रिसाव)/ },
+      { id: 'garbage_sanitation', pattern: /(garbage|waste|trash|sanitation|clean|कूड़ा|कचरा|सफाई|गंदगी)/ },
+      { id: 'public_safety', pattern: /(safety|encroach|hazard|park|सुरक्षा|अतिक्रमण|खतरा|पार्क)/ },
+    ];
+
+    const matchedByKeyword = keywordMap.find((entry) => entry.pattern.test(query));
+    const matched =
+      CATEGORIES.find((c) => {
+        const hiMeta = categoryTranslations[c.id]?.hi;
+        return (
+          c.name.toLowerCase().includes(query) ||
+          c.description.toLowerCase().includes(query) ||
+          c.subcategories.some((s) => s.toLowerCase().includes(query)) ||
+          Boolean(hiMeta && (hiMeta.name.toLowerCase().includes(query) || hiMeta.desc.toLowerCase().includes(query)))
+        );
+      }) || (matchedByKeyword ? CATEGORIES.find((c) => c.id === matchedByKeyword.id) : undefined);
+
     if (matched) {
       sessionStorage.setItem('preselected_category_id', matched.id);
       setPage('raise');

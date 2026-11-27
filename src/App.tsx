@@ -1,8 +1,9 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import toast, { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import ErrorBoundary from './components/ErrorBoundary';
 import CivicConciergeChat, { ConciergePrefill } from './components/CivicConciergeChat';
 import LanguagePreferenceModal from './components/LanguagePreferenceModal';
 import { authorityLogout, authorityMe, type AuthorityProfile } from './lib/api';
@@ -139,7 +140,13 @@ export default function App() {
   // Search context
   const [trackingInput, setTrackingInput] = useState<string>(initialTrackRef);
   const [selectedTrackedId, setSelectedTrackedId] = useState<string>(initialTrackRef);
+  const latestTrackedIdRef = useRef<string>(initialTrackRef);
   const [conciergePrefill, setConciergePrefill] = useState<ConciergePrefill | null>(null);
+
+  const updateSelectedTrackedId = (id: string) => {
+    latestTrackedIdRef.current = id;
+    setSelectedTrackedId(id);
+  };
 
   // Sync `?track=<ID>` deep links into canonical `/track/<ID>` route on first mount
   useEffect(() => {
@@ -310,7 +317,7 @@ export default function App() {
   // Helper to trigger active route navigation
   const navigateTo = (targetPage: string, overrideTrackId?: string) => {
     if (targetPage === 'track') {
-      const targetId = (overrideTrackId ?? selectedTrackedId).trim();
+      const targetId = (overrideTrackId ?? latestTrackedIdRef.current).trim();
       navigate(targetId ? `/track/${encodeURIComponent(targetId)}` : '/track');
     } else {
       navigate(PAGE_PATHS[targetPage] || '/');
@@ -320,6 +327,7 @@ export default function App() {
 
   const handleSelectTracked = (id: string) => {
     setTrackingInput(id);
+    latestTrackedIdRef.current = id;
     setSelectedTrackedId(id);
     navigate(id ? `/track/${encodeURIComponent(id)}` : '/track');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -475,6 +483,7 @@ export default function App() {
 
       {/* MAIN LAYOUT CANVAS VIEWPORT */}
       <main className="flex-grow">
+        <ErrorBoundary language={language} onReset={() => navigate('/')}>
         <Suspense
           fallback={
             <div className="max-w-4xl mx-auto px-4 py-24 text-center space-y-3 select-none">
@@ -494,7 +503,7 @@ export default function App() {
                   language={language}
                   complaints={complaints}
                   setTrackingInput={setTrackingInput}
-                  setSelectedTrackedId={setSelectedTrackedId}
+                  setSelectedTrackedId={updateSelectedTrackedId}
                 />
               }
             />
@@ -504,7 +513,7 @@ export default function App() {
                 <RaiseComplaintPage
                   onAddComplaint={handleAddComplaint}
                   setPage={navigateTo}
-                  setSelectedTrackedId={setSelectedTrackedId}
+                  setSelectedTrackedId={updateSelectedTrackedId}
                   setTrackingInput={setTrackingInput}
                   onOfflineQueueChange={refreshOfflineCount}
                   prefillData={conciergePrefill}
@@ -552,7 +561,7 @@ export default function App() {
                 <CitizenDashboard
                   complaints={complaints}
                   setPage={navigateTo}
-                  setSelectedTrackedId={setSelectedTrackedId}
+                  setSelectedTrackedId={updateSelectedTrackedId}
                   setTrackingInput={setTrackingInput}
                   language={language}
                 />
@@ -567,7 +576,7 @@ export default function App() {
                   onUpdateComplaint={handleUpdateComplaint}
                   onAddUpdateLog={handleAddUpdateLog}
                   setPage={navigateTo}
-                  setSelectedTrackedId={setSelectedTrackedId}
+                  setSelectedTrackedId={updateSelectedTrackedId}
                   setTrackingInput={setTrackingInput}
                   language={language}
                 />
@@ -582,7 +591,7 @@ export default function App() {
                   onUpdateComplaint={handleUpdateComplaint}
                   onAddUpdateLog={handleAddUpdateLog}
                   setPage={navigateTo}
-                  setSelectedTrackedId={setSelectedTrackedId}
+                  setSelectedTrackedId={updateSelectedTrackedId}
                   setTrackingInput={setTrackingInput}
                   authUser={authUser}
                   language={language}
@@ -598,7 +607,7 @@ export default function App() {
                   onUpdateComplaint={handleUpdateComplaint}
                   onAddUpdateLog={handleAddUpdateLog}
                   setPage={navigateTo}
-                  setSelectedTrackedId={setSelectedTrackedId}
+                  setSelectedTrackedId={updateSelectedTrackedId}
                   setTrackingInput={setTrackingInput}
                   authUser={authUser}
                   language={language}
@@ -630,6 +639,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>
+        </ErrorBoundary>
       </main>
 
       {/* GLOBAL FOOTER CONTRACT */}

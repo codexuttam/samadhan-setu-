@@ -1300,7 +1300,126 @@ export default function AdminDashboard({
       )}
 
       {/* DEPARTMENT SCORECARD & LEADERBOARD SECTION */}
-      {activeTab === 'scorecard' && (
+      {activeTab === 'scorecard' && (() => {
+        const nowTs = Date.now();
+        const departmentScorecard = DEPARTMENTS.map((dept) => {
+          const deptComplaints = complaints.filter((c) => c.departmentId === dept.id);
+          const total = deptComplaints.length;
+          const resolvedList = deptComplaints.filter(
+            (c) => c.status === 'Resolved' || c.status === 'Closed',
+          );
+
+          const withinSlaCount = deptComplaints.filter((c) => {
+            const deadline = new Date(c.slaDeadline).getTime();
+            if (c.status === 'Resolved' || c.status === 'Closed') {
+              const resolvedTime = new Date(c.resolutionProof?.resolvedAt || c.updatedAt).getTime();
+              return resolvedTime <= deadline;
+            }
+            return !c.slaBreached && nowTs <= deadline;
+          }).length;
+
+          const slaRateNum = total > 0 ? Math.round((withinSlaCount / total) * 1000) / 10 : 100;
+
+          const resolutionHours = resolvedList
+            .map((c) => {
+              const start = new Date(c.createdAt).getTime();
+              const end = new Date(c.resolutionProof?.resolvedAt || c.updatedAt).getTime();
+              return end >= start ? (end - start) / 3600_000 : null;
+            })
+            .filter((h): h is number => h !== null);
+
+          const avgHours =
+            resolutionHours.length > 0
+              ? Math.round((resolutionHours.reduce((s, h) => s + h, 0) / resolutionHours.length) * 10) / 10
+              : null;
+
+          const grade =
+            total === 0
+              ? '—'
+              : slaRateNum >= 95
+              ? 'A+'
+              : slaRateNum >= 88
+              ? 'A'
+              : slaRateNum >= 80
+              ? 'B+'
+              : slaRateNum >= 70
+              ? 'B'
+              : isHi
+              ? 'C (सुधार आवश्यक)'
+              : 'C (Action Req)';
+
+          const gradeColor =
+            total === 0
+              ? 'bg-slate-100 text-slate-600'
+              : slaRateNum >= 95
+              ? 'bg-emerald-100 text-emerald-800'
+              : slaRateNum >= 85
+              ? 'bg-emerald-50 text-emerald-700'
+              : slaRateNum >= 75
+              ? 'bg-blue-50 text-blue-700'
+              : 'bg-red-50 text-red-700';
+
+          const csat =
+            total === 0
+              ? '—'
+              : `${Math.min(5, Math.max(3.2, Number((3.4 + (slaRateNum / 100) * 1.5).toFixed(1))))} ★`;
+
+          return {
+            id: dept.id,
+            name: tDepartment(dept.id, language, dept.name),
+            total,
+            resolved: resolvedList.length,
+            velocity:
+              avgHours !== null
+                ? isHi
+                  ? `${avgHours} घंटे`
+                  : `${avgHours} hrs`
+                : isHi
+                ? 'प्रतीक्षित'
+                : 'Pending',
+            sla: `${slaRateNum}%`,
+            slaRateNum,
+            csat,
+            grade,
+            gradeColor,
+          };
+        })
+          .sort((a, b) => b.slaRateNum - a.slaRateNum || b.total - a.total)
+          .map((row, index) => ({ ...row, rank: index + 1 }));
+
+        const handleExportScorecard = () => {
+          const escapeCell = (v: string | number) => {
+            const str = String(v ?? '');
+            const safe = /^[=+\-@]/.test(str) ? `'${str}` : str;
+            return `"${safe.replace(/"/g, '""')}"`;
+          };
+          const headers = isHi
+            ? ['रैंक', 'विभाग', 'कुल शिकायतें', 'समाधान पूर्ण', 'औसत समाधान गति', 'SLA अनुपालन', 'CSAT अनुमान', 'ग्रेड']
+            : ['Rank', 'Department', 'Total Tickets', 'Resolved', 'Avg Resolution Velocity', 'SLA Compliance', 'CSAT Est.', 'Grade'];
+          const rows = departmentScorecard.map((d) => [
+            d.rank,
+            d.name,
+            d.total,
+            d.resolved,
+            d.velocity,
+            d.sla,
+            d.csat,
+            d.grade,
+          ]);
+          const csvData = '\uFEFF' + [headers, ...rows].map((r) => r.map(escapeCell).join(',')).join('\r\n');
+          const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `samadhan_setu_scorecard_${new Date().toISOString().slice(0, 10)}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+          toast.success(isHi ? '📊 नगर निगम ऑडिट स्कोरकार्ड CSV के रूप में निर्यात किया गया!' : '📊 Municipal Audit Scorecard exported as CSV!');
+        };
+
+        return (
         <div className="space-y-6">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
             <div>
@@ -1309,29 +1428,13 @@ export default function AdminDashboard({
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 {isHi
-                  ? 'विभागों की समाधान गति, SLA अनुपालन दर और नागरिक संतुष्टि रेटिंग का मूल्यांकन।'
-                  : 'Evaluates resolution velocity, SLA adherence, and citizen satisfaction ratings across municipal bodies.'}
+                  ? 'लाइव शिकायत डेटा के आधार पर विभागों की समाधान गति और SLA अनुपालन दर का मूल्यांकन।'
+                  : 'Evaluates live resolution velocity and SLA adherence computed directly from active grievance records.'}
               </p>
             </div>
             <button
               type="button"
-              onClick={() => {
-                const csvData = [
-                  'Rank,Department,Resolution Velocity,SLA Compliance,CSAT Rating,Grade',
-                  '1,Roads & Infrastructure,18.4 hrs,96.2%,4.8/5,A+',
-                  '2,Delhi Jal Board,24.1 hrs,92.5%,4.5/5,A',
-                  '3,BSES Yamuna Power,28.6 hrs,89.1%,4.3/5,B+',
-                  '4,Irrigation & Flood Control,34.2 hrs,85.0%,4.1/5,B',
-                  '5,Solid Waste & Sanitation,41.5 hrs,78.2%,3.7/5,C',
-                ].join('\n');
-                const blob = new Blob([csvData], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `samadhan_setu_scorecard_${new Date().toISOString().slice(0, 10)}.csv`;
-                a.click();
-                toast.success(isHi ? '📊 नगर निगम ऑडिट स्कोरकार्ड CSV के रूप में निर्यात किया गया!' : '📊 Municipal Audit Scorecard exported as CSV!');
-              }}
+              onClick={handleExportScorecard}
               className="flex items-center gap-1.5 px-3.5 py-2 bg-[#0F1B2D] hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-all shadow-xs cursor-pointer shrink-0"
             >
               <Download className="w-3.5 h-3.5 text-[#F4511E]" />
@@ -1346,23 +1449,21 @@ export default function AdminDashboard({
                   <tr className="bg-slate-50/80 border-b border-[#E5E7EB] text-[#64748B] font-extrabold text-[10px] uppercase tracking-wider">
                     <th className="py-3 px-4">{isHi ? 'रैंक' : 'Rank'}</th>
                     <th className="py-3 px-4">{isHi ? 'विभाग' : 'Department'}</th>
+                    <th className="py-3 px-4">{isHi ? 'शिकायत भार (हल/कुल)' : 'Load (Resolved/Total)'}</th>
                     <th className="py-3 px-4">{isHi ? 'औसत समाधान गति' : 'Avg Resolution Velocity'}</th>
                     <th className="py-3 px-4">{isHi ? 'SLA अनुपालन दर' : 'SLA Compliance Rate'}</th>
-                    <th className="py-3 px-4">{isHi ? 'नागरिक रेटिंग (CSAT)' : 'Citizen Rating (CSAT)'}</th>
+                    <th className="py-3 px-4">{isHi ? 'अनुमानित CSAT' : 'Est. Rating'}</th>
                     <th className="py-3 px-4">{isHi ? 'प्रदर्शन ग्रेड' : 'Performance Grade'}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E5E7EB]">
-                  {[
-                    { rank: 1, name: isHi ? 'सड़क एवं बुनियादी ढांचा (MCD)' : 'Roads & Infrastructure (MCD)', velocity: isHi ? '18.4 घंटे' : '18.4 hrs', sla: '96.2%', rating: '4.8 ★', grade: 'A+', gradeColor: 'bg-emerald-100 text-emerald-800' },
-                    { rank: 2, name: isHi ? 'दिल्ली जल बोर्ड (DJB)' : 'Delhi Jal Board (DJB)', velocity: isHi ? '24.1 घंटे' : '24.1 hrs', sla: '92.5%', rating: '4.5 ★', grade: 'A', gradeColor: 'bg-emerald-50 text-emerald-700' },
-                    { rank: 3, name: isHi ? 'विद्युत एवं स्ट्रीट लाइट (BSES)' : 'Electricity & Lighting (BSES)', velocity: isHi ? '28.6 घंटे' : '28.6 hrs', sla: '89.1%', rating: '4.3 ★', grade: 'B+', gradeColor: 'bg-blue-50 text-blue-700' },
-                    { rank: 4, name: isHi ? 'सिंचाई एवं बाढ़ नियंत्रण' : 'Irrigation & Flood Control', velocity: isHi ? '34.2 घंटे' : '34.2 hrs', sla: '85.0%', rating: '4.1 ★', grade: 'B', gradeColor: 'bg-amber-50 text-amber-700' },
-                    { rank: 5, name: isHi ? 'कचरा एवं ठोस अपशिष्ट प्रबंधन' : 'Garbage & Solid Waste Management', velocity: isHi ? '41.5 घंटे' : '41.5 hrs', sla: '78.2%', rating: '3.7 ★', grade: isHi ? 'C (सुधार आवश्यक)' : 'C (Action Req)', gradeColor: 'bg-red-50 text-red-700' },
-                  ].map((dept) => (
-                    <tr key={dept.rank} className="hover:bg-slate-50/70 transition-colors">
+                  {departmentScorecard.map((dept) => (
+                    <tr key={dept.id} className="hover:bg-slate-50/70 transition-colors">
                       <td className="py-3.5 px-4 font-mono font-bold text-[#0F1B2D]">#{dept.rank}</td>
                       <td className="py-3.5 px-4 font-bold text-[#0F1B2D]">{dept.name}</td>
+                      <td className="py-3.5 px-4 font-mono font-semibold text-slate-700">
+                        {dept.resolved}/{dept.total}
+                      </td>
                       <td className="py-3.5 px-4 font-mono font-medium text-slate-700">{dept.velocity}</td>
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-2">
@@ -1372,7 +1473,7 @@ export default function AdminDashboard({
                           </div>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 font-bold text-amber-600">{dept.rating}</td>
+                      <td className="py-3.5 px-4 font-bold text-amber-600">{dept.csat}</td>
                       <td className="py-3.5 px-4">
                         <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold ${dept.gradeColor}`}>
                           {dept.grade}
@@ -1385,7 +1486,8 @@ export default function AdminDashboard({
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* GOVERNANCE & AUDIT CONTROL CENTER */}
       {activeTab === 'governance' && (
