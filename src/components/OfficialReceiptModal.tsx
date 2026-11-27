@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import {
   Printer,
-  Download,
+  Copy,
+  Check,
   X,
   ShieldCheck,
   Building2,
@@ -97,15 +99,28 @@ function DeterministicSvgQr({ data, size = 120 }: { data: string; size?: number 
 
 export default function OfficialReceiptModal({ complaint, onClose, language = 'en' }: OfficialReceiptModalProps) {
   const isHi = language === 'hi';
+  const [qrImgFailed, setQrImgFailed] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
   const category = CATEGORIES.find((c) => c.id === complaint.categoryId);
   const department = DEPARTMENTS.find((d) => d.id === complaint.departmentId);
   const ward = WARDS.find((w) => w.id === complaint.wardId);
   const slaHours = getSLADurationHours(complaint.priority);
 
-  const trackingUrl = `${window.location.origin}/?track=${encodeURIComponent(complaint.id)}`;
+  const trackingUrl = `${window.location.origin}/track/${encodeURIComponent(complaint.id)}`;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleCopyTrackingUrl = async () => {
+    try {
+      await navigator.clipboard?.writeText(trackingUrl);
+      setCopiedLink(true);
+      toast.success(isHi ? '✓ ट्रैकिंग लिंक कॉपी हो गया!' : '✓ Tracking URL copied!');
+      setTimeout(() => setCopiedLink(false), 2000);
+    } catch {
+      toast.error(isHi ? 'लिंक कॉपी नहीं हो सका।' : 'Could not copy link.');
+    }
   };
 
   const maskPhone = (phone?: string) => {
@@ -153,6 +168,14 @@ export default function OfficialReceiptModal({ complaint, onClose, language = 'e
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopyTrackingUrl}
+              className="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              {copiedLink ? (isHi ? 'कॉपी हुआ' : 'Copied') : isHi ? 'लिंक कॉपी करें' : 'Copy Link'}
+            </button>
             <button
               onClick={handlePrint}
               className="bg-[#FF6A2A] hover:bg-[#E55A1F] text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs"
@@ -220,7 +243,18 @@ export default function OfficialReceiptModal({ complaint, onClose, language = 'e
             </div>
 
             <div className="flex flex-col items-center p-2 bg-white border border-slate-300 rounded-lg shadow-xs">
-              <DeterministicSvgQr data={trackingUrl} size={90} />
+              {!qrImgFailed ? (
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=110x110&data=${encodeURIComponent(trackingUrl)}`}
+                  alt={`QR code for ${complaint.id}`}
+                  width={90}
+                  height={90}
+                  onError={() => setQrImgFailed(true)}
+                  className="w-[90px] h-[90px] object-contain"
+                />
+              ) : (
+                <DeterministicSvgQr data={trackingUrl} size={90} />
+              )}
               <span className="text-[8px] font-mono text-slate-500 mt-1 uppercase tracking-wider font-bold">
                 {isHi ? 'सत्यापन हेतु स्कैन करें' : 'Scan to Verify'}
               </span>

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import toast from 'react-hot-toast';
 import { Complaint } from '../data/mockData';
 import { tSubcategory, tStatus } from '../i18n/translations';
 import {
@@ -6,6 +7,7 @@ import {
   Filter,
   Eye,
   Plus,
+  Download,
   AlertTriangle,
   Clock,
   CheckCircle2,
@@ -29,7 +31,7 @@ export default function CitizenDashboard({
   language = 'en',
 }: CitizenDashboardProps) {
   const isHi = language === 'hi';
-  const [filterStatus, setFilterStatus] = useState<'All' | 'Submitted' | 'In Progress' | 'Resolved' | 'Closed'>('All');
+  const [filterStatus, setFilterStatus] = useState<'All' | 'Submitted' | 'In Progress' | 'Escalated' | 'Resolved' | 'Closed'>('All');
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter complaints by citizen 'cit_uttam' (the currently logged in demo citizen)
@@ -58,12 +60,54 @@ export default function CitizenDashboard({
     setPage('track');
   };
 
+  const handleExportCsv = () => {
+    if (filteredComplaints.length === 0) {
+      toast(isHi ? 'निर्यात के लिए कोई शिकायत उपलब्ध नहीं है।' : 'No matching complaints to export.');
+      return;
+    }
+
+    const escapeCsvCell = (value: string) => {
+      const str = String(value ?? '');
+      const formulaSafe = /^[=+\-@]/.test(str) ? `'${str}` : str;
+      return `"${formulaSafe.replace(/"/g, '""')}"`;
+    };
+
+    const headers = isHi
+      ? ['शिकायत आईडी', 'शीर्षक', 'श्रेणी', 'पता', 'प्राथमिकता', 'स्थिति', 'दर्ज तिथि', 'SLA समय-सीमा']
+      : ['Complaint ID', 'Title', 'Subcategory', 'Address', 'Priority', 'Status', 'Created At', 'SLA Deadline'];
+
+    const rows = filteredComplaints.map((c) => [
+      c.id,
+      c.title,
+      tSubcategory(c.subcategory, language),
+      `${c.address}, ${c.city} - ${c.pincode}`,
+      c.priority.toUpperCase(),
+      tStatus(c.status, language),
+      new Date(c.createdAt).toLocaleString(isHi ? 'hi-IN' : 'en-IN'),
+      new Date(c.slaDeadline).toLocaleString(isHi ? 'hi-IN' : 'en-IN'),
+    ]);
+
+    const csv = '\uFEFF' + [headers, ...rows].map((r) => r.map(escapeCsvCell).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'samadhan-setu-my-complaints.csv';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(isHi ? '✓ CSV फ़ाइल डाउनलोड हो गई!' : '✓ Exported complaints CSV!');
+  };
+
   const getStatusStyle = (status: string) => {
     switch (status) {
       case 'Submitted':
         return 'text-amber-600 font-bold';
       case 'In Progress':
         return 'text-blue-600 font-bold';
+      case 'Escalated':
+        return 'text-red-600 font-bold';
       case 'Resolved':
         return 'text-emerald-600 font-bold';
       case 'Closed':
@@ -88,12 +132,21 @@ export default function CitizenDashboard({
               : 'Here is the operational status of your filed community reports.'}
           </p>
         </div>
-        <button
-          onClick={() => setPage('raise')}
-          className="flex items-center gap-1.5 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-xs"
-        >
-          <Plus className="w-4 h-4" /> {isHi ? 'नई शिकायत दर्ज करें' : 'Raise New Complaint'}
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleExportCsv}
+            className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-[#0F1B2D] border border-[#E5E7EB] px-4 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-xs"
+          >
+            <Download className="w-4 h-4 text-[#F4511E]" /> {isHi ? 'CSV डाउनलोड करें' : 'Export CSV'}
+          </button>
+          <button
+            onClick={() => setPage('raise')}
+            className="flex items-center gap-1.5 bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-5 py-2.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-xs"
+          >
+            <Plus className="w-4 h-4" /> {isHi ? 'नई शिकायत दर्ज करें' : 'Raise New Complaint'}
+          </button>
+        </div>
       </div>
 
       {/* Overview Statistics Cards Grid */}
@@ -159,7 +212,7 @@ export default function CitizenDashboard({
           
           {/* Segmented active filters (Interative Buttons allowed) */}
           <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-lg self-start">
-            {(['All', 'Submitted', 'In Progress', 'Resolved', 'Closed'] as const).map((status) => {
+            {(['All', 'Submitted', 'In Progress', 'Escalated', 'Resolved', 'Closed'] as const).map((status) => {
               const isActive = filterStatus === status;
               const filterLabel =
                 status === 'All'
