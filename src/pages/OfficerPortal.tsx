@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Complaint, Officer, OFFICERS, ComplaintUpdate } from '../data/mockData';
+import { Complaint, OFFICERS, ComplaintUpdate } from '../data/mockData';
 import { tSubcategory, tStatus, tDepartment } from '../i18n/translations';
+import { getCsrfToken } from '../lib/api';
 import {
   CheckCircle2,
   Clock,
@@ -46,22 +47,53 @@ export default function OfficerPortal({
   
   // Proof states
   const [resolutionNote, setResolutionNote] = useState('');
-  const [resolutionProofPhotoSimulated, setResolutionProofPhotoSimulated] = useState(false);
+  const [proofFile, setProofFile] = useState<{ file: File; previewUrl: string; name: string } | null>(null);
+  const [isSubmittingProof, setIsSubmittingProof] = useState(false);
 
   // Anti-fraud geofencing states
   const [isCheckingGps, setIsCheckingGps] = useState(false);
-  const [geofenceStatus, setGeofenceStatus] = useState<{ verified: boolean; distanceMeters: number } | null>(null);
+  const [geofenceStatus, setGeofenceStatus] = useState<{
+    verified: boolean;
+    distanceMeters: number;
+    lat: number;
+    lng: number;
+  } | null>(null);
+  const [gpsError, setGpsError] = useState('');
+
+  const clearProofFile = () => {
+    setProofFile((prev) => {
+      if (prev?.previewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(prev.previewUrl);
+      }
+      return null;
+    });
+  };
+
+  const handleProofFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (proofFile?.previewUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(proofFile.previewUrl);
+    }
+    setProofFile({
+      file,
+      previewUrl: URL.createObjectURL(file),
+      name: file.name,
+    });
+    e.target.value = '';
+  };
 
   const verifyOnSiteGps = (job: Complaint) => {
     setIsCheckingGps(true);
+    setGpsError('');
     if (!navigator.geolocation) {
       setIsCheckingGps(false);
-      setGeofenceStatus({ verified: true, distanceMeters: 38 });
-      toast.success(
-        isHi
-          ? '📍 ऑन-साइट जियोफेंस सत्यापित: मरम्मत स्थल से 38 मीटर दूर।'
-          : '📍 On-Site Geofence Verified: 38m from repair coordinates.',
-      );
+      setGeofenceStatus(null);
+      const msg = isHi
+        ? 'इस डिवाइस/ब्राउज़र में GPS जियोलोकेशन उपलब्ध नहीं है। कृपया लोकेशन-सक्षम डिवाइस से प्रयास करें।'
+        : 'GPS geolocation is unavailable in this browser. Please verify from a location-enabled device.';
+      setGpsError(msg);
+      toast.error(msg);
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -82,7 +114,7 @@ export default function OfficerPortal({
         const distanceMeters = Math.round(6371000 * c);
 
         const verified = distanceMeters <= 250;
-        setGeofenceStatus({ verified, distanceMeters });
+        setGeofenceStatus({ verified, distanceMeters, lat, lng });
 
         if (verified) {
           toast.success(
@@ -98,16 +130,16 @@ export default function OfficerPortal({
           );
         }
       },
-      () => {
+      (err) => {
         setIsCheckingGps(false);
-        setGeofenceStatus({ verified: true, distanceMeters: 42 });
-        toast.success(
-          isHi
-            ? '📍 ऑन-साइट जियोफेंस सत्यापित: मरम्मत स्थल से 42 मी दूर।'
-            : '📍 On-Site Geofence Verified: 42m from repair coordinates.',
-        );
+        setGeofenceStatus(null);
+        const msg = isHi
+          ? `GPS लोकेशन प्राप्त नहीं हो सकी (${err.message || 'अनुमति अस्वीकृत'})। कृपया स्थान अनुमति दें और पुनः प्रयास करें।`
+          : `Unable to acquire GPS location (${err.message || 'permission denied'}). Please allow location access and retry.`;
+        setGpsError(msg);
+        toast(msg, { icon: '⚠️' });
       },
-      { timeout: 6000 }
+      { enableHighAccuracy: true, timeout: 8000 },
     );
   };
 
@@ -149,20 +181,51 @@ export default function OfficerPortal({
     );
   };
 
-  const handleResolveJobSubmit = (e: React.FormEvent, complaint: Complaint) => {
+  const handleResolveJobSubmit = async (e: React.FormEvent, complaint: Complaint) => {
     e.preventDefault();
     if (!resolutionNote.trim()) {
       toast(isHi ? 'कृपया की गई मरम्मत का विवरण दर्ज करें!' : 'Please provide a resolution note detailing the repairs done!');
       return;
     }
 
+    setIsSubmittingProof(true);
+    const csrf = getCsrfToken();
+    if (csrf) {
+      try {
+        const formData = new FormData();
+        formData.append('toStatus', 'WORK_COMPLETED');
+        formData.append('resolutionNote', resolutionNote.trim());
+        if (geofenceStatus) {
+          formData.append('officerLat', String(geofenceStatus.lat));
+          formData.append('officerLng', String(geofenceStatus.lng));
+        }
+        if (proofFile?.file) {
+          formData.append('evidence', proofFile.file);
+        }
+        await fetch(`/api/authority/complaints/${encodeURIComponent(complaint.id)}/transition`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'X-CSRF-Token': csrf },
+          body: formData,
+        });
+      } catch {
+        // Keep local simulator update working seamlessly even when backend/DB is offline
+      }
+    }
+
+    const geoSummary = geofenceStatus
+      ? isHi
+        ? ` (जियोफेंस: ${geofenceStatus.distanceMeters} मी ${geofenceStatus.verified ? 'सत्यापित' : 'सीमा से बाहर'})`
+        : ` (Geofence: ${geofenceStatus.distanceMeters}m ${geofenceStatus.verified ? 'verified' : 'outside 250m'})`
+      : '';
+
     const updated: Complaint = {
       ...complaint,
       status: 'Resolved',
       updatedAt: new Date().toISOString(),
       resolutionProof: {
-        photoUrl: '', // simulated empty
-        note: resolutionNote,
+        photoUrl: proofFile?.previewUrl || '',
+        note: resolutionNote.trim(),
         resolvedAt: new Date().toISOString(),
       },
     };
@@ -172,8 +235,8 @@ export default function OfficerPortal({
       complaintId: complaint.id,
       title: isHi ? 'शिकायत का समाधान दर्ज किया गया' : 'Complaint Marked Resolved',
       description: isHi
-        ? `समस्या ठीक कर दी गई है। विवरण: "${resolutionNote}"। नागरिक सत्यापन प्रतीक्षित है।`
-        : `Grievance has been fixed. Resolution details: "${resolutionNote}". Awaiting citizen verification.`,
+        ? `समस्या ठीक कर दी गई है। विवरण: "${resolutionNote.trim()}"${geoSummary}। नागरिक सत्यापन प्रतीक्षित है।`
+        : `Grievance has been fixed. Resolution details: "${resolutionNote.trim()}"${geoSummary}. Awaiting citizen verification.`,
       timestamp: new Date().toISOString(),
       authorName: currentOfficer.name,
       authorRole: 'officer',
@@ -183,7 +246,10 @@ export default function OfficerPortal({
     onAddUpdateLog(newLog);
     setSelectedJobId(null);
     setResolutionNote('');
-    setResolutionProofPhotoSimulated(false);
+    setProofFile(null);
+    setGeofenceStatus(null);
+    setGpsError('');
+    setIsSubmittingProof(false);
     toast(
       isHi
         ? `✓ कार्य ${complaint.id} हल चिह्नित किया गया। नागरिक को सत्यापन के लिए सूचित कर दिया गया है।`
@@ -327,7 +393,9 @@ export default function OfficerPortal({
                             onClick={() => {
                               setSelectedJobId(isSelected ? null : job.id);
                               setResolutionNote('');
-                              setResolutionProofPhotoSimulated(false);
+                              clearProofFile();
+                              setGeofenceStatus(null);
+                              setGpsError('');
                             }}
                             className="bg-[#F4511E] hover:bg-[#FF6A2A] text-white px-3.5 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-colors"
                           >
@@ -406,6 +474,11 @@ export default function OfficerPortal({
                         </span>
                       </div>
                     )
+                  ) : gpsError ? (
+                    <div className="flex items-start gap-2 p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-[11px] font-semibold">
+                      <ShieldAlert className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                      <span>{gpsError}</span>
+                    </div>
                   ) : (
                     <p className="text-[10px] text-slate-500">
                       {isHi
@@ -434,43 +507,45 @@ export default function OfficerPortal({
                   />
                 </div>
 
-                {/* Simulated photo proof uploader */}
+                {/* Real post-repair photo proof uploader */}
                 <div className="flex flex-col gap-1.5">
                   <label className="font-bold text-[#0F1B2D] uppercase tracking-wider">
                     {isHi ? 'सत्यापन फ़ोटो अपलोड करें *' : 'Upload Verification Photo *'}
                   </label>
-                  {resolutionProofPhotoSimulated ? (
-                    <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-lg flex items-center justify-between font-bold text-emerald-800">
-                      <span>✓ {isHi ? 'repair_proof_photo.jpg अपलोड हो गई' : 'repair_proof_photo.jpg uploaded'}</span>
-                      <button
-                        type="button"
-                        onClick={() => setResolutionProofPhotoSimulated(false)}
-                        className="text-red-500 hover:underline font-normal text-xs"
-                      >
-                        {isHi ? 'हटाएँ' : 'Remove'}
-                      </button>
+                  {proofFile ? (
+                    <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2">
+                      <div className="flex items-center justify-between font-bold text-emerald-800">
+                        <span className="truncate">✓ {proofFile.name}</span>
+                        <button
+                          type="button"
+                          onClick={clearProofFile}
+                          className="text-red-600 hover:underline font-normal text-xs shrink-0 ml-2"
+                        >
+                          {isHi ? 'हटाएँ' : 'Remove'}
+                        </button>
+                      </div>
+                      <img
+                        src={proofFile.previewUrl}
+                        alt={isHi ? 'समाधान प्रमाण पूर्वावलोकन' : 'Resolution proof preview'}
+                        className="w-full max-h-44 object-cover rounded-lg border border-emerald-200 bg-white"
+                      />
                     </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setResolutionProofPhotoSimulated(true);
-                        toast(
-                          isHi
-                            ? '📸 फ़ोटो प्रमाण संलग्न किया गया! मरम्मत के बाद की उच्च-गुणवत्ता फ़ोटो जोड़ दी गई है।'
-                            : '📸 Photo proof simulated! A high-resolution post-repair photo is attached.',
-                        );
-                      }}
-                      className="border-2 border-dashed border-slate-200 hover:border-[#F4511E] bg-slate-50 rounded-xl p-6 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-[#64748B]"
-                    >
+                    <label className="border-2 border-dashed border-slate-200 hover:border-[#F4511E] bg-slate-50 rounded-xl p-6 text-center transition-all cursor-pointer flex flex-col items-center justify-center gap-1 text-[#64748B]">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProofFileChange}
+                        className="hidden"
+                      />
                       <Upload className="w-5 h-5 text-[#F4511E]" />
                       <span className="font-bold text-slate-700">
                         {isHi ? 'मरम्मत के बाद की फ़ोटो संलग्न करें' : 'Attach Post-Repair Photo'}
                       </span>
                       <span className="text-[10px] text-slate-400">
-                        {isHi ? 'कार्य पूर्ण होने का स्पष्ट दृश्य प्रमाण अपलोड करने के लिए क्लिक करें।' : 'Click to attach high-quality visual evidence of completion.'}
+                        {isHi ? 'कार्य पूर्ण होने का स्पष्ट दृश्य प्रमाण अपलोड करने के लिए क्लिक करें (JPEG/PNG/WebP)।' : 'Click to upload visual evidence of completed work (JPEG/PNG/WebP).'}
                       </span>
-                    </button>
+                    </label>
                   )}
                 </div>
 
@@ -491,16 +566,26 @@ export default function OfficerPortal({
                 <div className="flex gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setSelectedJobId(null)}
+                    onClick={() => {
+                      clearProofFile();
+                      setSelectedJobId(null);
+                    }}
                     className="flex-1 border border-slate-200 hover:bg-slate-50 text-slate-700 py-2.5 rounded-lg font-bold uppercase tracking-wider text-[10px]"
                   >
                     {isHi ? 'रद्द करें' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
-                    className="flex-1 bg-[#16A34A] hover:bg-emerald-600 text-white py-2.5 rounded-lg font-bold uppercase tracking-wider text-[10px] transition-colors"
+                    disabled={isSubmittingProof}
+                    className="flex-1 bg-[#16A34A] hover:bg-emerald-600 disabled:opacity-60 text-white py-2.5 rounded-lg font-bold uppercase tracking-wider text-[10px] transition-colors"
                   >
-                    {isHi ? 'प्रमाण जमा करें और हल करें' : 'Submit Proof & Resolve'}
+                    {isSubmittingProof
+                      ? isHi
+                        ? 'जमा हो रहा है...'
+                        : 'Submitting...'
+                      : isHi
+                      ? 'प्रमाण जमा करें और हल करें'
+                      : 'Submit Proof & Resolve'}
                   </button>
                 </div>
 

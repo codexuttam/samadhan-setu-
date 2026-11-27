@@ -9,6 +9,7 @@ import { validateFiles, presentAttachments } from '../modules/files/files.servic
 import { resolveAccessToken } from '../modules/tracking/accessTokens';
 import { prisma } from '../lib/prisma';
 import { logger } from '../lib/logger';
+import { haversineMeters } from '../lib/geo';
 import { processCitizenVerification } from '../modules/tickets/verification.service';
 
 const upload = multer({ limits: { fileSize: 50 * 1024 * 1024, files: 5 } });
@@ -123,13 +124,22 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 publicRouter.get(
   '/nearby',
   asyncHandler(async (req, res) => {
-    const lat = req.query.lat ? parseFloat(req.query.lat as string) : undefined;
-    const lng = req.query.lng ? parseFloat(req.query.lng as string) : undefined;
+    const rawLat = typeof req.query.lat === 'string' && req.query.lat.trim() !== '' ? Number(req.query.lat) : NaN;
+    const rawLng = typeof req.query.lng === 'string' && req.query.lng.trim() !== '' ? Number(req.query.lng) : NaN;
     const categoryId = req.query.categoryId as string | undefined;
 
-    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+    if (
+      !Number.isFinite(rawLat) ||
+      !Number.isFinite(rawLng) ||
+      rawLat < -90 ||
+      rawLat > 90 ||
+      rawLng < -180 ||
+      rawLng > 180
+    ) {
       return res.json({ nearby: [] });
     }
+    const lat = rawLat;
+    const lng = rawLng;
 
     try {
       // Build safe category filter: use UUID if valid UUID, otherwise match by category code
@@ -164,19 +174,10 @@ publicRouter.get(
 
       // Haversine distance filter in meters (~500m)
       const nearby = activeTickets
-        .map((t) => {
-          const dLat = ((t.latitude! - lat) * Math.PI) / 180;
-          const dLng = ((t.longitude! - lng) * Math.PI) / 180;
-          const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos((lat * Math.PI) / 180) *
-              Math.cos((t.latitude! * Math.PI) / 180) *
-              Math.sin(dLng / 2) *
-              Math.sin(dLng / 2);
-          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-          const distanceMeters = Math.round(6371000 * c);
-          return { ...t, distanceMeters };
-        })
+        .map((t) => ({
+          ...t,
+          distanceMeters: haversineMeters(lat, lng, t.latitude!, t.longitude!),
+        }))
         .filter((t) => t.distanceMeters <= 500)
         .sort((a, b) => a.distanceMeters - b.distanceMeters)
         .slice(0, 5);
